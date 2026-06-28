@@ -171,7 +171,7 @@ export function TruckMap(props: Props) {
         <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
         <FlyTo center={truck.position} zoom={15} />
         <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng])}
+          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
           pathOptions={{ color: truck.truck.color, weight: 4, opacity: 0.8 }}
         />
         <Marker
@@ -232,7 +232,7 @@ function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRout
   const offline = truck.status === "offline";
   return (
     <Polyline
-      positions={truck.truck.route.map((p) => [p.lat, p.lng])}
+      positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
       pathOptions={{
         color: offline ? "#9ca3af" : truck.truck.color,
         weight: highlight ? 5 : 3,
