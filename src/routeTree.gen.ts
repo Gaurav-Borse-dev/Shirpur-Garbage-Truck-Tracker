@@ -9,38 +9,121 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RoleRouteImport } from './routes/role'
+import { Route as OtpRouteImport } from './routes/otp'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginResidentRouteImport } from './routes/login.resident'
+import { Route as LoginDriverRouteImport } from './routes/login.driver'
+import { Route as LoginAdminRouteImport } from './routes/login.admin'
 
+const RoleRoute = RoleRouteImport.update({
+  id: '/role',
+  path: '/role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OtpRoute = OtpRouteImport.update({
+  id: '/otp',
+  path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginResidentRoute = LoginResidentRouteImport.update({
+  id: '/login/resident',
+  path: '/login/resident',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginDriverRoute = LoginDriverRouteImport.update({
+  id: '/login/driver',
+  path: '/login/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginAdminRoute = LoginAdminRouteImport.update({
+  id: '/login/admin',
+  path: '/login/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/otp': typeof OtpRoute
+  '/role': typeof RoleRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/otp': typeof OtpRoute
+  '/role': typeof RoleRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/otp': typeof OtpRoute
+  '/role': typeof RoleRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/otp'
+    | '/role'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/otp'
+    | '/role'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
+  id:
+    | '__root__'
+    | '/'
+    | '/otp'
+    | '/role'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OtpRoute: typeof OtpRoute
+  RoleRoute: typeof RoleRoute
+  LoginAdminRoute: typeof LoginAdminRoute
+  LoginDriverRoute: typeof LoginDriverRoute
+  LoginResidentRoute: typeof LoginResidentRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/role': {
+      id: '/role'
+      path: '/role'
+      fullPath: '/role'
+      preLoaderRoute: typeof RoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/otp': {
+      id: '/otp'
+      path: '/otp'
+      fullPath: '/otp'
+      preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +131,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login/resident': {
+      id: '/login/resident'
+      path: '/login/resident'
+      fullPath: '/login/resident'
+      preLoaderRoute: typeof LoginResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/driver': {
+      id: '/login/driver'
+      path: '/login/driver'
+      fullPath: '/login/driver'
+      preLoaderRoute: typeof LoginDriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/admin': {
+      id: '/login/admin'
+      path: '/login/admin'
+      fullPath: '/login/admin'
+      preLoaderRoute: typeof LoginAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OtpRoute: OtpRoute,
+  RoleRoute: RoleRoute,
+  LoginAdminRoute: LoginAdminRoute,
+  LoginDriverRoute: LoginDriverRoute,
+  LoginResidentRoute: LoginResidentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
