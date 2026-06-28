@@ -10,8 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RoleRouteImport } from './routes/role'
+import { Route as ResidentRouteImport } from './routes/resident'
 import { Route as OtpRouteImport } from './routes/otp'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResidentIndexRouteImport } from './routes/resident.index'
+import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
+import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
+import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
 import { Route as LoginResidentRouteImport } from './routes/login.resident'
 import { Route as LoginDriverRouteImport } from './routes/login.driver'
 import { Route as LoginAdminRouteImport } from './routes/login.admin'
@@ -19,6 +24,11 @@ import { Route as LoginAdminRouteImport } from './routes/login.admin'
 const RoleRoute = RoleRouteImport.update({
   id: '/role',
   path: '/role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResidentRoute = ResidentRouteImport.update({
+  id: '/resident',
+  path: '/resident',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OtpRoute = OtpRouteImport.update({
@@ -30,6 +40,26 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ResidentIndexRoute = ResidentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentScheduleRoute = ResidentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentProfileRoute = ResidentProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentAlertsRoute = ResidentAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => ResidentRoute,
 } as any)
 const LoginResidentRoute = LoginResidentRouteImport.update({
   id: '/login/resident',
@@ -50,10 +80,15 @@ const LoginAdminRoute = LoginAdminRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/otp': typeof OtpRoute
+  '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/resident/': typeof ResidentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,25 +97,39 @@ export interface FileRoutesByTo {
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/resident': typeof ResidentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/otp': typeof OtpRoute
+  '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/resident/': typeof ResidentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/otp'
+    | '/resident'
     | '/role'
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/resident/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,19 +138,29 @@ export interface FileRouteTypes {
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/resident'
   id:
     | '__root__'
     | '/'
     | '/otp'
+    | '/resident'
     | '/role'
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/resident/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OtpRoute: typeof OtpRoute
+  ResidentRoute: typeof ResidentRouteWithChildren
   RoleRoute: typeof RoleRoute
   LoginAdminRoute: typeof LoginAdminRoute
   LoginDriverRoute: typeof LoginDriverRoute
@@ -117,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resident': {
+      id: '/resident'
+      path: '/resident'
+      fullPath: '/resident'
+      preLoaderRoute: typeof ResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/otp': {
       id: '/otp'
       path: '/otp'
@@ -130,6 +196,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/resident/': {
+      id: '/resident/'
+      path: '/'
+      fullPath: '/resident/'
+      preLoaderRoute: typeof ResidentIndexRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/schedule': {
+      id: '/resident/schedule'
+      path: '/schedule'
+      fullPath: '/resident/schedule'
+      preLoaderRoute: typeof ResidentScheduleRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/profile': {
+      id: '/resident/profile'
+      path: '/profile'
+      fullPath: '/resident/profile'
+      preLoaderRoute: typeof ResidentProfileRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/alerts': {
+      id: '/resident/alerts'
+      path: '/alerts'
+      fullPath: '/resident/alerts'
+      preLoaderRoute: typeof ResidentAlertsRouteImport
+      parentRoute: typeof ResidentRoute
     }
     '/login/resident': {
       id: '/login/resident'
@@ -155,9 +249,28 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ResidentRouteChildren {
+  ResidentAlertsRoute: typeof ResidentAlertsRoute
+  ResidentProfileRoute: typeof ResidentProfileRoute
+  ResidentScheduleRoute: typeof ResidentScheduleRoute
+  ResidentIndexRoute: typeof ResidentIndexRoute
+}
+
+const ResidentRouteChildren: ResidentRouteChildren = {
+  ResidentAlertsRoute: ResidentAlertsRoute,
+  ResidentProfileRoute: ResidentProfileRoute,
+  ResidentScheduleRoute: ResidentScheduleRoute,
+  ResidentIndexRoute: ResidentIndexRoute,
+}
+
+const ResidentRouteWithChildren = ResidentRoute._addFileChildren(
+  ResidentRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OtpRoute: OtpRoute,
+  ResidentRoute: ResidentRouteWithChildren,
   RoleRoute: RoleRoute,
   LoginAdminRoute: LoginAdminRoute,
   LoginDriverRoute: LoginDriverRoute,

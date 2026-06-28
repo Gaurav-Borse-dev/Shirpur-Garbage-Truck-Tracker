@@ -24,12 +24,12 @@ function ResidentLayout() {
 
 function BottomNav() {
   const loc = useLocation();
-  const items = [
+  const items: { to: string; label: string; Icon: typeof MapIcon; exact?: boolean }[] = [
     { to: "/resident", label: "Map", Icon: MapIcon, exact: true },
     { to: "/resident/schedule", label: "Schedule", Icon: CalendarIcon },
     { to: "/resident/alerts", label: "Alerts", Icon: BellIcon },
     { to: "/resident/profile", label: "Profile", Icon: UserIcon },
-  ] as const;
+  ];
   return (
     <nav className="border-t border-neutral-200 bg-white relative z-[700]">
       <div className="grid grid-cols-4">
