@@ -9,38 +9,273 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RoleRouteImport } from './routes/role'
+import { Route as ResidentRouteImport } from './routes/resident'
+import { Route as OtpRouteImport } from './routes/otp'
+import { Route as DriverRouteImport } from './routes/driver'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResidentIndexRouteImport } from './routes/resident.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
+import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
+import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
+import { Route as LoginResidentRouteImport } from './routes/login.resident'
+import { Route as LoginDriverRouteImport } from './routes/login.driver'
+import { Route as LoginAdminRouteImport } from './routes/login.admin'
+import { Route as AdminMapRouteImport } from './routes/admin.map'
+import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
+import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
 
+const RoleRoute = RoleRouteImport.update({
+  id: '/role',
+  path: '/role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResidentRoute = ResidentRouteImport.update({
+  id: '/resident',
+  path: '/resident',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OtpRoute = OtpRouteImport.update({
+  id: '/otp',
+  path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResidentIndexRoute = ResidentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ResidentScheduleRoute = ResidentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentProfileRoute = ResidentProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentAlertsRoute = ResidentAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const LoginResidentRoute = LoginResidentRouteImport.update({
+  id: '/login/resident',
+  path: '/login/resident',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginDriverRoute = LoginDriverRouteImport.update({
+  id: '/login/driver',
+  path: '/login/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginAdminRoute = LoginAdminRouteImport.update({
+  id: '/login/admin',
+  path: '/login/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMapRoute = AdminMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDriversRoute = AdminDriversRouteImport.update({
+  id: '/drivers',
+  path: '/drivers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAlertsRoute = AdminAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/driver': typeof DriverRoute
+  '/otp': typeof OtpRoute
+  '/resident': typeof ResidentRouteWithChildren
+  '/role': typeof RoleRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/map': typeof AdminMapRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/admin/': typeof AdminIndexRoute
+  '/resident/': typeof ResidentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/driver': typeof DriverRoute
+  '/otp': typeof OtpRoute
+  '/role': typeof RoleRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/map': typeof AdminMapRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/admin': typeof AdminIndexRoute
+  '/resident': typeof ResidentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/driver': typeof DriverRoute
+  '/otp': typeof OtpRoute
+  '/resident': typeof ResidentRouteWithChildren
+  '/role': typeof RoleRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/map': typeof AdminMapRoute
+  '/login/admin': typeof LoginAdminRoute
+  '/login/driver': typeof LoginDriverRoute
+  '/login/resident': typeof LoginResidentRoute
+  '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/profile': typeof ResidentProfileRoute
+  '/resident/schedule': typeof ResidentScheduleRoute
+  '/admin/': typeof AdminIndexRoute
+  '/resident/': typeof ResidentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/driver'
+    | '/otp'
+    | '/resident'
+    | '/role'
+    | '/admin/alerts'
+    | '/admin/drivers'
+    | '/admin/map'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/admin/'
+    | '/resident/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/driver'
+    | '/otp'
+    | '/role'
+    | '/admin/alerts'
+    | '/admin/drivers'
+    | '/admin/map'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/admin'
+    | '/resident'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/driver'
+    | '/otp'
+    | '/resident'
+    | '/role'
+    | '/admin/alerts'
+    | '/admin/drivers'
+    | '/admin/map'
+    | '/login/admin'
+    | '/login/driver'
+    | '/login/resident'
+    | '/resident/alerts'
+    | '/resident/profile'
+    | '/resident/schedule'
+    | '/admin/'
+    | '/resident/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  DriverRoute: typeof DriverRoute
+  OtpRoute: typeof OtpRoute
+  ResidentRoute: typeof ResidentRouteWithChildren
+  RoleRoute: typeof RoleRoute
+  LoginAdminRoute: typeof LoginAdminRoute
+  LoginDriverRoute: typeof LoginDriverRoute
+  LoginResidentRoute: typeof LoginResidentRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/role': {
+      id: '/role'
+      path: '/role'
+      fullPath: '/role'
+      preLoaderRoute: typeof RoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resident': {
+      id: '/resident'
+      path: '/resident'
+      fullPath: '/resident'
+      preLoaderRoute: typeof ResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/otp': {
+      id: '/otp'
+      path: '/otp'
+      fullPath: '/otp'
+      preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +283,131 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resident/': {
+      id: '/resident/'
+      path: '/'
+      fullPath: '/resident/'
+      preLoaderRoute: typeof ResidentIndexRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/resident/schedule': {
+      id: '/resident/schedule'
+      path: '/schedule'
+      fullPath: '/resident/schedule'
+      preLoaderRoute: typeof ResidentScheduleRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/profile': {
+      id: '/resident/profile'
+      path: '/profile'
+      fullPath: '/resident/profile'
+      preLoaderRoute: typeof ResidentProfileRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/alerts': {
+      id: '/resident/alerts'
+      path: '/alerts'
+      fullPath: '/resident/alerts'
+      preLoaderRoute: typeof ResidentAlertsRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/login/resident': {
+      id: '/login/resident'
+      path: '/login/resident'
+      fullPath: '/login/resident'
+      preLoaderRoute: typeof LoginResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/driver': {
+      id: '/login/driver'
+      path: '/login/driver'
+      fullPath: '/login/driver'
+      preLoaderRoute: typeof LoginDriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/admin': {
+      id: '/login/admin'
+      path: '/login/admin'
+      fullPath: '/login/admin'
+      preLoaderRoute: typeof LoginAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/map': {
+      id: '/admin/map'
+      path: '/map'
+      fullPath: '/admin/map'
+      preLoaderRoute: typeof AdminMapRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/drivers': {
+      id: '/admin/drivers'
+      path: '/drivers'
+      fullPath: '/admin/drivers'
+      preLoaderRoute: typeof AdminDriversRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/alerts': {
+      id: '/admin/alerts'
+      path: '/alerts'
+      fullPath: '/admin/alerts'
+      preLoaderRoute: typeof AdminAlertsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminAlertsRoute: typeof AdminAlertsRoute
+  AdminDriversRoute: typeof AdminDriversRoute
+  AdminMapRoute: typeof AdminMapRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAlertsRoute: AdminAlertsRoute,
+  AdminDriversRoute: AdminDriversRoute,
+  AdminMapRoute: AdminMapRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface ResidentRouteChildren {
+  ResidentAlertsRoute: typeof ResidentAlertsRoute
+  ResidentProfileRoute: typeof ResidentProfileRoute
+  ResidentScheduleRoute: typeof ResidentScheduleRoute
+  ResidentIndexRoute: typeof ResidentIndexRoute
+}
+
+const ResidentRouteChildren: ResidentRouteChildren = {
+  ResidentAlertsRoute: ResidentAlertsRoute,
+  ResidentProfileRoute: ResidentProfileRoute,
+  ResidentScheduleRoute: ResidentScheduleRoute,
+  ResidentIndexRoute: ResidentIndexRoute,
+}
+
+const ResidentRouteWithChildren = ResidentRoute._addFileChildren(
+  ResidentRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  DriverRoute: DriverRoute,
+  OtpRoute: OtpRoute,
+  ResidentRoute: ResidentRouteWithChildren,
+  RoleRoute: RoleRoute,
+  LoginAdminRoute: LoginAdminRoute,
+  LoginDriverRoute: LoginDriverRoute,
+  LoginResidentRoute: LoginResidentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
