@@ -32,7 +32,7 @@ function rng(seed: number) {
 
 /** Hand-tunable loop generator: builds an organic curved closed loop of N waypoints
  *  around a center, simulating a residential collection route. */
-function makeRoute(center: LatLng, seed: number, radiusKm = 0.9, n = 12): LatLng[] {
+export function makeRoute(center: LatLng, seed: number, radiusKm = 0.9, n = 12): LatLng[] {
   const r = rng(seed);
   const pts: LatLng[] = [];
   const baseAngle = r() * Math.PI * 2;
