@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useLocation, Navigate, useNavigate } fro
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
 import { ToastHost } from "@/components/Toast";
-import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon } from "@/components/icons";
+import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon } from "@/components/icons";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -18,6 +18,8 @@ function AdminLayout() {
   const nav = [
     { to: "/admin", label: "Dashboard", Icon: MapIcon, exact: true },
     { to: "/admin/map", label: "Live Map", Icon: TruckIcon },
+    { to: "/admin/assignments", label: "Route Assignments", Icon: MapIcon },
+    { to: "/admin/replay", label: "Route Replay", Icon: ClockIcon },
     { to: "/admin/drivers", label: "Driver Management", Icon: UserIcon },
     { to: "/admin/alerts", label: "Alerts & Logs", Icon: BellIcon },
   ];

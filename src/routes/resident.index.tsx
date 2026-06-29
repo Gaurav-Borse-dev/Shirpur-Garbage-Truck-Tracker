@@ -27,6 +27,7 @@ function ResidentHome() {
   const notifEnabled = useSettings((s) => s.notificationsEnabled);
   const setNotif = useSettings((s) => s.setNotifications);
   const push = useToast((s) => s.push);
+  const connection = useTrucks((s) => s.connection);
 
   // Pick nearest online truck (re-evaluated every tick)
   useTrucks((s) => s.tick);
@@ -95,10 +96,7 @@ function ResidentHome() {
         >
           <ChevronLeft />
         </button>
-        <div className="pointer-events-auto ct-pill bg-white shadow-md">
-          <span className="w-2 h-2 rounded-full bg-brand" />
-          Live
-        </div>
+        <ConnectionPill connection={connection} />
       </div>
 
       {/* Home pill near resident */}
@@ -116,10 +114,26 @@ function ResidentHome() {
                 <TruckIcon className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-ink truncate">{nearest.truck.name} · {nearest.truck.id}</div>
-                <div className="text-xs text-neutral-500 truncate">{nearest.truck.wardName}</div>
+                <div className="font-bold text-ink truncate">
+                  {nearest.truck.driverName}
+                </div>
+                <div className="text-xs text-neutral-500 truncate">
+                  {nearest.truck.id} · {nearest.truck.name}
+                </div>
               </div>
               <div className={`ct-pill ${status.tone}`}>{status.label}</div>
+            </div>
+
+            {/* Driver / Ward meta */}
+            <div className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
+              <span className="px-2 py-0.5 rounded-md bg-neutral-100 font-semibold text-neutral-700">
+                {nearest.truck.wardName}
+              </span>
+              {connection === "reconnecting" && (
+                <span className="ct-pill bg-[#FEF3C7] text-[#92400E] text-[10px] py-0.5">
+                  Reconnecting…
+                </span>
+              )}
             </div>
 
             {/* Row 2 metrics */}
@@ -135,9 +149,22 @@ function ResidentHome() {
             </div>
 
             {/* Row 3 */}
-            <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600">
-              <ClockIcon className="w-4 h-4" />
-              Next pickup: 8:15 AM · {nearest.truck.wardName.split("—")[0].trim()}
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <ClockIcon className="w-4 h-4" />
+                Next stop: #{Math.min(nearest.completedStops + 1, nearest.truck.totalStops)} ·{" "}
+                {nearest.truck.wardName.split("—")[0].trim()}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <span className={`w-2 h-2 rounded-full ${nearest.status === "offline" ? "bg-neutral-400" : "bg-brand"}`} />
+                {nearest.status === "offline"
+                  ? "Driver is offline"
+                  : insideArriving
+                  ? "Truck is arriving at your stop"
+                  : insideNearby
+                  ? "Truck has entered your area"
+                  : "Truck en route on collection round"}
+              </div>
             </div>
 
             <div className="h-px bg-neutral-100 my-4" />
@@ -173,6 +200,22 @@ function ResidentHome() {
           </div>
         </BottomSheet>
       )}
+    </div>
+  );
+}
+
+function ConnectionPill({ connection }: { connection: "live" | "reconnecting" }) {
+  const live = connection === "live";
+  return (
+    <div
+      className={`pointer-events-auto ct-pill shadow-md ${
+        live ? "bg-white text-ink" : "bg-[#FEF3C7] text-[#92400E]"
+      }`}
+    >
+      <span
+        className={`w-2 h-2 rounded-full ${live ? "bg-brand" : "bg-[#F59E0B] animate-pulse"}`}
+      />
+      {live ? "Live" : "Reconnecting"}
     </div>
   );
 }
