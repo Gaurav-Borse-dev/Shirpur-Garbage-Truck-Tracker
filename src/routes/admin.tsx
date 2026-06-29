@@ -18,6 +18,8 @@ function AdminLayout() {
   const nav = [
     { to: "/admin", label: "Dashboard", Icon: MapIcon, exact: true },
     { to: "/admin/map", label: "Live Map", Icon: TruckIcon },
+    { to: "/admin/assignments", label: "Route Assignments", Icon: MapIcon },
+    { to: "/admin/replay", label: "Route Replay", Icon: ClockIcon },
     { to: "/admin/drivers", label: "Driver Management", Icon: UserIcon },
     { to: "/admin/alerts", label: "Alerts & Logs", Icon: BellIcon },
   ];

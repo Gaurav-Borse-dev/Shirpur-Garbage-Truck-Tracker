@@ -26,6 +26,7 @@ function DriverHome() {
   const live = useTrucks((s) => s.trucks[truckId]);
   const setOnline = useTrucks((s) => s.setDriverOnline);
   const complete = useTrucks((s) => s.completeStop);
+  const connection = useTrucks((s) => s.connection);
   const push = useToast((s) => s.push);
 
   const [stopStatus, setStopStatus] = useState<StopStatus>("enroute");
@@ -58,8 +59,16 @@ function DriverHome() {
             <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Driver</div>
             <div className="text-sm font-bold text-ink">{session.driverName} · {truckId}</div>
           </div>
-          <div className={`pointer-events-auto ct-pill ${online ? "bg-brand text-white" : "bg-neutral-300 text-white"} shadow-md`}>
-            <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-white/60"}`} /> {online ? "Online" : "Offline"}
+          <div className="pointer-events-auto flex items-center gap-2">
+            {connection === "reconnecting" && (
+              <div className="ct-pill bg-[#FEF3C7] text-[#92400E] shadow-md">
+                <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+                Reconnecting
+              </div>
+            )}
+            <div className={`ct-pill ${online ? "bg-brand text-white" : "bg-neutral-300 text-white"} shadow-md`}>
+              <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-white/60"}`} /> {online ? "Online" : "Offline"}
+            </div>
           </div>
         </div>
 
@@ -92,6 +101,9 @@ function DriverHome() {
                 Stop {stopNum} of {live.truck.totalStops}
               </div>
               <div className="font-bold text-ink mt-1">{live.truck.wardName}</div>
+              <div className="text-[11px] text-neutral-400 mt-0.5">
+                Assigned by Municipal Admin · live sync
+              </div>
               <div className="text-xs text-neutral-500">Collection point #{stopNum}</div>
               <div className="mt-3 grid grid-cols-3 gap-1.5">
                 {(["enroute", "arrived", "completed"] as const).map((s) => (
