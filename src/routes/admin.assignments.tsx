@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useTrucks } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
@@ -24,14 +24,15 @@ function AssignmentsPage() {
   const [justSaved, setJustSaved] = useState(false);
 
   // Sync inputs when truck selection changes
-  useMemo(() => {
+  useEffect(() => {
     if (selected) {
       setWard(selected.truck.wardName);
       setCity(selected.truck.city);
       setError("");
       setJustSaved(false);
     }
-  }, [selectedId]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
