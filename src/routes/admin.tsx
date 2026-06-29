@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useLocation, Navigate, useNavigate } fro
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
 import { ToastHost } from "@/components/Toast";
-import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon } from "@/components/icons";
+import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon } from "@/components/icons";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
