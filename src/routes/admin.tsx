@@ -2,7 +2,8 @@ import { createFileRoute, Outlet, Link, useLocation, Navigate, useNavigate } fro
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
 import { ToastHost } from "@/components/Toast";
-import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon } from "@/components/icons";
+import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon, CalendarIcon } from "@/components/icons";
+import { useBookings } from "@/store/bookings";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -14,6 +15,7 @@ function AdminLayout() {
   const navigate = useNavigate();
   const loc = useLocation();
   if (!session || session.role !== "admin") return <Navigate to="/login/admin" />;
+  const pendingBookings = useBookings((s) => s.bookings.filter((b) => b.status === "pending").length);
 
   const nav = [
     { to: "/admin", label: "Dashboard", Icon: MapIcon, exact: true },
@@ -21,6 +23,7 @@ function AdminLayout() {
     { to: "/admin/assignments", label: "Route Assignments", Icon: MapIcon },
     { to: "/admin/replay", label: "Route Replay", Icon: ClockIcon },
     { to: "/admin/drivers", label: "Driver Management", Icon: UserIcon },
+    { to: "/admin/bookings", label: "Dustbin Bookings", Icon: CalendarIcon, badge: pendingBookings },
     { to: "/admin/alerts", label: "Alerts & Logs", Icon: BellIcon },
   ];
 
@@ -32,7 +35,7 @@ function AdminLayout() {
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">ADMIN</span>
         </div>
         <nav className="flex-1 px-2 py-2 space-y-0.5">
-          {nav.map(({ to, label, Icon, exact }) => {
+          {nav.map(({ to, label, Icon, exact, badge }) => {
             const active = exact ? loc.pathname === to : loc.pathname.startsWith(to);
             return (
               <Link
@@ -42,7 +45,11 @@ function AdminLayout() {
                   active ? "bg-ink text-white font-semibold" : "text-neutral-600 hover:bg-neutral-50"
                 }`}
               >
-                <Icon className="w-4 h-4" /> {label}
+                <Icon className="w-4 h-4" />
+                <span className="flex-1">{label}</span>
+                {badge ? (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white text-ink" : "bg-amber-100 text-amber-700"}`}>{badge}</span>
+                ) : null}
               </Link>
             );
           })}
