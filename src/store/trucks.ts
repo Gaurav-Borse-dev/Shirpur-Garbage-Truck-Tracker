@@ -92,7 +92,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         o.truck.wardName.trim().toLowerCase() === nextWard.toLowerCase(),
     );
     if (conflict) return "Another active truck already covers this ward";
-    const center = nextCity === "Shirpur" ? SHIRPUR : DHULE;
+    const center = SHIRPUR;
     const seed = hashCode(id + nextWard + nextCity);
     const newRoute =
       patch.city || patch.wardName

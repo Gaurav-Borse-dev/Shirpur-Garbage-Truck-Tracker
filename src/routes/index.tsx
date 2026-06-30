@@ -46,7 +46,7 @@ function Splash() {
         </motion.div>
       </div>
       <div className="pb-10 text-center text-xs text-neutral-400">
-        Shirpur · Dhule Municipal Corporation
+        Shirpur Municipal Corporation
       </div>
     </MobileFrame>
   );
