@@ -55,7 +55,7 @@ export function AppSplash({ children }: { children: ReactNode }) {
                 CleanTrack
               </div>
               <div className="mt-1 text-xs text-neutral-500">
-                Shirpur · Dhule · Maharashtra
+                Shirpur · Maharashtra
               </div>
               <motion.div
                 initial={{ width: 0 }}

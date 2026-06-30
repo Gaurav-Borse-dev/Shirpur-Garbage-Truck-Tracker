@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { TRUCKS, makeRoute, SHIRPUR, DHULE, type Truck } from "@/lib/trucks";
+import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, type LatLng } from "@/lib/geo";
 
 export type LiveTruck = {
@@ -26,7 +26,7 @@ type TrucksState = {
   completeStop: (id: string) => void;
   assignTruck: (
     id: string,
-    patch: { wardName?: string; city?: "Shirpur" | "Dhule" },
+    patch: { wardName?: string; city?: "Shirpur" },
   ) => string | null;
   setConnection: (c: "live" | "reconnecting") => void;
   _step: (dtMs: number) => void;

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "CleanTrack — Live garbage truck tracking" },
-      { name: "description", content: "Never miss your truck again. Live tracking for Shirpur and Dhule." },
+      { name: "description", content: "Never miss your truck again. Live tracking for Shirpur." },
       { property: "og:title", content: "CleanTrack" },
       { property: "og:description", content: "Never miss your truck again." },
     ],

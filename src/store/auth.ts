@@ -4,7 +4,7 @@ import { DRIVER_NAMES, TRUCKS } from "@/lib/trucks";
 
 export type Role = "resident" | "driver" | "admin";
 export type Session =
-  | { role: "resident"; phone: string; city: "Shirpur" | "Dhule" }
+  | { role: "resident"; phone: string; city: "Shirpur" }
   | { role: "driver"; phone: string; driverName: string; truckId: string }
   | { role: "admin"; username: string }
   | null;

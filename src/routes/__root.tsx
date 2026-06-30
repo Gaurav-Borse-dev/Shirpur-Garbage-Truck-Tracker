@@ -79,7 +79,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CleanTrack — Live garbage truck tracking" },
-      { name: "description", content: "Track your municipal garbage truck in real time across Shirpur and Dhule." },
+      { name: "description", content: "Track your municipal garbage truck in real time across Shirpur." },
       { property: "og:title", content: "CleanTrack" },
       { property: "og:description", content: "Never miss your truck again." },
       { property: "og:type", content: "website" },
