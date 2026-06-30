@@ -20,7 +20,8 @@ function ProfilePage() {
   const phone = session.role === "resident" ? session.phone : "—";
   const initials = phone.slice(-2);
   const options = [100, 250, 500, 1000];
-  const myBookings = useBookings((s) => s.bookings.filter((b) => b.residentPhone === phone));
+  const allBookings = useBookings((s) => s.bookings);
+  const myBookings = allBookings.filter((b) => b.residentPhone === phone);
   const pendingCount = myBookings.filter((b) => b.status === "pending").length;
 
   return (

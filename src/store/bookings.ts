@@ -6,7 +6,7 @@ export type BookingStatus = "pending" | "approved" | "rejected";
 export type DustbinBooking = {
   id: string;
   residentPhone: string;
-  city: "Shirpur" | "Dhule";
+  city: "Shirpur";
   address: string;
   reason: string;
   fromDate: string; // YYYY-MM-DD

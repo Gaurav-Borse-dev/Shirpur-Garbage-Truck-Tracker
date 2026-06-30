@@ -65,9 +65,7 @@ function Otp() {
       setSession({ role: "driver", phone, driverName: driver.name, truckId: driver.truckId });
       navigate({ to: "/driver" });
     } else {
-      // Resident — alternate cities for demo variety
-      const city: "Shirpur" | "Dhule" = phone.endsWith("0") || phone.endsWith("5") ? "Dhule" : "Shirpur";
-      setSession({ role: "resident", phone, city });
+      setSession({ role: "resident", phone, city: "Shirpur" });
       navigate({ to: "/resident" });
     }
   }, [digits]); // eslint-disable-line

@@ -22,7 +22,7 @@ function Dashboard() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">Fleet Dashboard</h1>
-          <p className="text-sm text-neutral-500 mt-1">Shirpur & Dhule Municipal Corporation · Live</p>
+          <p className="text-sm text-neutral-500 mt-1">Shirpur Municipal Corporation · Live</p>
         </div>
         <div className="ct-pill bg-brand-soft text-brand">
           <span className="w-2 h-2 rounded-full bg-brand" /> All systems live

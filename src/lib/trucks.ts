@@ -1,7 +1,6 @@
 import type { LatLng } from "./geo";
 
 export const SHIRPUR: LatLng = { lat: 21.3483, lng: 74.8827 };
-export const DHULE: LatLng = { lat: 20.9042, lng: 74.7749 };
 
 export type TruckStatus = "offline" | "online" | "collecting";
 
@@ -11,7 +10,7 @@ export type Truck = {
   driverName: string;
   driverPhone: string;
   wardName: string;
-  city: "Shirpur" | "Dhule";
+  city: "Shirpur";
   color: string;
   route: LatLng[];
   totalStops: number;
@@ -61,16 +60,14 @@ const SHIRPUR_WARDS = [
   "Shirpur Ward 6 — Bhadgaon Road",
   "Shirpur Ward 7 — Shahada Road",
   "Shirpur Ward 8 — Thakkar Bappa Nagar",
-];
-const DHULE_WARDS = [
-  "Dhule Ward 1 — Deopur",
-  "Dhule Ward 2 — Mohadi Road",
-  "Dhule Ward 3 — Sakri Road",
-  "Dhule Ward 4 — Avadhan",
-  "Dhule Ward 5 — Pachora Road",
-  "Dhule Ward 6 — Songir Road",
-  "Dhule Ward 7 — Malegaon Road",
-  "Dhule Ward 8 — Nakane Road",
+  "Shirpur Ward 9 — Karwand Naka",
+  "Shirpur Ward 10 — Boradi Road",
+  "Shirpur Ward 11 — Sangvi",
+  "Shirpur Ward 12 — Thalner Road",
+  "Shirpur Ward 13 — Arthe",
+  "Shirpur Ward 14 — Mukti Dham",
+  "Shirpur Ward 15 — NMU Campus",
+  "Shirpur Ward 16 — Dondaicha Road",
 ];
 
 export const DRIVER_NAMES = [
@@ -90,25 +87,22 @@ const PALETTE = ["#22C55E", "#06B6D4", "#F97316", "#A855F7", "#EAB308", "#EC4899
 
 function offsetCenter(base: LatLng, idx: number): LatLng {
   // Spread truck loops around city center to avoid overlap
-  const angle = (idx / 8) * Math.PI * 2;
-  const off = 0.012;
+  const angle = (idx / 16) * Math.PI * 2;
+  const off = 0.014 + (idx % 2) * 0.006;
   return { lat: base.lat + Math.sin(angle) * off, lng: base.lng + Math.cos(angle) * off };
 }
 
 export const TRUCKS: Truck[] = Array.from({ length: 16 }).map((_, i) => {
-  const inShirpur = i < 8;
-  const cityCenter = inShirpur ? SHIRPUR : DHULE;
-  const localIdx = i % 8;
   const driver = DRIVER_NAMES[i] ?? { name: "Unassigned", phone: "" };
-  const wardName = (inShirpur ? SHIRPUR_WARDS : DHULE_WARDS)[localIdx];
-  const route = makeRoute(offsetCenter(cityCenter, localIdx), 1000 + i * 137, 0.7 + (i % 3) * 0.2, 12 + (i % 3));
+  const wardName = SHIRPUR_WARDS[i];
+  const route = makeRoute(offsetCenter(SHIRPUR, i), 1000 + i * 137, 0.7 + (i % 3) * 0.2, 12 + (i % 3));
   return {
     id: `GBR-${String(i + 1).padStart(2, "0")}`,
     name: `Tipper Truck ${String(i + 1).padStart(2, "0")}`,
     driverName: driver.name,
     driverPhone: driver.phone,
     wardName,
-    city: inShirpur ? "Shirpur" : "Dhule",
+    city: "Shirpur",
     color: PALETTE[i % PALETTE.length],
     route,
     totalStops: 12,
@@ -117,7 +111,6 @@ export const TRUCKS: Truck[] = Array.from({ length: 16 }).map((_, i) => {
 });
 
 /** Resident demo locations (one per city). */
-export const RESIDENT_DEMO: Record<"Shirpur" | "Dhule", LatLng> = {
+export const RESIDENT_DEMO: Record<"Shirpur", LatLng> = {
   Shirpur: { lat: SHIRPUR.lat + 0.003, lng: SHIRPUR.lng + 0.004 },
-  Dhule: { lat: DHULE.lat + 0.002, lng: DHULE.lng - 0.003 },
 };

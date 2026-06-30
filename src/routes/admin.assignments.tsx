@@ -19,7 +19,7 @@ function AssignmentsPage() {
   const selected = trucks[selectedId];
 
   const [ward, setWard] = useState(selected?.truck.wardName ?? "");
-  const [city, setCity] = useState<"Shirpur" | "Dhule">(selected?.truck.city ?? "Shirpur");
+  const [city, setCity] = useState<"Shirpur">(selected?.truck.city ?? "Shirpur");
   const [error, setError] = useState("");
   const [justSaved, setJustSaved] = useState(false);
 
@@ -114,21 +114,8 @@ function AssignmentsPage() {
                   <div className="text-[11px] text-neutral-400 mt-1">3–80 characters</div>
                 </Field>
                 <Field label="City">
-                  <div className="flex gap-2">
-                    {(["Shirpur", "Dhule"] as const).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setCity(c)}
-                        className={`flex-1 h-11 rounded-lg text-sm font-semibold ${
-                          city === c
-                            ? "bg-ink text-white"
-                            : "bg-neutral-50 text-neutral-600 hover:bg-neutral-100"
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
+                  <div className="h-11 px-3 rounded-lg bg-neutral-50 flex items-center text-sm font-semibold text-ink">
+                    {city}
                   </div>
                 </Field>
               </div>

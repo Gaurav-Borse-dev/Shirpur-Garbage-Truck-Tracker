@@ -196,7 +196,6 @@ export function TruckMap(props: Props) {
     >
       <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
       <Marker position={[21.3483, 74.8827]} icon={cityBadge("Shirpur")} interactive={false} />
-      <Marker position={[20.9042, 74.7749]} icon={cityBadge("Dhule")} interactive={false} />
       {list.map((t) => (
         <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
       ))}

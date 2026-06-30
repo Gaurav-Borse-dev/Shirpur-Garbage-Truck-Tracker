@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { TRUCKS, makeRoute, SHIRPUR, DHULE, type Truck } from "@/lib/trucks";
+import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, type LatLng } from "@/lib/geo";
 
 export type LiveTruck = {
@@ -26,7 +26,7 @@ type TrucksState = {
   completeStop: (id: string) => void;
   assignTruck: (
     id: string,
-    patch: { wardName?: string; city?: "Shirpur" | "Dhule" },
+    patch: { wardName?: string; city?: "Shirpur" },
   ) => string | null;
   setConnection: (c: "live" | "reconnecting") => void;
   _step: (dtMs: number) => void;
@@ -92,7 +92,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         o.truck.wardName.trim().toLowerCase() === nextWard.toLowerCase(),
     );
     if (conflict) return "Another active truck already covers this ward";
-    const center = nextCity === "Shirpur" ? SHIRPUR : DHULE;
+    const center = SHIRPUR;
     const seed = hashCode(id + nextWard + nextCity);
     const newRoute =
       patch.city || patch.wardName
