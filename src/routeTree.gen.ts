@@ -19,6 +19,7 @@ import { Route as ResidentIndexRouteImport } from './routes/resident.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
 import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
+import { Route as ResidentBookingRouteImport } from './routes/resident.booking'
 import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
 import { Route as LoginResidentRouteImport } from './routes/login.resident'
 import { Route as LoginDriverRouteImport } from './routes/login.driver'
@@ -26,6 +27,7 @@ import { Route as LoginAdminRouteImport } from './routes/login.admin'
 import { Route as AdminReplayRouteImport } from './routes/admin.replay'
 import { Route as AdminMapRouteImport } from './routes/admin.map'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments'
 import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
 
@@ -79,6 +81,11 @@ const ResidentProfileRoute = ResidentProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => ResidentRoute,
 } as any)
+const ResidentBookingRoute = ResidentBookingRouteImport.update({
+  id: '/booking',
+  path: '/booking',
+  getParentRoute: () => ResidentRoute,
+} as any)
 const ResidentAlertsRoute = ResidentAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -114,6 +121,11 @@ const AdminDriversRoute = AdminDriversRouteImport.update({
   path: '/drivers',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAssignmentsRoute = AdminAssignmentsRouteImport.update({
   id: '/assignments',
   path: '/assignments',
@@ -134,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/role': typeof RoleRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/replay': typeof AdminReplayRoute
@@ -141,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/booking': typeof ResidentBookingRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -153,6 +167,7 @@ export interface FileRoutesByTo {
   '/role': typeof RoleRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/replay': typeof AdminReplayRoute
@@ -160,6 +175,7 @@ export interface FileRoutesByTo {
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/booking': typeof ResidentBookingRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin': typeof AdminIndexRoute
@@ -175,6 +191,7 @@ export interface FileRoutesById {
   '/role': typeof RoleRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
   '/admin/replay': typeof AdminReplayRoute
@@ -182,6 +199,7 @@ export interface FileRoutesById {
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
+  '/resident/booking': typeof ResidentBookingRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -198,6 +216,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/admin/alerts'
     | '/admin/assignments'
+    | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
     | '/admin/replay'
@@ -205,6 +224,7 @@ export interface FileRouteTypes {
     | '/login/driver'
     | '/login/resident'
     | '/resident/alerts'
+    | '/resident/booking'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -217,6 +237,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/admin/alerts'
     | '/admin/assignments'
+    | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
     | '/admin/replay'
@@ -224,6 +245,7 @@ export interface FileRouteTypes {
     | '/login/driver'
     | '/login/resident'
     | '/resident/alerts'
+    | '/resident/booking'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin'
@@ -238,6 +260,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/admin/alerts'
     | '/admin/assignments'
+    | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
     | '/admin/replay'
@@ -245,6 +268,7 @@ export interface FileRouteTypes {
     | '/login/driver'
     | '/login/resident'
     | '/resident/alerts'
+    | '/resident/booking'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -335,6 +359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResidentProfileRouteImport
       parentRoute: typeof ResidentRoute
     }
+    '/resident/booking': {
+      id: '/resident/booking'
+      path: '/booking'
+      fullPath: '/resident/booking'
+      preLoaderRoute: typeof ResidentBookingRouteImport
+      parentRoute: typeof ResidentRoute
+    }
     '/resident/alerts': {
       id: '/resident/alerts'
       path: '/alerts'
@@ -384,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDriversRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/assignments': {
       id: '/admin/assignments'
       path: '/assignments'
@@ -404,6 +442,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminAssignmentsRoute: typeof AdminAssignmentsRoute
+  AdminBookingsRoute: typeof AdminBookingsRoute
   AdminDriversRoute: typeof AdminDriversRoute
   AdminMapRoute: typeof AdminMapRoute
   AdminReplayRoute: typeof AdminReplayRoute
@@ -413,6 +452,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
   AdminAssignmentsRoute: AdminAssignmentsRoute,
+  AdminBookingsRoute: AdminBookingsRoute,
   AdminDriversRoute: AdminDriversRoute,
   AdminMapRoute: AdminMapRoute,
   AdminReplayRoute: AdminReplayRoute,
@@ -423,6 +463,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ResidentRouteChildren {
   ResidentAlertsRoute: typeof ResidentAlertsRoute
+  ResidentBookingRoute: typeof ResidentBookingRoute
   ResidentProfileRoute: typeof ResidentProfileRoute
   ResidentScheduleRoute: typeof ResidentScheduleRoute
   ResidentIndexRoute: typeof ResidentIndexRoute
@@ -430,6 +471,7 @@ interface ResidentRouteChildren {
 
 const ResidentRouteChildren: ResidentRouteChildren = {
   ResidentAlertsRoute: ResidentAlertsRoute,
+  ResidentBookingRoute: ResidentBookingRoute,
   ResidentProfileRoute: ResidentProfileRoute,
   ResidentScheduleRoute: ResidentScheduleRoute,
   ResidentIndexRoute: ResidentIndexRoute,

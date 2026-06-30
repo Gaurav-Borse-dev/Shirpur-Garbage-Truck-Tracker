@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
+import { useBookings } from "@/store/bookings";
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,
@@ -19,6 +20,8 @@ function ProfilePage() {
   const phone = session.role === "resident" ? session.phone : "—";
   const initials = phone.slice(-2);
   const options = [100, 250, 500, 1000];
+  const myBookings = useBookings((s) => s.bookings.filter((b) => b.residentPhone === phone));
+  const pendingCount = myBookings.filter((b) => b.status === "pending").length;
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-white">
@@ -54,6 +57,22 @@ function ProfilePage() {
             Save preferences
           </button>
         )}
+      </div>
+
+      <div className="px-6 mt-8">
+        <button
+          onClick={() => navigate({ to: "/resident/booking" })}
+          className="w-full rounded-2xl border border-neutral-200 p-4 flex items-center justify-between hover:bg-neutral-50"
+        >
+          <div className="text-left">
+            <div className="text-sm font-bold text-ink">Book a Big Dustbin</div>
+            <div className="text-xs text-neutral-500 mt-0.5">For weddings, parties & functions</div>
+            {myBookings.length > 0 && (
+              <div className="text-[11px] text-neutral-400 mt-1">{myBookings.length} request{myBookings.length === 1 ? "" : "s"}{pendingCount ? ` · ${pendingCount} pending` : ""}</div>
+            )}
+          </div>
+          <span className="text-neutral-400">›</span>
+        </button>
       </div>
 
       <div className="px-6 mt-8 space-y-1">
