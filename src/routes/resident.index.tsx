@@ -89,114 +89,106 @@ function ResidentHome() {
       </div>
 
       {/* Top controls */}
-      <div className="absolute top-3 left-3 right-3 z-[500] flex items-center justify-between pointer-events-none">
+      <div className="absolute top-3 left-3 right-3 z-[500] flex items-start justify-between gap-3 pointer-events-none">
         <button
           onClick={() => navigate({ to: "/role" })}
-          className="pointer-events-auto w-10 h-10 rounded-full bg-white shadow-md grid place-items-center"
+          className="pointer-events-auto w-11 h-11 rounded-full bg-white shadow-md grid place-items-center shrink-0"
+          aria-label="Back"
         >
           <ChevronLeft />
         </button>
         <ConnectionPill connection={connection} />
       </div>
 
-      {/* Home pill near resident */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60px] z-[400] pointer-events-none">
-        <div className="ct-pill bg-ink text-white">Home ›</div>
-      </div>
+      {/* Floating "Arriving in" card (top-left, below back button) */}
+      {nearest && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="absolute top-16 left-3 z-[500] pointer-events-none"
+        >
+          <div className="bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.10)] p-3 pr-4 flex items-center gap-3 min-w-[190px]">
+            <div className="w-12 h-12 rounded-xl bg-brand-soft grid place-items-center text-brand shrink-0">
+              <TruckIcon className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
+                Arriving in
+              </div>
+              <div className="text-lg font-bold text-ink leading-tight">
+                {fmtEta(distance)}
+              </div>
+              <div className="text-[11px] text-neutral-500 mt-0.5">
+                {fmtDistance(distance)} away
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Bottom sheet */}
       {nearest && (
-        <BottomSheet springKey={status.label}>
-          <div className="px-5 pb-5 pt-2">
-            {/* Row 1 */}
+        <BottomSheet springKey={status.label} peekHeight={112}>
+          <div className="px-5 pb-5 pt-1">
+            {/* Row 1: truck image + name/route + status pill */}
             <div className="flex items-center gap-3">
-              <div className="w-[64px] h-[44px] rounded-xl bg-brand-soft text-brand grid place-items-center">
-                <TruckIcon className="w-6 h-6" />
+              <div className="w-[68px] h-[52px] rounded-2xl bg-brand-soft text-brand grid place-items-center shrink-0">
+                <TruckIcon className="w-7 h-7" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-ink truncate">
-                  {nearest.truck.driverName}
+                <div className="font-bold text-ink text-[17px] truncate">
+                  {nearest.truck.name}
                 </div>
-                <div className="text-xs text-neutral-500 truncate">
-                  {nearest.truck.id} · {nearest.truck.name}
+                <div className="text-xs text-neutral-500 truncate mt-0.5">
+                  Route {nearest.truck.id} · {nearest.truck.wardName.split("—")[0].trim()}
                 </div>
               </div>
-              <div className={`ct-pill ${status.tone}`}>{status.label}</div>
+              <div className={`ct-pill ${status.tone} shrink-0`}>{status.label}</div>
             </div>
 
-            {/* Driver / Ward meta */}
-            <div className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
-              <span className="px-2 py-0.5 rounded-md bg-neutral-100 font-semibold text-neutral-700">
-                {nearest.truck.wardName}
-              </span>
-              {connection === "reconnecting" && (
-                <span className="ct-pill bg-[#FEF3C7] text-[#92400E] text-[10px] py-0.5">
-                  Reconnecting…
-                </span>
-              )}
-            </div>
-
-            {/* Row 2 metrics */}
-            <div className="mt-4 rounded-2xl border border-neutral-200 grid grid-cols-2">
-              <div className="p-4">
-                <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">Distance</div>
-                <div className="text-2xl font-bold text-ink mt-1">{fmtDistance(distance)}</div>
+            {/* Row 2: distance / ETA */}
+            <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-2 overflow-hidden">
+              <div className="p-3.5">
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Distance</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{fmtDistance(distance)}</div>
               </div>
-              <div className="p-4 border-l border-neutral-200">
-                <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">ETA</div>
-                <div className="text-2xl font-bold text-ink mt-1">{fmtEta(distance)}</div>
+              <div className="p-3.5 border-l border-neutral-200/70">
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">ETA</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{fmtEta(distance)}</div>
               </div>
             </div>
 
-            {/* Row 3 */}
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-neutral-600">
-                <ClockIcon className="w-4 h-4" />
-                Next stop: #{Math.min(nearest.completedStops + 1, nearest.truck.totalStops)} ·{" "}
-                {nearest.truck.wardName.split("—")[0].trim()}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-neutral-600">
-                <span className={`w-2 h-2 rounded-full ${nearest.status === "offline" ? "bg-neutral-400" : "bg-brand"}`} />
-                {nearest.status === "offline"
-                  ? "Driver is offline"
-                  : insideArriving
-                  ? "Truck is arriving at your stop"
-                  : insideNearby
-                  ? "Truck has entered your area"
-                  : "Truck en route on collection round"}
-              </div>
+            {/* Subtitle */}
+            <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
+              <ClockIcon className="w-4 h-4 shrink-0" />
+              <span className="truncate">Municipal waste collection service</span>
             </div>
 
-            <div className="h-px bg-neutral-100 my-4" />
-
-            {/* Row 4 toggle */}
-            <div className="flex items-center gap-3">
-              <BellIcon className="w-5 h-5 text-ink" />
+            {/* Notification toggle row */}
+            <div className="mt-4 flex items-center gap-3 py-3 border-t border-neutral-100">
+              <BellIcon className="w-5 h-5 text-ink shrink-0" />
               <div className="flex-1 text-sm text-ink">Alert me when truck is near</div>
-              <Toggle on={notifEnabled} onChange={(v) => {
-                setNotif(v);
-                if (v && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-                  Notification.requestPermission().catch(() => {});
-                }
-              }} />
+              <Toggle
+                on={notifEnabled}
+                onChange={(v) => {
+                  setNotif(v);
+                  if (v && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+                    Notification.requestPermission().catch(() => {});
+                  }
+                }}
+              />
             </div>
-
-            <div className="h-px bg-neutral-100 my-4" />
 
             {/* CTA */}
-            <div className="flex items-center gap-2">
-              <button
-                disabled={!insideNearby}
-                className={`flex-1 h-14 rounded-xl font-semibold transition-colors ${
-                  insideNearby ? "bg-ink text-white" : "bg-neutral-100 text-neutral-400"
-                }`}
-              >
-                {insideNearby ? "I'm Coming" : `Truck is ${fmtDistance(distance)} away`}
-              </button>
-              <button className="w-14 h-14 rounded-xl border border-neutral-200 grid place-items-center text-ink">
-                <BellIcon className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              disabled={!insideNearby}
+              className={`w-full h-14 rounded-2xl font-semibold text-[15px] transition-colors ${
+                insideNearby ? "bg-ink text-white shadow-lg shadow-black/20" : "bg-neutral-100 text-neutral-400"
+              }`}
+            >
+              {insideNearby ? "I'm Coming" : `Truck is ${fmtDistance(distance)} away`}
+            </button>
           </div>
         </BottomSheet>
       )}

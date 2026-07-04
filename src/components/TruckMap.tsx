@@ -1,34 +1,68 @@
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
 import type { LatLng } from "@/lib/geo";
-import { fmtDistance, fmtEta, haversine, midpoint } from "@/lib/geo";
+import { fmtEta, haversine } from "@/lib/geo";
+import { SHIRPUR } from "@/lib/trucks";
 
 const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 const CARTO_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-function truckDivIcon(color: string, bearing: number, size: "lg" | "sm" = "lg", offline = false) {
-  const cls = `ct-truck-marker ${size === "sm" ? "small" : ""} ${offline ? "offline" : ""}`;
-  const bg = offline ? "#9ca3af" : color;
+/** Top-down garbage-tipper SVG. Default orientation = NORTH (points up).
+ *  Rotate the wrapper by the compass bearing. */
+function truckSvgHTML(): string {
+  return `
+<svg viewBox="0 0 40 56" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible">
+  <!-- wheels back -->
+  <rect x="2"  y="34" width="6" height="11" rx="1.8" fill="#0f172a"/>
+  <rect x="32" y="34" width="6" height="11" rx="1.8" fill="#0f172a"/>
+  <!-- wheels front -->
+  <rect x="2"  y="12" width="6" height="9"  rx="1.8" fill="#0f172a"/>
+  <rect x="32" y="12" width="6" height="9"  rx="1.8" fill="#0f172a"/>
+  <!-- tipper body (green) -->
+  <rect x="6" y="20" width="28" height="30" rx="3.5"
+        fill="#22C55E" stroke="#0f172a" stroke-width="1.2"/>
+  <rect x="9" y="24" width="22" height="22" rx="1.5" fill="#16a34a" opacity="0.35"/>
+  <line x1="10" y1="33" x2="30" y2="33" stroke="#0f172a" stroke-width="0.6" opacity="0.35"/>
+  <line x1="10" y1="40" x2="30" y2="40" stroke="#0f172a" stroke-width="0.6" opacity="0.35"/>
+  <!-- cab (white) -->
+  <rect x="7" y="6" width="26" height="17" rx="3.5"
+        fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+  <!-- windshield tint -->
+  <rect x="10" y="9" width="20" height="6" rx="1.5" fill="#334155" opacity="0.55"/>
+  <!-- headlights -->
+  <circle cx="11" cy="8"  r="1.1" fill="#fde68a"/>
+  <circle cx="29" cy="8"  r="1.1" fill="#fde68a"/>
+</svg>`;
+}
+
+function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {}) {
+  const size = opts.size ?? "sm";
+  const cls = `ct-truck ${size === "sm" ? "small" : ""} ${opts.offline ? "offline" : ""}`;
+  const dim = size === "sm" ? { w: 26, h: 36 } : { w: 40, h: 56 };
   const html = `
-    <div class="${cls}" style="background:${bg}; transform: rotate(0deg)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${bearing - 90}deg); transition: transform 200ms linear;">
-        <path d="M10 17h4V5H2v12h3" />
-        <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2" />
-        <circle cx="7.5" cy="17.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
-      </svg>
+    <div style="position:relative;width:${dim.w}px;height:${dim.h}px;">
+      ${opts.active ? '<div class="ct-truck-active-ring"></div>' : ""}
+      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bearing}deg);">
+        ${truckSvgHTML()}
+      </div>
+      ${opts.active && !opts.offline ? '<div class="ct-truck-green-dot"></div>' : ""}
     </div>`;
-  const dim = size === "sm" ? 28 : 44;
-  return L.divIcon({ html, className: "", iconSize: [dim, dim], iconAnchor: [dim / 2, dim / 2] });
+  return L.divIcon({
+    html,
+    className: "",
+    iconSize: [dim.w, dim.h],
+    iconAnchor: [dim.w / 2, dim.h / 2],
+  });
 }
 
 function residentIcon() {
   return L.divIcon({
     html: `<div class="ct-resident-dot"></div>`,
     className: "",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
   });
 }
 
@@ -36,8 +70,31 @@ function etaIcon(text: string) {
   return L.divIcon({
     html: `<div class="ct-eta-badge">${text}</div>`,
     className: "",
-    iconSize: [60, 24],
-    iconAnchor: [30, 12],
+    iconSize: [70, 28],
+    iconAnchor: [35, 32],
+  });
+}
+
+function landmarkIcon(name: string, color = "#3B82F6") {
+  const html = `
+    <div class="ct-landmark">
+      <div class="ct-landmark-pin" style="background:${color}"></div>
+      <span>${name}</span>
+    </div>`;
+  return L.divIcon({
+    html,
+    className: "",
+    iconSize: [10, 10],
+    iconAnchor: [12, 24],
+  });
+}
+
+function homeIcon() {
+  return L.divIcon({
+    html: `<div class="ct-home-pin">Home</div>`,
+    className: "",
+    iconSize: [10, 10],
+    iconAnchor: [-12, 30],
   });
 }
 
@@ -47,6 +104,14 @@ function cityBadge(name: string) {
     className: "", iconSize: [70, 22], iconAnchor: [35, 11],
   });
 }
+
+/** Landmark points around Shirpur for map POIs. */
+const SHIRPUR_LANDMARKS: { name: string; pos: LatLng; color: string }[] = [
+  { name: "Shirpur Park", pos: { lat: SHIRPUR.lat + 0.006, lng: SHIRPUR.lng - 0.005 }, color: "#22c55e" },
+  { name: "Old Cotton Market", pos: { lat: SHIRPUR.lat + 0.010, lng: SHIRPUR.lng + 0.002 }, color: "#3B82F6" },
+  { name: "Municipal Office", pos: { lat: SHIRPUR.lat - 0.004, lng: SHIRPUR.lng + 0.001 }, color: "#3B82F6" },
+  { name: "Gandhi Chowk", pos: { lat: SHIRPUR.lat - 0.002, lng: SHIRPUR.lng - 0.006 }, color: "#3B82F6" },
+];
 
 function FlyTo({ center, zoom }: { center: LatLng; zoom?: number }) {
   const map = useMap();
@@ -101,7 +166,6 @@ export function TruckMap(props: Props) {
             haversine(cur.position, props.resident) < haversine(best.position, props.resident) ? cur : best,
           );
     const active = props.activeTruckId ? trucks[props.activeTruckId] : nearest;
-    const center = active ? active.position : props.resident;
     return (
       <MapContainer
         center={[props.resident.lat, props.resident.lng]}
@@ -119,52 +183,64 @@ export function TruckMap(props: Props) {
         <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
         <ZoomControl position="bottomright" />
         <RecenterOnKey
-          center={midpoint(props.resident, active?.position ?? props.resident)}
+          center={props.resident}
           zoom={15}
           triggerKey={active?.id ?? "none"}
         />
 
-        {/* Geofence */}
+        {/* Geofence (soft blue disk, matches reference) */}
         <Circle
           center={[props.resident.lat, props.resident.lng]}
           radius={props.radius}
-          pathOptions={{ color: "#3b82f6", weight: 1.5, dashArray: "6 6", fillColor: "#3b82f6", fillOpacity: 0.06 }}
+          pathOptions={{ color: "#3b82f6", weight: 1.2, opacity: 0.35, fillColor: "#3b82f6", fillOpacity: 0.12 }}
         />
 
-        {/* Resident */}
-        <Marker position={[props.resident.lat, props.resident.lng]} icon={residentIcon()} />
+        {/* Landmark pins */}
+        {SHIRPUR_LANDMARKS.map((lm) => (
+          <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
+        ))}
 
-        {/* Other online trucks (small) */}
-        {onlineTrucks
+        {/* Active truck's route as thick blue navigation line */}
+        {active && (
+          <>
+            <Polyline
+              positions={active.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+              pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
+            />
+            <Polyline
+              positions={active.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+              pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
+            />
+          </>
+        )}
+
+        {/* Resident location + Home label */}
+        <Marker position={[props.resident.lat, props.resident.lng]} icon={residentIcon()} />
+        <Marker position={[props.resident.lat, props.resident.lng]} icon={homeIcon()} interactive={false} />
+
+        {/* Idle scattered trucks — bearing matches their current road segment */}
+        {list
           .filter((t) => t.id !== active?.id)
           .map((t) => (
             <Marker
               key={t.id}
               position={[t.position.lat, t.position.lng]}
-              icon={truckDivIcon(t.truck.color, t.bearing, "sm")}
+              icon={truckDivIcon(t.bearing, { size: "sm", offline: t.status === "offline" })}
+              interactive={false}
             />
           ))}
 
-        {/* Active truck */}
+        {/* Active truck (top) + ETA badge riding on it */}
         {active && (
           <>
-            <Polyline
-              positions={[
-                [active.position.lat, active.position.lng],
-                [props.resident.lat, props.resident.lng],
-              ]}
-              pathOptions={{ color: "#111", weight: 5, lineCap: "round", lineJoin: "round" }}
-            />
             <Marker
-              position={[
-                (active.position.lat + props.resident.lat) / 2,
-                (active.position.lng + props.resident.lng) / 2,
-              ]}
+              position={[active.position.lat, active.position.lng]}
               icon={etaIcon(fmtEta(haversine(active.position, props.resident)).toUpperCase())}
+              interactive={false}
             />
             <Marker
               position={[active.position.lat, active.position.lng]}
-              icon={truckDivIcon("#22C55E", active.bearing, "lg")}
+              icon={truckDivIcon(active.bearing, { size: "lg", active: true })}
             />
           </>
         )}
@@ -184,14 +260,15 @@ export function TruckMap(props: Props) {
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+        <ZoomControl position="bottomright" />
         <FlyTo center={truck.position} zoom={15} />
         <Polyline
           positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
-          pathOptions={{ color: truck.truck.color, weight: 4, opacity: 0.8 }}
+          pathOptions={{ color: "#3B82F6", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
         />
         <Marker
           position={[truck.position.lat, truck.position.lng]}
-          icon={truckDivIcon(truck.truck.color, truck.bearing, "lg", truck.status === "offline")}
+          icon={truckDivIcon(truck.bearing, { size: "lg", active: true, offline: truck.status === "offline" })}
         />
       </MapContainer>
     );
@@ -199,18 +276,26 @@ export function TruckMap(props: Props) {
 
   // admin
   const bounds: L.LatLngBoundsExpression = [
-    [20.85, 74.72],
-    [21.4, 74.93],
+    [SHIRPUR.lat - 0.03, SHIRPUR.lng - 0.03],
+    [SHIRPUR.lat + 0.03, SHIRPUR.lng + 0.03],
   ];
+  const highlighted = props.highlightId ? trucks[props.highlightId] : undefined;
   return (
     <MapContainer
       bounds={bounds}
-      zoomControl={true}
+      zoomControl={false}
       attributionControl={false}
       style={{ height: "100%", width: "100%" }}
     >
       <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
-      <Marker position={[21.3483, 74.8827]} icon={cityBadge("Shirpur")} interactive={false} />
+      <ZoomControl position="bottomright" />
+      <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
+      {SHIRPUR_LANDMARKS.map((lm) => (
+        <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
+      ))}
+      {highlighted && (
+        <RecenterOnKey center={highlighted.position} zoom={16} triggerKey={highlighted.id} />
+      )}
       {list.map((t) => (
         <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
       ))}
@@ -218,7 +303,11 @@ export function TruckMap(props: Props) {
         <Marker
           key={t.id}
           position={[t.position.lat, t.position.lng]}
-          icon={truckDivIcon(t.truck.color, t.bearing, "sm", t.status === "offline")}
+          icon={truckDivIcon(t.bearing, {
+            size: props.highlightId === t.id ? "lg" : "sm",
+            offline: t.status === "offline",
+            active: props.highlightId === t.id,
+          })}
           eventHandlers={{ click: () => props.onTruckClick?.(t.id) }}
         >
           <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={props.highlightId === t.id}>
@@ -244,14 +333,28 @@ export function TruckMap(props: Props) {
 function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
   if (!showRoute && !highlight) return null;
   const offline = truck.status === "offline";
+  if (highlight) {
+    return (
+      <>
+        <Polyline
+          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9 }}
+        />
+        <Polyline
+          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
+        />
+      </>
+    );
+  }
   return (
     <Polyline
       positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
       pathOptions={{
-        color: offline ? "#9ca3af" : truck.truck.color,
-        weight: highlight ? 5 : 3,
-        opacity: offline ? 0.5 : 0.85,
-        dashArray: offline ? "6 8" : undefined,
+        color: offline ? "#cbd5e1" : "#94a3b8",
+        weight: 2,
+        opacity: offline ? 0.35 : 0.5,
+        dashArray: offline ? "4 6" : undefined,
       }}
     />
   );
