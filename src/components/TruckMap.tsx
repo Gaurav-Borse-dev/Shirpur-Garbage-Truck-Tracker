@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import { useEffect, useMemo, useRef } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
@@ -56,6 +56,16 @@ function FlyTo({ center, zoom }: { center: LatLng; zoom?: number }) {
   return null;
 }
 
+/** Recenter only when the trigger key changes (e.g. active truck id), never on every tick. */
+function RecenterOnKey({ center, zoom, triggerKey }: { center: LatLng; zoom?: number; triggerKey: string }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true, duration: 0.6 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerKey]);
+  return null;
+}
+
 type ResidentMapProps = {
   mode: "resident";
   resident: LatLng;
@@ -97,17 +107,22 @@ export function TruckMap(props: Props) {
         center={[props.resident.lat, props.resident.lng]}
         zoom={15}
         zoomControl={false}
-        scrollWheelZoom={false}
-        dragging={false}
-        doubleClickZoom={false}
-        touchZoom={false}
-        boxZoom={false}
-        keyboard={false}
+        scrollWheelZoom={true}
+        dragging={true}
+        doubleClickZoom={true}
+        touchZoom={true}
+        boxZoom={true}
+        keyboard={true}
         attributionControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
-        <FlyTo center={midpoint(props.resident, active?.position ?? props.resident)} zoom={15} />
+        <ZoomControl position="bottomright" />
+        <RecenterOnKey
+          center={midpoint(props.resident, active?.position ?? props.resident)}
+          zoom={15}
+          triggerKey={active?.id ?? "none"}
+        />
 
         {/* Geofence */}
         <Circle
