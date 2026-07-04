@@ -99,28 +99,6 @@ function ResidentHome() {
         <ConnectionPill connection={connection} />
       </div>
 
-      {/* Floating arrival card (top-left, under back button) */}
-      {nearest && (
-        <div className="absolute top-16 left-3 z-[450] pointer-events-none">
-          <div className="pointer-events-auto bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.10)] px-3 py-2.5 flex items-center gap-3 min-w-[190px]">
-            <div className="w-10 h-10 rounded-xl bg-brand-soft grid place-items-center shrink-0">
-              <TruckIcon className="w-5 h-5 text-brand" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold leading-none">
-                Arriving in
-              </div>
-              <div className="text-lg font-bold text-ink leading-tight mt-0.5">
-                {fmtEta(distance)}
-              </div>
-              <div className="text-[11px] text-neutral-500 leading-none">
-                {fmtDistance(distance)} away
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Home pill near resident */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60px] z-[400] pointer-events-none">
         <div className="ct-pill bg-ink text-white">Home ›</div>
