@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import { useEffect, useMemo, useRef } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
@@ -106,7 +106,7 @@ export function TruckMap(props: Props) {
       <MapContainer
         center={[props.resident.lat, props.resident.lng]}
         zoom={15}
-        zoomControl={true}
+        zoomControl={false}
         scrollWheelZoom={true}
         dragging={true}
         doubleClickZoom={true}
@@ -117,6 +117,7 @@ export function TruckMap(props: Props) {
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+        <ZoomControl position="bottomright" />
         <RecenterOnKey
           center={midpoint(props.resident, active?.position ?? props.resident)}
           zoom={15}
