@@ -404,18 +404,22 @@ const AdminTruckMarker = memo(
     Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
 );
 
-function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
+const PolyRoute = memo(function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
+  const positions = useMemo(
+    () => truck.truck.route.map((p) => [p.lat, p.lng] as [number, number]),
+    [truck.truck.route],
+  );
   if (!showRoute && !highlight) return null;
   const offline = truck.status === "offline";
   if (highlight) {
     return (
       <>
         <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          positions={positions}
           pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9 }}
         />
         <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          positions={positions}
           pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
         />
       </>
@@ -423,7 +427,7 @@ function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRout
   }
   return (
     <Polyline
-      positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+      positions={positions}
       pathOptions={{
         color: offline ? "#cbd5e1" : "#94a3b8",
         weight: 2,
@@ -432,4 +436,9 @@ function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRout
       }}
     />
   );
-}
+}, (prev, next) =>
+  prev.showRoute === next.showRoute &&
+  prev.highlight === next.highlight &&
+  prev.truck.status === next.truck.status &&
+  prev.truck.truck.route === next.truck.truck.route,
+);
