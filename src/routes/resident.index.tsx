@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import { useTrucks } from "@/store/trucks";
 import { RESIDENT_DEMO } from "@/lib/trucks";
 import { fmtDistance, fmtEta, haversine } from "@/lib/geo";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident/")({
   component: ResidentHome,
@@ -20,6 +21,7 @@ type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
 
 function ResidentHome() {
   const navigate = useNavigate();
+  const tr = useT();
   const session = useAuth((s) => s.session)!;
   const city = session.role === "resident" ? session.city : "Shirpur";
   const resident = RESIDENT_DEMO[city];
@@ -63,15 +65,15 @@ function ResidentHome() {
         return true;
       };
       if (zone === "Nearby" && can("nearby")) {
-        push({ title: `Garbage truck is ${fmtDistance(distance)} away`, subtitle: "Head outside soon" });
-        fireBrowserNotif(notifEnabled, "Truck nearby", `${nearest.truck.id} is ${fmtDistance(distance)} away`);
+        push({ title: `${tr("Truck is")} ${fmtDistance(distance)} ${tr("away")}`, subtitle: tr("Head outside soon") });
+        fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmtDistance(distance)}`);
       }
       if (zone === "Arriving" && can("arriving")) {
-        push({ title: "Truck is almost here!", subtitle: "Go outside now" });
-        fireBrowserNotif(notifEnabled, "Truck arriving", `${nearest.truck.id} is arriving`);
+        push({ title: tr("Truck is almost here!"), subtitle: tr("Go outside now") });
+        fireBrowserNotif(notifEnabled, tr("Truck arriving"), `${nearest.truck.id}`);
       }
       if (zone === "Leaving" && can("leaving")) {
-        push({ title: "Truck has passed", subtitle: "Check schedule for next pickup" });
+        push({ title: tr("Truck has passed"), subtitle: tr("Check schedule for next pickup") });
       }
       prevZone.current = zone;
     }
@@ -93,7 +95,7 @@ function ResidentHome() {
         <button
           onClick={() => navigate({ to: "/role" })}
           className="pointer-events-auto w-11 h-11 rounded-full bg-white shadow-md grid place-items-center shrink-0"
-          aria-label="Back"
+          aria-label={tr("Back")}
         >
           <ChevronLeft />
         </button>
@@ -114,13 +116,13 @@ function ResidentHome() {
             </div>
             <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
-                Arriving in
+                {tr("Arriving in")}
               </div>
               <div className="text-lg font-bold text-ink leading-tight">
                 {fmtEta(distance)}
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                {fmtDistance(distance)} away
+                {fmtDistance(distance)} {tr("away")}
               </div>
             </div>
           </div>
@@ -141,20 +143,20 @@ function ResidentHome() {
                   {nearest.truck.name}
                 </div>
                 <div className="text-xs text-neutral-500 truncate mt-0.5">
-                  Route {nearest.truck.id} · {nearest.truck.wardName.split("—")[0].trim()}
+                  {tr("Route")} {nearest.truck.id} · {nearest.truck.wardName.split("—")[0].trim()}
                 </div>
               </div>
-              <div className={`ct-pill ${status.tone} shrink-0`}>{status.label}</div>
+              <div className={`ct-pill ${status.tone} shrink-0`}>{tr(status.label)}</div>
             </div>
 
             {/* Row 2: distance / ETA */}
             <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-2 overflow-hidden">
               <div className="p-3.5">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Distance</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Distance")}</div>
                 <div className="text-xl font-bold text-ink mt-0.5">{fmtDistance(distance)}</div>
               </div>
               <div className="p-3.5 border-l border-neutral-200/70">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">ETA</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("ETA")}</div>
                 <div className="text-xl font-bold text-ink mt-0.5">{fmtEta(distance)}</div>
               </div>
             </div>
@@ -162,13 +164,13 @@ function ResidentHome() {
             {/* Subtitle */}
             <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
               <ClockIcon className="w-4 h-4 shrink-0" />
-              <span className="truncate">Municipal waste collection service</span>
+              <span className="truncate">{tr("Municipal waste collection service")}</span>
             </div>
 
             {/* Notification toggle row */}
             <div className="mt-4 flex items-center gap-3 py-3 border-t border-neutral-100">
               <BellIcon className="w-5 h-5 text-ink shrink-0" />
-              <div className="flex-1 text-sm text-ink">Alert me when truck is near</div>
+              <div className="flex-1 text-sm text-ink">{tr("Alert me when truck is near")}</div>
               <Toggle
                 on={notifEnabled}
                 onChange={(v) => {
@@ -187,7 +189,7 @@ function ResidentHome() {
                 insideNearby ? "bg-ink text-white shadow-lg shadow-black/20" : "bg-neutral-100 text-neutral-400"
               }`}
             >
-              {insideNearby ? "I'm Coming" : `Truck is ${fmtDistance(distance)} away`}
+              {insideNearby ? tr("I'm Coming") : `${tr("Truck is")} ${fmtDistance(distance)} ${tr("away")}`}
             </button>
           </div>
         </BottomSheet>
