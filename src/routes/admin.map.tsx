@@ -4,6 +4,7 @@ import { ClientOnly } from "@/components/ClientOnly";
 import { TruckMap } from "@/components/TruckMap";
 import { useTrucks } from "@/store/trucks";
 import { TruckIcon } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/map")({
   component: LiveMapPage,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/admin/map")({
 type Filter = "all" | "online" | "offline";
 
 function LiveMapPage() {
+  const tr = useT();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const [filter, setFilter] = useState<Filter>("all");
@@ -48,15 +50,15 @@ function LiveMapPage() {
                 <span className="block w-4 h-[2px] bg-ink rounded" />
               </div>
             </button>
-            <h2 className="font-bold text-ink text-[17px]">Admin Live Dashboard</h2>
+            <h2 className="font-bold text-ink text-[17px]">{tr("Admin Live Dashboard")}</h2>
           </div>
 
           {/* Stat cards */}
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <StatCard label="Total Trucks" value={totals.total} accent="ink" icon="truck" />
-            <StatCard label="Active Trucks" value={totals.active} accent="green" icon="dot" />
-            <StatCard label="Completed Stops" value={totals.completed} accent="green" icon="check" />
-            <StatCard label="Pending Stops" value={totals.pending} accent="orange" icon="circle" />
+            <StatCard label={tr("Total Trucks")} value={totals.total} accent="ink" icon="truck" />
+            <StatCard label={tr("Active Trucks")} value={totals.active} accent="green" icon="dot" />
+            <StatCard label={tr("Completed Stops")} value={totals.completed} accent="green" icon="check" />
+            <StatCard label={tr("Pending Stops")} value={totals.pending} accent="orange" icon="circle" />
           </div>
         </div>
 
@@ -71,7 +73,7 @@ function LiveMapPage() {
                   filter === f ? "text-brand border-brand" : "text-neutral-400 border-transparent hover:text-ink"
                 }`}
               >
-                {f === "all" ? "All Trucks" : f}
+                {f === "all" ? tr("All Trucks") : tr(f)}
               </button>
             ))}
           </div>
@@ -105,7 +107,7 @@ function LiveMapPage() {
                       {t.truck.id.replace("GBR-", "Truck ")}
                     </div>
                     <div className={`text-xs font-semibold ${statusTone}`}>
-                      {statusLabel} · Stop {stop}/{t.truck.totalStops}
+                      {tr(statusLabel)} · {tr("Stop")} {stop}/{t.truck.totalStops}
                     </div>
                   </div>
                   <div className="text-xs text-neutral-500 shrink-0">{t.status === "offline" ? "—" : eta}</div>
@@ -114,8 +116,8 @@ function LiveMapPage() {
             })}
           </div>
           <div className="border-t border-neutral-100 px-4 py-3 flex items-center justify-between text-sm">
-            <span className="text-neutral-500">{list.length} of {all.length} shown</span>
-            <span className="text-ink font-semibold">View All ›</span>
+            <span className="text-neutral-500">{list.length} {tr("of")} {all.length} {tr("shown")}</span>
+            <span className="text-ink font-semibold">{tr("View All")} ›</span>
           </div>
         </div>
       </aside>
