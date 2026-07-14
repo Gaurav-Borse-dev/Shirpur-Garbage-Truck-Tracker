@@ -3,12 +3,14 @@ import { useState } from "react";
 import { ClientOnly } from "@/components/ClientOnly";
 import { TruckMap } from "@/components/TruckMap";
 import { useTrucks } from "@/store/trucks";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/")({
   component: Dashboard,
 });
 
 function Dashboard() {
+  const tr = useT();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const list = Object.values(trucks);
@@ -21,19 +23,19 @@ function Dashboard() {
     <div className="p-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Fleet Dashboard</h1>
-          <p className="text-sm text-neutral-500 mt-1">Shirpur Municipal Corporation · Live</p>
+          <h1 className="text-2xl font-bold text-ink">{tr("Fleet Dashboard")}</h1>
+          <p className="text-sm text-neutral-500 mt-1">{tr("Shirpur Municipal Corporation · Live")}</p>
         </div>
         <div className="ct-pill bg-brand-soft text-brand">
-          <span className="w-2 h-2 rounded-full bg-brand" /> All systems live
+          <span className="w-2 h-2 rounded-full bg-brand" /> {tr("All systems live")}
         </div>
       </div>
 
       <div className="mt-6 grid grid-cols-4 gap-3">
-        <Stat label="Total Trucks" value={list.length} />
-        <Stat label="Online Now" value={online} accent />
-        <Stat label="Stops Today" value={totalStopsToday} />
-        <Stat label="Residents Alerted" value={residentsAlerted} />
+        <Stat label={tr("Total Trucks")} value={list.length} />
+        <Stat label={tr("Online Now")} value={online} accent />
+        <Stat label={tr("Stops Today")} value={totalStopsToday} />
+        <Stat label={tr("Residents Alerted")} value={residentsAlerted} />
       </div>
 
       <div className="mt-6 grid grid-cols-[3fr_2fr] gap-4">
@@ -43,7 +45,7 @@ function Dashboard() {
           </ClientOnly>
         </div>
         <div className="rounded-2xl border border-neutral-200 flex flex-col h-[560px]">
-          <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">Active trucks</div>
+          <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">{tr("Active trucks")}</div>
           <div className="flex-1 overflow-y-auto divide-y divide-neutral-100">
             {list.map((t) => (
               <button
@@ -58,7 +60,7 @@ function Dashboard() {
                 </div>
                 <div className="text-xs text-neutral-500 font-mono">{t.completedStops}/{t.truck.totalStops}</div>
                 <div className={`ct-pill text-[10px] py-0.5 ${t.status === "offline" ? "bg-neutral-100 text-neutral-500" : "bg-brand-soft text-brand"}`}>
-                  {t.status === "offline" ? "Offline" : "Online"}
+                  {t.status === "offline" ? tr("Offline") : tr("Online")}
                 </div>
               </button>
             ))}

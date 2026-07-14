@@ -1,6 +1,6 @@
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
 import type { LatLng } from "@/lib/geo";
 import { fmtEta, haversine } from "@/lib/geo";
@@ -37,72 +37,99 @@ function truckSvgHTML(): string {
 </svg>`;
 }
 
+/** Quantize bearing to 5-degree buckets so we reuse the same L.divIcon
+ *  across frames — creating icons on every RAF tick killed FPS. */
+const ICON_CACHE = new Map<string, L.DivIcon>();
 function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {}) {
   const size = opts.size ?? "sm";
+  const bucket = Math.round(((bearing % 360) + 360) % 360 / 5) * 5;
+  const key = `${size}|${opts.offline ? 1 : 0}|${opts.active ? 1 : 0}|${bucket}`;
+  const cached = ICON_CACHE.get(key);
+  if (cached) return cached;
   const cls = `ct-truck ${size === "sm" ? "small" : ""} ${opts.offline ? "offline" : ""}`;
   const dim = size === "sm" ? { w: 26, h: 36 } : { w: 40, h: 56 };
   const html = `
     <div style="position:relative;width:${dim.w}px;height:${dim.h}px;">
       ${opts.active ? '<div class="ct-truck-active-ring"></div>' : ""}
-      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bearing}deg);">
+      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bucket}deg);">
         ${truckSvgHTML()}
       </div>
       ${opts.active && !opts.offline ? '<div class="ct-truck-green-dot"></div>' : ""}
     </div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: "",
     iconSize: [dim.w, dim.h],
     iconAnchor: [dim.w / 2, dim.h / 2],
   });
+  ICON_CACHE.set(key, icon);
+  return icon;
 }
 
-function residentIcon() {
-  return L.divIcon({
-    html: `<div class="ct-resident-dot"></div>`,
-    className: "",
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
-}
+const RESIDENT_ICON = L.divIcon({
+  html: `<div class="ct-resident-dot"></div>`,
+  className: "",
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+function residentIcon() { return RESIDENT_ICON; }
 
+const ETA_ICON_CACHE = new Map<string, L.DivIcon>();
 function etaIcon(text: string) {
-  return L.divIcon({
+  const c = ETA_ICON_CACHE.get(text);
+  if (c) return c;
+  const icon = L.divIcon({
     html: `<div class="ct-eta-badge">${text}</div>`,
     className: "",
     iconSize: [70, 28],
     iconAnchor: [35, 32],
   });
+  ETA_ICON_CACHE.set(text, icon);
+  if (ETA_ICON_CACHE.size > 64) {
+    const first = ETA_ICON_CACHE.keys().next().value;
+    if (first) ETA_ICON_CACHE.delete(first);
+  }
+  return icon;
 }
 
+const LANDMARK_CACHE = new Map<string, L.DivIcon>();
 function landmarkIcon(name: string, color = "#3B82F6") {
+  const key = `${name}|${color}`;
+  const c = LANDMARK_CACHE.get(key);
+  if (c) return c;
   const html = `
     <div class="ct-landmark">
       <div class="ct-landmark-pin" style="background:${color}"></div>
       <span>${name}</span>
     </div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: "",
     iconSize: [10, 10],
     iconAnchor: [12, 24],
   });
+  LANDMARK_CACHE.set(key, icon);
+  return icon;
 }
 
-function homeIcon() {
-  return L.divIcon({
-    html: `<div class="ct-home-pin">Home</div>`,
-    className: "",
-    iconSize: [10, 10],
-    iconAnchor: [-12, 30],
-  });
-}
+const HOME_ICON = L.divIcon({
+  html: `<div class="ct-home-pin">Home</div>`,
+  className: "",
+  iconSize: [10, 10],
+  iconAnchor: [-12, 30],
+});
+function homeIcon() { return HOME_ICON; }
 
+const CITY_BADGE_CACHE = new Map<string, L.DivIcon>();
 function cityBadge(name: string) {
-  return L.divIcon({
+  const c = CITY_BADGE_CACHE.get(name);
+  if (c) return c;
+  const icon = L.divIcon({
     html: `<div style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;color:#111;box-shadow:0 2px 8px rgba(0,0,0,0.06)">${name}</div>`,
     className: "", iconSize: [70, 22], iconAnchor: [35, 11],
   });
+  CITY_BADGE_CACHE.set(name, icon);
+  return icon;
 }
 
 /** Landmark points around Shirpur for map POIs. */
@@ -153,8 +180,8 @@ type Props = ResidentMapProps | DriverMapProps | AdminMapProps;
 export function TruckMap(props: Props) {
   useEffect(() => { startSimulation(); }, []);
   const trucks = useTrucks((s) => s.trucks);
-  useTrucks((s) => s.tick); // subscribe
-
+  // trucks reference changes every step (immutable object replacement), so we
+  // already re-render on every tick. No need for a separate `.tick` subscribe.
   const list = useMemo(() => Object.values(trucks), [trucks]);
 
   if (props.mode === "resident") {
@@ -222,12 +249,7 @@ export function TruckMap(props: Props) {
         {list
           .filter((t) => t.id !== active?.id)
           .map((t) => (
-            <Marker
-              key={t.id}
-              position={[t.position.lat, t.position.lng]}
-              icon={truckDivIcon(t.bearing, { size: "sm", offline: t.status === "offline" })}
-              interactive={false}
-            />
+            <IdleTruckMarker key={t.id} truck={t} />
           ))}
 
         {/* Active truck (top) + ETA badge riding on it */}
@@ -300,48 +322,104 @@ export function TruckMap(props: Props) {
         <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
       ))}
       {list.map((t) => (
-        <Marker
+        <AdminTruckMarker
           key={t.id}
-          position={[t.position.lat, t.position.lng]}
-          icon={truckDivIcon(t.bearing, {
-            size: props.highlightId === t.id ? "lg" : "sm",
-            offline: t.status === "offline",
-            active: props.highlightId === t.id,
-          })}
-          eventHandlers={{ click: () => props.onTruckClick?.(t.id) }}
-        >
-          <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={props.highlightId === t.id}>
-            <span style={{ fontWeight: 700, fontSize: 11 }}>{t.id}</span>
-          </Tooltip>
-          <Popup>
-            <div style={{ minWidth: 180 }}>
-              <div style={{ fontWeight: 700 }}>{t.truck.id} · {t.truck.name}</div>
-              <div style={{ color: "#666", fontSize: 12 }}>{t.truck.driverName}</div>
-              <div style={{ color: "#666", fontSize: 12 }}>{t.truck.wardName}</div>
-              <div style={{ marginTop: 6, fontSize: 12 }}>
-                Stops: {t.completedStops}/{t.truck.totalStops}
-              </div>
-              <div style={{ fontSize: 12 }}>Status: {t.status}</div>
-            </div>
-          </Popup>
-        </Marker>
+          truck={t}
+          highlighted={props.highlightId === t.id}
+          onClick={props.onTruckClick}
+        />
       ))}
     </MapContainer>
   );
 }
 
-function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
+/**
+ * Memoized marker for idle/scattered trucks on the resident map.
+ * Only re-renders when position (~5m), bearing (~5°), or status actually change.
+ */
+const IdleTruckMarker = memo(
+  function IdleTruckMarker({ truck }: { truck: LiveTruck }) {
+    return (
+      <Marker
+        position={[truck.position.lat, truck.position.lng]}
+        icon={truckDivIcon(truck.bearing, { size: "sm", offline: truck.status === "offline" })}
+        interactive={false}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.truck.status === next.truck.status &&
+    Math.round(prev.truck.position.lat * 1e5) === Math.round(next.truck.position.lat * 1e5) &&
+    Math.round(prev.truck.position.lng * 1e5) === Math.round(next.truck.position.lng * 1e5) &&
+    Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
+);
+
+/**
+ * Memoized admin marker: skips re-render if the visible attributes are unchanged.
+ */
+const AdminTruckMarker = memo(
+  function AdminTruckMarker({
+    truck,
+    highlighted,
+    onClick,
+  }: {
+    truck: LiveTruck;
+    highlighted: boolean;
+    onClick?: (id: string) => void;
+  }) {
+    return (
+      <Marker
+        position={[truck.position.lat, truck.position.lng]}
+        icon={truckDivIcon(truck.bearing, {
+          size: highlighted ? "lg" : "sm",
+          offline: truck.status === "offline",
+          active: highlighted,
+        })}
+        eventHandlers={{ click: () => onClick?.(truck.id) }}
+      >
+        <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={highlighted}>
+          <span style={{ fontWeight: 700, fontSize: 11 }}>{truck.id}</span>
+        </Tooltip>
+        <Popup>
+          <div style={{ minWidth: 180 }}>
+            <div style={{ fontWeight: 700 }}>{truck.truck.id} · {truck.truck.name}</div>
+            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.driverName}</div>
+            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.wardName}</div>
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              Stops: {truck.completedStops}/{truck.truck.totalStops}
+            </div>
+            <div style={{ fontSize: 12 }}>Status: {truck.status}</div>
+          </div>
+        </Popup>
+      </Marker>
+    );
+  },
+  (prev, next) =>
+    prev.highlighted === next.highlighted &&
+    prev.onClick === next.onClick &&
+    prev.truck.status === next.truck.status &&
+    prev.truck.completedStops === next.truck.completedStops &&
+    Math.round(prev.truck.position.lat * 1e5) === Math.round(next.truck.position.lat * 1e5) &&
+    Math.round(prev.truck.position.lng * 1e5) === Math.round(next.truck.position.lng * 1e5) &&
+    Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
+);
+
+const PolyRoute = memo(function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
+  const positions = useMemo(
+    () => truck.truck.route.map((p) => [p.lat, p.lng] as [number, number]),
+    [truck.truck.route],
+  );
   if (!showRoute && !highlight) return null;
   const offline = truck.status === "offline";
   if (highlight) {
     return (
       <>
         <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          positions={positions}
           pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9 }}
         />
         <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+          positions={positions}
           pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
         />
       </>
@@ -349,7 +427,7 @@ function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRout
   }
   return (
     <Polyline
-      positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
+      positions={positions}
       pathOptions={{
         color: offline ? "#cbd5e1" : "#94a3b8",
         weight: 2,
@@ -358,4 +436,9 @@ function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRout
       }}
     />
   );
-}
+}, (prev, next) =>
+  prev.showRoute === next.showRoute &&
+  prev.highlight === next.highlight &&
+  prev.truck.status === next.truck.status &&
+  prev.truck.truck.route === next.truck.truck.route,
+);
