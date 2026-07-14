@@ -9,6 +9,7 @@ import { ChevronDown, CheckIcon, LogoutIcon } from "@/components/icons";
 import { useAuth } from "@/store/auth";
 import { useTrucks } from "@/store/trucks";
 import { useToast, ToastHost } from "@/components/Toast";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHome,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/driver")({
 type StopStatus = "enroute" | "arrived" | "completed";
 
 function DriverHome() {
+  const tr = useT();
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ function DriverHome() {
 
   function advance() {
     complete(truckId);
-    push({ title: "Stop completed", subtitle: `Moved to stop ${stopNum + 1}` });
+    push({ title: tr("Stop") + " " + tr("Completed"), subtitle: `${tr("Stop")} ${stopNum + 1}` });
     setStopStatus("enroute");
   }
 
@@ -56,18 +58,18 @@ function DriverHome() {
         {/* Top bar */}
         <div className="absolute top-3 left-3 right-3 z-[500] flex items-center justify-between pointer-events-none">
           <div className="pointer-events-auto bg-white rounded-2xl shadow-md px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Driver</div>
+            <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Driver")}</div>
             <div className="text-sm font-bold text-ink">{session.driverName} · {truckId}</div>
           </div>
           <div className="pointer-events-auto flex items-center gap-2">
             {connection === "reconnecting" && (
               <div className="ct-pill bg-[#FEF3C7] text-[#92400E] shadow-md">
                 <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                Reconnecting
+                {tr("Reconnecting")}
               </div>
             )}
             <div className={`ct-pill ${online ? "bg-brand text-white" : "bg-neutral-300 text-white"} shadow-md`}>
-              <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-white/60"}`} /> {online ? "Online" : "Offline"}
+              <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-white/60"}`} /> {online ? tr("Online") : tr("Offline")}
             </div>
           </div>
         </div>
@@ -80,10 +82,10 @@ function DriverHome() {
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-neutral-200">
               <div className="flex-1">
                 <div className={`font-bold text-sm ${online ? "text-brand" : "text-neutral-500"}`}>
-                  You are {online ? "ONLINE" : "OFFLINE"}
+                  {tr("You are")} {online ? tr("Online").toUpperCase() : tr("Offline").toUpperCase()}
                 </div>
                 <div className="text-xs text-neutral-500">
-                  {online ? "Residents can see your location." : "Go online to start broadcasting."}
+                  {online ? tr("Residents can see your location.") : tr("Go online to start broadcasting.")}
                 </div>
               </div>
               <button
@@ -98,7 +100,7 @@ function DriverHome() {
             {/* Current stop */}
             <div className="mt-3 rounded-2xl border border-neutral-200 border-l-4 border-l-brand p-4">
               <div className="text-[11px] uppercase tracking-wider text-neutral-400 font-bold">
-                Stop {stopNum} of {live.truck.totalStops}
+                {tr("Stop")} {stopNum} {tr("of")} {live.truck.totalStops}
               </div>
               <div className="font-bold text-ink mt-1">{live.truck.wardName}</div>
               <div className="text-[11px] text-neutral-400 mt-0.5">
@@ -117,12 +119,12 @@ function DriverHome() {
                       stopStatus === s ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
                     }`}
                   >
-                    {s === "enroute" ? "En Route" : s === "arrived" ? "Arrived" : "Completed"}
+                    {s === "enroute" ? tr("En Route") : s === "arrived" ? tr("Arrived") : tr("Completed")}
                   </button>
                 ))}
               </div>
               {stopStatus === "arrived" && (
-                <div className="mt-3 text-xs text-brand font-semibold">3 residents notified nearby</div>
+                <div className="mt-3 text-xs text-brand font-semibold">{tr("3 residents notified nearby")}</div>
               )}
             </div>
 
@@ -131,7 +133,7 @@ function DriverHome() {
               onClick={() => setExpanded((x) => !x)}
               className="mt-3 flex items-center gap-1 text-sm font-semibold text-ink"
             >
-              {expanded ? "Hide stops" : "View all stops"}
+              {expanded ? tr("Hide stops") : tr("View all stops")}
               <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
             <AnimatePresence>
