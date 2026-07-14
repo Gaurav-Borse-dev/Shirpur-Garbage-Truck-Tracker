@@ -3,6 +3,7 @@ import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { LockIcon, TruckIcon, UserIcon } from "@/components/icons";
 import { motion } from "framer-motion";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/role")({
   head: () => ({
@@ -12,19 +13,20 @@ export const Route = createFileRoute("/role")({
 });
 
 function RolePage() {
+  const t = useT();
   return (
     <MobileFrame>
       <div className="pt-10 px-6">
         <Logo />
       </div>
       <div className="px-6 pt-8">
-        <h1 className="text-2xl font-bold tracking-tight text-ink">Who's signing in?</h1>
-        <p className="mt-1 text-neutral-500 text-sm">Pick the experience that fits you.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("Who's signing in?")}</h1>
+        <p className="mt-1 text-neutral-500 text-sm">{t("Pick the experience that fits you.")}</p>
       </div>
       <div className="px-6 mt-6 flex flex-col gap-3">
-        <Card to="/login/resident" Icon={UserIcon} title="I'm a Resident" subtitle="Track the truck near me" />
-        <Card to="/login/driver" Icon={TruckIcon} title="Truck Driver" subtitle="Share location, manage stops" />
-        <Card to="/login/admin" Icon={LockIcon} title="Municipal Admin" subtitle="Monitor the entire fleet" />
+        <Card to="/login/resident" Icon={UserIcon} title={t("I'm a Resident")} subtitle={t("Track the truck near me")} />
+        <Card to="/login/driver" Icon={TruckIcon} title={t("Truck Driver")} subtitle={t("Share location, manage stops")} />
+        <Card to="/login/admin" Icon={LockIcon} title={t("Municipal Admin")} subtitle={t("Monitor the entire fleet")} />
       </div>
       <div className="mt-auto pb-8 text-center text-xs text-neutral-400">
         Powered by CleanTrack · v1.0
