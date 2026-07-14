@@ -1,6 +1,6 @@
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
 import type { LatLng } from "@/lib/geo";
 import { fmtEta, haversine } from "@/lib/geo";
@@ -37,72 +37,99 @@ function truckSvgHTML(): string {
 </svg>`;
 }
 
+/** Quantize bearing to 5-degree buckets so we reuse the same L.divIcon
+ *  across frames — creating icons on every RAF tick killed FPS. */
+const ICON_CACHE = new Map<string, L.DivIcon>();
 function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {}) {
   const size = opts.size ?? "sm";
+  const bucket = Math.round(((bearing % 360) + 360) % 360 / 5) * 5;
+  const key = `${size}|${opts.offline ? 1 : 0}|${opts.active ? 1 : 0}|${bucket}`;
+  const cached = ICON_CACHE.get(key);
+  if (cached) return cached;
   const cls = `ct-truck ${size === "sm" ? "small" : ""} ${opts.offline ? "offline" : ""}`;
   const dim = size === "sm" ? { w: 26, h: 36 } : { w: 40, h: 56 };
   const html = `
     <div style="position:relative;width:${dim.w}px;height:${dim.h}px;">
       ${opts.active ? '<div class="ct-truck-active-ring"></div>' : ""}
-      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bearing}deg);">
+      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bucket}deg);">
         ${truckSvgHTML()}
       </div>
       ${opts.active && !opts.offline ? '<div class="ct-truck-green-dot"></div>' : ""}
     </div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: "",
     iconSize: [dim.w, dim.h],
     iconAnchor: [dim.w / 2, dim.h / 2],
   });
+  ICON_CACHE.set(key, icon);
+  return icon;
 }
 
-function residentIcon() {
-  return L.divIcon({
-    html: `<div class="ct-resident-dot"></div>`,
-    className: "",
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
-}
+const RESIDENT_ICON = L.divIcon({
+  html: `<div class="ct-resident-dot"></div>`,
+  className: "",
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+function residentIcon() { return RESIDENT_ICON; }
 
+const ETA_ICON_CACHE = new Map<string, L.DivIcon>();
 function etaIcon(text: string) {
-  return L.divIcon({
+  const c = ETA_ICON_CACHE.get(text);
+  if (c) return c;
+  const icon = L.divIcon({
     html: `<div class="ct-eta-badge">${text}</div>`,
     className: "",
     iconSize: [70, 28],
     iconAnchor: [35, 32],
   });
+  ETA_ICON_CACHE.set(text, icon);
+  if (ETA_ICON_CACHE.size > 64) {
+    const first = ETA_ICON_CACHE.keys().next().value;
+    if (first) ETA_ICON_CACHE.delete(first);
+  }
+  return icon;
 }
 
+const LANDMARK_CACHE = new Map<string, L.DivIcon>();
 function landmarkIcon(name: string, color = "#3B82F6") {
+  const key = `${name}|${color}`;
+  const c = LANDMARK_CACHE.get(key);
+  if (c) return c;
   const html = `
     <div class="ct-landmark">
       <div class="ct-landmark-pin" style="background:${color}"></div>
       <span>${name}</span>
     </div>`;
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: "",
     iconSize: [10, 10],
     iconAnchor: [12, 24],
   });
+  LANDMARK_CACHE.set(key, icon);
+  return icon;
 }
 
-function homeIcon() {
-  return L.divIcon({
-    html: `<div class="ct-home-pin">Home</div>`,
-    className: "",
-    iconSize: [10, 10],
-    iconAnchor: [-12, 30],
-  });
-}
+const HOME_ICON = L.divIcon({
+  html: `<div class="ct-home-pin">Home</div>`,
+  className: "",
+  iconSize: [10, 10],
+  iconAnchor: [-12, 30],
+});
+function homeIcon() { return HOME_ICON; }
 
+const CITY_BADGE_CACHE = new Map<string, L.DivIcon>();
 function cityBadge(name: string) {
-  return L.divIcon({
+  const c = CITY_BADGE_CACHE.get(name);
+  if (c) return c;
+  const icon = L.divIcon({
     html: `<div style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;color:#111;box-shadow:0 2px 8px rgba(0,0,0,0.06)">${name}</div>`,
     className: "", iconSize: [70, 22], iconAnchor: [35, 11],
   });
+  CITY_BADGE_CACHE.set(name, icon);
+  return icon;
 }
 
 /** Landmark points around Shirpur for map POIs. */
