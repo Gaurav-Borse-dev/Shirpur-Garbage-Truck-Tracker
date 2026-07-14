@@ -199,6 +199,7 @@ function ResidentHome() {
 }
 
 function ConnectionPill({ connection }: { connection: "live" | "reconnecting" }) {
+  const tr = useT();
   const live = connection === "live";
   return (
     <div
@@ -209,7 +210,7 @@ function ConnectionPill({ connection }: { connection: "live" | "reconnecting" })
       <span
         className={`w-2 h-2 rounded-full ${live ? "bg-brand" : "bg-[#F59E0B] animate-pulse"}`}
       />
-      {live ? "Live" : "Reconnecting"}
+      {live ? tr("Live") : tr("Reconnecting")}
     </div>
   );
 }
