@@ -180,8 +180,8 @@ type Props = ResidentMapProps | DriverMapProps | AdminMapProps;
 export function TruckMap(props: Props) {
   useEffect(() => { startSimulation(); }, []);
   const trucks = useTrucks((s) => s.trucks);
-  useTrucks((s) => s.tick); // subscribe
-
+  // trucks reference changes every step (immutable object replacement), so we
+  // already re-render on every tick. No need for a separate `.tick` subscribe.
   const list = useMemo(() => Object.values(trucks), [trucks]);
 
   if (props.mode === "resident") {
@@ -249,12 +249,7 @@ export function TruckMap(props: Props) {
         {list
           .filter((t) => t.id !== active?.id)
           .map((t) => (
-            <Marker
-              key={t.id}
-              position={[t.position.lat, t.position.lng]}
-              icon={truckDivIcon(t.bearing, { size: "sm", offline: t.status === "offline" })}
-              interactive={false}
-            />
+            <IdleTruckMarker key={t.id} truck={t} />
           ))}
 
         {/* Active truck (top) + ETA badge riding on it */}
@@ -327,35 +322,87 @@ export function TruckMap(props: Props) {
         <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
       ))}
       {list.map((t) => (
-        <Marker
+        <AdminTruckMarker
           key={t.id}
-          position={[t.position.lat, t.position.lng]}
-          icon={truckDivIcon(t.bearing, {
-            size: props.highlightId === t.id ? "lg" : "sm",
-            offline: t.status === "offline",
-            active: props.highlightId === t.id,
-          })}
-          eventHandlers={{ click: () => props.onTruckClick?.(t.id) }}
-        >
-          <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={props.highlightId === t.id}>
-            <span style={{ fontWeight: 700, fontSize: 11 }}>{t.id}</span>
-          </Tooltip>
-          <Popup>
-            <div style={{ minWidth: 180 }}>
-              <div style={{ fontWeight: 700 }}>{t.truck.id} · {t.truck.name}</div>
-              <div style={{ color: "#666", fontSize: 12 }}>{t.truck.driverName}</div>
-              <div style={{ color: "#666", fontSize: 12 }}>{t.truck.wardName}</div>
-              <div style={{ marginTop: 6, fontSize: 12 }}>
-                Stops: {t.completedStops}/{t.truck.totalStops}
-              </div>
-              <div style={{ fontSize: 12 }}>Status: {t.status}</div>
-            </div>
-          </Popup>
-        </Marker>
+          truck={t}
+          highlighted={props.highlightId === t.id}
+          onClick={props.onTruckClick}
+        />
       ))}
     </MapContainer>
   );
 }
+
+/**
+ * Memoized marker for idle/scattered trucks on the resident map.
+ * Only re-renders when position (~5m), bearing (~5°), or status actually change.
+ */
+const IdleTruckMarker = memo(
+  function IdleTruckMarker({ truck }: { truck: LiveTruck }) {
+    return (
+      <Marker
+        position={[truck.position.lat, truck.position.lng]}
+        icon={truckDivIcon(truck.bearing, { size: "sm", offline: truck.status === "offline" })}
+        interactive={false}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.truck.status === next.truck.status &&
+    Math.round(prev.truck.position.lat * 1e5) === Math.round(next.truck.position.lat * 1e5) &&
+    Math.round(prev.truck.position.lng * 1e5) === Math.round(next.truck.position.lng * 1e5) &&
+    Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
+);
+
+/**
+ * Memoized admin marker: skips re-render if the visible attributes are unchanged.
+ */
+const AdminTruckMarker = memo(
+  function AdminTruckMarker({
+    truck,
+    highlighted,
+    onClick,
+  }: {
+    truck: LiveTruck;
+    highlighted: boolean;
+    onClick?: (id: string) => void;
+  }) {
+    return (
+      <Marker
+        position={[truck.position.lat, truck.position.lng]}
+        icon={truckDivIcon(truck.bearing, {
+          size: highlighted ? "lg" : "sm",
+          offline: truck.status === "offline",
+          active: highlighted,
+        })}
+        eventHandlers={{ click: () => onClick?.(truck.id) }}
+      >
+        <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={highlighted}>
+          <span style={{ fontWeight: 700, fontSize: 11 }}>{truck.id}</span>
+        </Tooltip>
+        <Popup>
+          <div style={{ minWidth: 180 }}>
+            <div style={{ fontWeight: 700 }}>{truck.truck.id} · {truck.truck.name}</div>
+            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.driverName}</div>
+            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.wardName}</div>
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              Stops: {truck.completedStops}/{truck.truck.totalStops}
+            </div>
+            <div style={{ fontSize: 12 }}>Status: {truck.status}</div>
+          </div>
+        </Popup>
+      </Marker>
+    );
+  },
+  (prev, next) =>
+    prev.highlighted === next.highlighted &&
+    prev.onClick === next.onClick &&
+    prev.truck.status === next.truck.status &&
+    prev.truck.completedStops === next.truck.completedStops &&
+    Math.round(prev.truck.position.lat * 1e5) === Math.round(next.truck.position.lat * 1e5) &&
+    Math.round(prev.truck.position.lng * 1e5) === Math.round(next.truck.position.lng * 1e5) &&
+    Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
+);
 
 function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
   if (!showRoute && !highlight) return null;
