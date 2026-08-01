@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { PerfOverlay } from "@/components/PerfOverlay";
+import { ClientOnly } from "@/components/ClientOnly";
 
 function NotFoundComponent() {
   return (
@@ -128,6 +130,9 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <LanguageSwitcher />
+        <ClientOnly>
+          <PerfOverlay />
+        </ClientOnly>
       </AppSplash>
     </QueryClientProvider>
   );
