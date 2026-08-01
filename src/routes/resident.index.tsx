@@ -23,6 +23,7 @@ type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
 function ResidentHome() {
   const navigate = useNavigate();
   const tr = useT();
+  const fmt = useFormat();
   const session = useAuth((s) => s.session)!;
   const city = session.role === "resident" ? session.city : "Shirpur";
   const resident = RESIDENT_DEMO[city];

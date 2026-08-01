@@ -14,6 +14,7 @@ export const Route = createFileRoute("/admin/replay")({
 });
 
 function ReplayPage() {
+  const fmt = useFormat();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const list = useMemo(() => Object.values(trucks), [trucks]);
