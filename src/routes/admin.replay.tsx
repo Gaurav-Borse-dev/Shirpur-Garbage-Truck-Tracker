@@ -4,7 +4,8 @@ import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet";
 import L from "leaflet";
 import { ClientOnly } from "@/components/ClientOnly";
 import { useTrucks } from "@/store/trucks";
-import { fmtDistance, haversine } from "@/lib/geo";
+import { haversine } from "@/lib/geo";
+import { useFormat } from "@/lib/format";
 
 const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/admin/replay")({
 });
 
 function ReplayPage() {
+  const fmt = useFormat();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const list = useMemo(() => Object.values(trucks), [trucks]);
@@ -127,7 +129,7 @@ function ReplayPage() {
               <div className="mt-5 grid grid-cols-2 gap-2">
                 <Stat label="Frames" value={history.length} />
                 <Stat label="Elapsed" value={`${elapsedSec}s`} />
-                <Stat label="Distance" value={fmtDistance(totalDistance)} />
+                <Stat label="Distance" value={fmt.distance(totalDistance)} />
                 <Stat
                   label="Position"
                   value={`${Math.min(iFloor + 1, history.length)}/${history.length}`}

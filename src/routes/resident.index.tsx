@@ -10,7 +10,8 @@ import { useSettings } from "@/store/settings";
 import { useToast } from "@/components/Toast";
 import { useTrucks } from "@/store/trucks";
 import { RESIDENT_DEMO } from "@/lib/trucks";
-import { fmtDistance, fmtEta, haversine } from "@/lib/geo";
+import { haversine } from "@/lib/geo";
+import { useFormat } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident/")({
@@ -22,6 +23,7 @@ type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
 function ResidentHome() {
   const navigate = useNavigate();
   const tr = useT();
+  const fmt = useFormat();
   const session = useAuth((s) => s.session)!;
   const city = session.role === "resident" ? session.city : "Shirpur";
   const resident = RESIDENT_DEMO[city];
@@ -65,8 +67,8 @@ function ResidentHome() {
         return true;
       };
       if (zone === "Nearby" && can("nearby")) {
-        push({ title: `${tr("Truck is")} ${fmtDistance(distance)} ${tr("away")}`, subtitle: tr("Head outside soon") });
-        fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmtDistance(distance)}`);
+        push({ title: `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`, subtitle: tr("Head outside soon") });
+        fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmt.distance(distance)}`);
       }
       if (zone === "Arriving" && can("arriving")) {
         push({ title: tr("Truck is almost here!"), subtitle: tr("Go outside now") });
@@ -119,10 +121,10 @@ function ResidentHome() {
                 {tr("Arriving in")}
               </div>
               <div className="text-lg font-bold text-ink leading-tight">
-                {fmtEta(distance)}
+                {fmt.eta(distance)}
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                {fmtDistance(distance)} {tr("away")}
+                {fmt.distance(distance)} {tr("away")}
               </div>
             </div>
           </div>
@@ -153,11 +155,11 @@ function ResidentHome() {
             <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-2 overflow-hidden">
               <div className="p-3.5">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Distance")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{fmtDistance(distance)}</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{fmt.distance(distance)}</div>
               </div>
               <div className="p-3.5 border-l border-neutral-200/70">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("ETA")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{fmtEta(distance)}</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{fmt.eta(distance)}</div>
               </div>
             </div>
 
@@ -189,7 +191,7 @@ function ResidentHome() {
                 insideNearby ? "bg-ink text-white shadow-lg shadow-black/20" : "bg-neutral-100 text-neutral-400"
               }`}
             >
-              {insideNearby ? tr("I'm Coming") : `${tr("Truck is")} ${fmtDistance(distance)} ${tr("away")}`}
+              {insideNearby ? tr("I'm Coming") : `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`}
             </button>
           </div>
         </BottomSheet>

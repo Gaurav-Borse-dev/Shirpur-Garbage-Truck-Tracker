@@ -3,7 +3,10 @@ import L from "leaflet";
 import { memo, useEffect, useMemo } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
 import type { LatLng } from "@/lib/geo";
-import { fmtEta, haversine } from "@/lib/geo";
+import { haversine } from "@/lib/geo";
+import { bumpRender } from "@/store/perf";
+import { formatEta } from "@/lib/format";
+import { useI18n } from "@/store/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
 const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
@@ -178,6 +181,7 @@ type AdminMapProps = {
 type Props = ResidentMapProps | DriverMapProps | AdminMapProps;
 
 export function TruckMap(props: Props) {
+  const lang = useI18n((s) => s.lang);
   useEffect(() => { startSimulation(); }, []);
   const trucks = useTrucks((s) => s.trucks);
   // trucks reference changes every step (immutable object replacement), so we
@@ -257,7 +261,7 @@ export function TruckMap(props: Props) {
           <>
             <Marker
               position={[active.position.lat, active.position.lng]}
-              icon={etaIcon(fmtEta(haversine(active.position, props.resident)).toUpperCase())}
+              icon={etaIcon(formatEta(haversine(active.position, props.resident), lang).toUpperCase())}
               interactive={false}
             />
             <Marker
@@ -339,6 +343,7 @@ export function TruckMap(props: Props) {
  */
 const IdleTruckMarker = memo(
   function IdleTruckMarker({ truck }: { truck: LiveTruck }) {
+    bumpRender();
     return (
       <Marker
         position={[truck.position.lat, truck.position.lng]}
@@ -367,6 +372,7 @@ const AdminTruckMarker = memo(
     highlighted: boolean;
     onClick?: (id: string) => void;
   }) {
+    bumpRender();
     return (
       <Marker
         position={[truck.position.lat, truck.position.lng]}

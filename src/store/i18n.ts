@@ -4,19 +4,27 @@ export type Lang = "en" | "hi" | "mr";
 
 type State = {
   lang: Lang;
+  hydrated: boolean;
   setLang: (l: Lang) => void;
+  hydrate: () => void;
 };
 
 const KEY = "ct.lang";
 
-function initial(): Lang {
+function read(): Lang {
   if (typeof window === "undefined") return "en";
-  const v = window.localStorage.getItem(KEY) as Lang | null;
-  return v === "hi" || v === "mr" || v === "en" ? v : "en";
+  try {
+    const v = window.localStorage.getItem(KEY) as Lang | null;
+    return v === "hi" || v === "mr" || v === "en" ? v : "en";
+  } catch {
+    return "en";
+  }
 }
 
-export const useI18n = create<State>((set) => ({
-  lang: initial(),
+export const useI18n = create<State>((set, get) => ({
+  // Always "en" on first render so SSR markup matches the client, then hydrate().
+  lang: "en",
+  hydrated: false,
   setLang: (lang) => {
     if (typeof window !== "undefined") {
       try {
@@ -24,6 +32,12 @@ export const useI18n = create<State>((set) => ({
         document.documentElement.setAttribute("lang", lang);
       } catch {}
     }
-    set({ lang });
+    set({ lang, hydrated: true });
+  },
+  hydrate: () => {
+    if (get().hydrated) return;
+    const lang = read();
+    if (typeof document !== "undefined") document.documentElement.setAttribute("lang", lang);
+    set({ lang, hydrated: true });
   },
 }));
