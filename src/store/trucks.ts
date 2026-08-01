@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, type LatLng } from "@/lib/geo";
+import { usePerf, drainRenderCount } from "@/store/perf";
 
 export type LiveTruck = {
   id: string;
