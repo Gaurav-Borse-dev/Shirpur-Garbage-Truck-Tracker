@@ -339,6 +339,7 @@ export function TruckMap(props: Props) {
  */
 const IdleTruckMarker = memo(
   function IdleTruckMarker({ truck }: { truck: LiveTruck }) {
+    bumpRender();
     return (
       <Marker
         position={[truck.position.lat, truck.position.lng]}
