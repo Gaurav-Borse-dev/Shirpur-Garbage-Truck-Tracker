@@ -1,13 +1,17 @@
 import { create } from "zustand";
 import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
-import { bearing, haversine, lerpAngle, lerpLatLng, type LatLng } from "@/lib/geo";
+import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, turnAngle, type LatLng } from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
 
 export type LiveTruck = {
   id: string;
   truck: Truck;
+  /** Dense, spline-smoothed drive path derived from the sparse waypoints. */
+  path: LatLng[];
   position: LatLng;
   bearing: number;
+  /** Current ground speed in m/s (accelerates/decelerates through curves). */
+  speedMps: number;
   status: "offline" | "online" | "collecting";
   segmentIndex: number; // current waypoint index
   segmentT: number; // 0..1 progress within segment
@@ -34,13 +38,16 @@ type TrucksState = {
 };
 
 function initLive(truck: Truck): LiveTruck {
-  const a = truck.route[0];
-  const b = truck.route[1] ?? truck.route[0];
+  const path = smoothClosedPath(truck.route, 8);
+  const a = path[0];
+  const b = path[1] ?? path[0];
   return {
     id: truck.id,
     truck,
+    path,
     position: a,
     bearing: bearing(a, b),
+    speedMps: 0,
     status: truck.startOnline ? "online" : "offline",
     segmentIndex: 0,
     segmentT: 0,
@@ -53,8 +60,10 @@ function initLive(truck: Truck): LiveTruck {
 
 const initial: Record<string, LiveTruck> = Object.fromEntries(TRUCKS.map((t) => [t.id, initLive(t)]));
 
-// ~20 km/h => 5.55 m/s
-const SPEED_MPS = 5.5;
+// ~20 km/h cruise, with realistic acceleration through the curved path
+const CRUISE_MPS = 5.5;
+const ACCEL_MPS2 = 1.1;
+const DECEL_MPS2 = 2.2;
 const HISTORY_CAP = 600; // ~5 min @ 2Hz capture
 const HISTORY_INTERVAL_MS = 500;
 
@@ -110,16 +119,19 @@ export const useTrucks = create<TrucksState>((set, get) => ({
       city: nextCity,
       route: newRoute,
     };
-    const a = newTruck.route[0];
-    const b = newTruck.route[1] ?? newTruck.route[0];
+    const newPath = smoothClosedPath(newTruck.route, 8);
+    const a = newPath[0];
+    const b = newPath[1] ?? newPath[0];
     set({
       trucks: {
         ...state.trucks,
         [id]: {
           ...lt,
           truck: newTruck,
+          path: newPath,
           position: a,
           bearing: bearing(a, b),
+          speedMps: 0,
           segmentIndex: 0,
           segmentT: 0,
           completedStops: 0,
@@ -147,11 +159,21 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         next[id] = lt;
         continue;
       }
-      const route = lt.truck.route;
-      const a = route[lt.segmentIndex];
+      const route = lt.path;
+      const a = route[lt.segmentIndex % route.length];
       const b = route[(lt.segmentIndex + 1) % route.length];
-      const segLen = Math.max(1, haversine(a, b));
-      const advanceM = (SPEED_MPS * dtMs) / 1000;
+      const segLen = Math.max(0.5, haversine(a, b));
+      // --- speed model: ease down into curves, accelerate out of them ---
+      const ahead = route[(lt.segmentIndex + 3) % route.length];
+      const curve = turnAngle(a, b, ahead); // 0..180
+      const curveFactor = Math.max(0.45, 1 - curve / 60);
+      const target = CRUISE_MPS * curveFactor;
+      const dtS = dtMs / 1000;
+      const accel = target > lt.speedMps ? ACCEL_MPS2 : -DECEL_MPS2;
+      let speed = lt.speedMps + accel * dtS;
+      speed = accel > 0 ? Math.min(target, speed) : Math.max(target, speed);
+      speed = Math.max(0.8, speed);
+      const advanceM = speed * dtS;
       let t = lt.segmentT + advanceM / segLen;
       let segIdx = lt.segmentIndex;
       let bear = lt.bearing;
@@ -163,8 +185,9 @@ export const useTrucks = create<TrucksState>((set, get) => ({
       const segB = route[(segIdx + 1) % route.length];
       const pos = lerpLatLng(segA, segB, t);
       const targetBearing = bearing(segA, segB);
-      bear = lerpAngle(bear, targetBearing, Math.min(1, dtMs / 250));
-      const trail = lt.trail.length > 5 ? lt.trail.slice(-5) : lt.trail.slice();
+      // Heading smoothing: slower easing at speed, snappier when crawling.
+      bear = lerpAngle(bear, targetBearing, Math.min(1, dtMs / (180 + speed * 30)));
+      const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
       trail.push(pos);
       let history = lt.history;
       if (now - lt.lastUpdate >= HISTORY_INTERVAL_MS) {
@@ -175,6 +198,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         ...lt,
         position: pos,
         bearing: bear,
+        speedMps: speed,
         segmentIndex: segIdx,
         segmentT: t,
         trail,
