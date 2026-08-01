@@ -39,6 +39,42 @@ export function midpoint(a: LatLng, b: LatLng): LatLng {
   return { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 };
 }
 
+/**
+ * Catmull-Rom spline resampling of a closed waypoint loop.
+ * Turns the sparse waypoint list into a dense, road-like curved path so
+ * trucks never travel in visible straight hops between waypoints.
+ */
+export function smoothClosedPath(points: LatLng[], samplesPerSegment = 8): LatLng[] {
+  const n = points.length;
+  if (n < 3) return points.slice();
+  const out: LatLng[] = [];
+  const at = (i: number) => points[((i % n) + n) % n];
+  for (let i = 0; i < n; i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    for (let s = 0; s < samplesPerSegment; s++) {
+      const t = s / samplesPerSegment;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const c = (a: number, b: number, c2: number, d: number) =>
+        0.5 * (2 * b + (-a + c2) * t + (2 * a - 5 * b + 4 * c2 - d) * t2 + (-a + 3 * b - 3 * c2 + d) * t3);
+      out.push({
+        lat: c(p0.lat, p1.lat, p2.lat, p3.lat),
+        lng: c(p0.lng, p1.lng, p2.lng, p3.lng),
+      });
+    }
+  }
+  return out;
+}
+
+/** Signed turn angle (degrees, 0..180) between three consecutive points. */
+export function turnAngle(a: LatLng, b: LatLng, c: LatLng): number {
+  const d = Math.abs(((bearing(b, c) - bearing(a, b) + 540) % 360) - 180);
+  return d;
+}
+
 /** Total length of a polyline in meters. */
 export function pathLength(points: LatLng[]): number {
   let d = 0;

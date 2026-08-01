@@ -411,9 +411,11 @@ const AdminTruckMarker = memo(
 );
 
 const PolyRoute = memo(function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
+  // Use the spline-smoothed drive path so the drawn route follows the same
+  // curve the truck actually travels (no straight-line waypoint hops).
   const positions = useMemo(
-    () => truck.truck.route.map((p) => [p.lat, p.lng] as [number, number]),
-    [truck.truck.route],
+    () => (truck.path ?? truck.truck.route).map((p) => [p.lat, p.lng] as [number, number]),
+    [truck.path, truck.truck.route],
   );
   if (!showRoute && !highlight) return null;
   const offline = truck.status === "offline";
