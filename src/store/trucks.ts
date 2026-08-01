@@ -195,15 +195,56 @@ function hashCode(s: string) {
 
 // Global RAF loop (runs once in client)
 let started = false;
+/** Marker/polyline update budget: never commit GPS batches faster than this. */
+const UPDATE_FPS_BUDGET = 30;
+const UPDATE_INTERVAL_MS = 1000 / UPDATE_FPS_BUDGET;
 export function startSimulation() {
   if (started || typeof window === "undefined") return;
   started = true;
   let last = performance.now();
+  // Throttling + batching: GPS deltas accumulate between commits, so the store
+  // (and therefore every marker/polyline) updates at most UPDATE_FPS_BUDGET/s.
+  let pending = 0;
+  let sinceCommit = 0;
+  let batchStart = performance.now();
+  // Perf sampling
+  let frames = 0;
+  let commits = 0;
+  let latencySum = 0;
+  let latencySamples = 0;
+  let sampleStart = performance.now();
   const loop = (now: number) => {
     // Clamp dt so a tab-resume or reconnect never jumps trucks forward
     const dt = Math.min(80, now - last);
     last = now;
-    useTrucks.getState()._step(dt);
+    frames++;
+    if (pending === 0) batchStart = now;
+    pending += dt;
+    sinceCommit += dt;
+    if (sinceCommit >= UPDATE_INTERVAL_MS) {
+      const batched = pending;
+      pending = 0;
+      sinceCommit = 0;
+      useTrucks.getState()._step(batched);
+      commits++;
+      latencySum += performance.now() - batchStart;
+      latencySamples++;
+    }
+    if (usePerf.getState().enabled && now - sampleStart >= 1000) {
+      const secs = (now - sampleStart) / 1000;
+      usePerf.getState()._report({
+        fps: Math.round(frames / secs),
+        commits: Math.round(commits / secs),
+        renders: Math.round(drainRenderCount() / secs),
+        latencyMs: latencySamples ? Math.round((latencySum / latencySamples) * 10) / 10 : 0,
+        trucks: Object.keys(useTrucks.getState().trucks).length,
+      });
+      frames = 0;
+      commits = 0;
+      latencySum = 0;
+      latencySamples = 0;
+      sampleStart = now;
+    }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
@@ -213,6 +254,8 @@ export function startSimulation() {
     if (useTrucks.getState().connection !== c) useTrucks.getState().setConnection(c);
     // Reset RAF clock on resume to avoid a giant dt the next frame
     last = performance.now();
+    pending = 0;
+    sinceCommit = 0;
   };
   const goOffline = () => set("reconnecting");
   const goOnline = () => {
