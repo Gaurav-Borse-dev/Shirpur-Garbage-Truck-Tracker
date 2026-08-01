@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, turnAngle, type LatLng } from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
+import { readCache, writeCache } from "@/lib/cache";
+import { startOfflineWatcher } from "@/store/offline";
 
 export type LiveTruck = {
   id: string;
@@ -222,9 +224,53 @@ let started = false;
 /** Marker/polyline update budget: never commit GPS batches faster than this. */
 const UPDATE_FPS_BUDGET = 30;
 const UPDATE_INTERVAL_MS = 1000 / UPDATE_FPS_BUDGET;
+type Snapshot = Record<string, { position: LatLng; bearing: number; segmentIndex: number; segmentT: number; completedStops: number; status: LiveTruck["status"] }>;
+const SNAPSHOT_KEY = "trucks";
+
+/** Restore last-known truck state so an offline/cold start isn't blank. */
+function restoreSnapshot() {
+  const snap = readCache<Snapshot>(SNAPSHOT_KEY, 1000 * 60 * 30);
+  if (!snap) return;
+  const cur = useTrucks.getState().trucks;
+  const next: Record<string, LiveTruck> = { ...cur };
+  let changed = false;
+  for (const id in snap) {
+    const lt = cur[id];
+    const s = snap[id];
+    if (!lt || !s) continue;
+    next[id] = { ...lt, ...s, trail: [], lastUpdate: Date.now() };
+    changed = true;
+  }
+  if (changed) useTrucks.setState({ trucks: next, tick: useTrucks.getState().tick + 1 });
+}
+
+function persistSnapshot() {
+  const trucks = useTrucks.getState().trucks;
+  const snap: Snapshot = {};
+  for (const id in trucks) {
+    const t = trucks[id];
+    snap[id] = {
+      position: t.position,
+      bearing: t.bearing,
+      segmentIndex: t.segmentIndex,
+      segmentT: t.segmentT,
+      completedStops: t.completedStops,
+      status: t.status,
+    };
+  }
+  writeCache(SNAPSHOT_KEY, snap);
+}
+
 export function startSimulation() {
   if (started || typeof window === "undefined") return;
   started = true;
+  startOfflineWatcher();
+  restoreSnapshot();
+  const snapshotTimer = window.setInterval(persistSnapshot, 10_000);
+  window.addEventListener("pagehide", () => {
+    window.clearInterval(snapshotTimer);
+    persistSnapshot();
+  });
   let last = performance.now();
   // Throttling + batching: GPS deltas accumulate between commits, so the store
   // (and therefore every marker/polyline) updates at most UPDATE_FPS_BUDGET/s.
@@ -256,12 +302,18 @@ export function startSimulation() {
     }
     if (usePerf.getState().enabled && now - sampleStart >= 1000) {
       const secs = (now - sampleStart) / 1000;
+      const state = useTrucks.getState();
+      const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
       usePerf.getState()._report({
         fps: Math.round(frames / secs),
         commits: Math.round(commits / secs),
         renders: Math.round(drainRenderCount() / secs),
         latencyMs: latencySamples ? Math.round((latencySum / latencySamples) * 10) / 10 : 0,
-        trucks: Object.keys(useTrucks.getState().trucks).length,
+        trucks: Object.keys(state.trucks).length,
+        activeTrucks: Object.values(state.trucks).filter((t) => t.status !== "offline").length,
+        droppedFrames: Math.max(0, Math.round(60 * secs) - frames),
+        memoryMb: mem ? Math.round(mem.usedJSHeapSize / 1048576) : 0,
+        socketState: state.connection,
       });
       frames = 0;
       commits = 0;
@@ -294,4 +346,8 @@ export function startSimulation() {
     else goOnline();
   });
   if (typeof navigator !== "undefined" && navigator.onLine === false) goOffline();
+}
+/** Per-truck subscription: components re-render only when *their* truck changes. */
+export function useTruck(id: string | undefined) {
+  return useTrucks((s) => (id ? s.trucks[id] : undefined));
 }
