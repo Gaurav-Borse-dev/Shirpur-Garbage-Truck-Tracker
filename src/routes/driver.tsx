@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ClientOnly } from "@/components/ClientOnly";
@@ -10,6 +10,10 @@ import { useAuth } from "@/store/auth";
 import { useTrucks } from "@/store/trucks";
 import { useToast, ToastHost } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
+import { useRealtime } from "@/hooks/useRealtime";
+import { LIVE_BACKEND } from "@/lib/backend";
+import { startDriverLocation, stopDriverLocation } from "@/lib/driver-location";
+import { emitDriverDuty } from "@/lib/realtime";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHome,
@@ -33,6 +37,20 @@ function DriverHome() {
 
   const [stopStatus, setStopStatus] = useState<StopStatus>("enroute");
   const [expanded, setExpanded] = useState(false);
+
+  useRealtime({ role: "driver", truckId });
+  const onDuty = useTrucks((s) => s.trucks[truckId]?.status) !== "offline";
+  useEffect(() => {
+    if (!LIVE_BACKEND) return;
+    if (onDuty) {
+      emitDriverDuty(truckId, "start");
+      startDriverLocation(truckId);
+    } else {
+      emitDriverDuty(truckId, "stop");
+      stopDriverLocation();
+    }
+    return () => stopDriverLocation();
+  }, [onDuty, truckId]);
 
   if (!live) return null;
 

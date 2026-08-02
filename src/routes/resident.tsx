@@ -5,6 +5,9 @@ import { MobileFrame } from "@/components/MobileFrame";
 import { ToastHost, useToast } from "@/components/Toast";
 import { useBookings } from "@/store/bookings";
 import { MapIcon, CalendarIcon, BellIcon, UserIcon } from "@/components/icons";
+import { useRealtime } from "@/hooks/useRealtime";
+import { useSettings } from "@/store/settings";
+import { SHIRPUR } from "@/lib/trucks";
 
 export const Route = createFileRoute("/resident")({
   component: ResidentLayout,
@@ -13,6 +16,9 @@ export const Route = createFileRoute("/resident")({
 function ResidentLayout() {
   const session = useAuth((s) => s.session);
   if (!session || session.role !== "resident") return <Navigate to="/role" />;
+  // Citizens only receive updates for trucks near their home.
+  const radiusM = useSettings((s) => s.alertRadius);
+  useRealtime({ role: "resident", lat: SHIRPUR.lat, lng: SHIRPUR.lng, radiusM: Math.max(radiusM, 2000) });
   useBookingNotifications(session.phone);
   return (
     <MobileFrame>
