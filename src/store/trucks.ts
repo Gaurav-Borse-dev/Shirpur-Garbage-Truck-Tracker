@@ -4,6 +4,7 @@ import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, turnAngle,
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
 import { startOfflineWatcher } from "@/store/offline";
+import { LIVE_BACKEND } from "@/lib/backend";
 
 export type LiveTruck = {
   id: string;
@@ -21,6 +22,22 @@ export type LiveTruck = {
   trail: LatLng[];
   history: { at: number; pos: LatLng }[]; // ring buffer for replay
   lastUpdate: number;
+  /** Latest GPS fix received from the backend (live mode only). */
+  fix?: { pos: LatLng; bearing: number; speedMps: number; at: number };
+};
+
+/** A GPS fix as delivered by the backend transport. */
+export type TruckFix = {
+  truckId: string;
+  lat: number;
+  lng: number;
+  /** Backend-reported heading in degrees; omitted values are derived from the fix delta. */
+  heading?: number;
+  /** Backend-reported ground speed in m/s. */
+  speed?: number;
+  /** Backend timestamp (ms epoch or ISO). */
+  ts?: number | string;
+  status?: LiveTruck["status"];
 };
 
 type TrucksState = {
@@ -36,6 +53,10 @@ type TrucksState = {
     patch: { wardName?: string; city?: "Shirpur" },
   ) => string | null;
   setConnection: (c: "live" | "reconnecting") => void;
+  /** Apply a batch of backend GPS fixes. Interpolation happens in _step. */
+  ingestFixes: (fixes: TruckFix[]) => void;
+  /** Apply a backend-provided route/stop assignment. */
+  applyRoute: (truckId: string, route: LatLng[], totalStops?: number) => void;
   _step: (dtMs: number) => void;
 };
 
@@ -148,6 +169,45 @@ export const useTrucks = create<TrucksState>((set, get) => ({
   },
   setConnection: (connection) =>
     set((s) => ({ connection, lastDrop: connection === "reconnecting" ? Date.now() : s.lastDrop })),
+  ingestFixes: (fixes) => {
+    if (!fixes.length) return;
+    const state = get();
+    const next = { ...state.trucks };
+    let changed = false;
+    for (const f of fixes) {
+      const lt = next[f.truckId];
+      if (!lt) continue;
+      const pos = { lat: f.lat, lng: f.lng };
+      const at = typeof f.ts === "string" ? Date.parse(f.ts) : (f.ts ?? Date.now());
+      const prev = lt.fix?.pos ?? lt.position;
+      const heading = f.heading ?? (haversine(prev, pos) > 1 ? bearing(prev, pos) : lt.bearing);
+      next[f.truckId] = {
+        ...lt,
+        status: f.status ?? lt.status,
+        fix: { pos, bearing: heading, speedMps: f.speed ?? 0, at },
+      };
+      changed = true;
+    }
+    if (changed) set({ trucks: next, tick: state.tick + 1 });
+  },
+  applyRoute: (truckId, route, totalStops) => {
+    const state = get();
+    const lt = state.trucks[truckId];
+    if (!lt || route.length < 2) return;
+    const path = smoothClosedPath(route, 8);
+    set({
+      trucks: {
+        ...state.trucks,
+        [truckId]: {
+          ...lt,
+          truck: { ...lt.truck, route, totalStops: totalStops ?? lt.truck.totalStops },
+          path,
+          trail: [],
+        },
+      },
+      tick: state.tick + 1,
+    });
+  },
   _step: (dtMs) => {
     const state = get();
     // Hard-pause stepping while reconnecting so positions don't jump on resume
@@ -155,6 +215,40 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     const next: Record<string, LiveTruck> = {};
     let changed = false;
     const now = Date.now();
+    // --- LIVE MODE: no motion is generated locally. We only ease the marker
+    // toward the last GPS fix received from the backend (position, heading and
+    // speed all originate server-side).
+    if (LIVE_BACKEND) {
+      for (const id in state.trucks) {
+        const lt = state.trucks[id];
+        if (!lt.fix) {
+          next[id] = lt;
+          continue;
+        }
+        const gap = haversine(lt.position, lt.fix.pos);
+        if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
+          next[id] = lt;
+          continue;
+        }
+        // Ease over ~1 fix interval so 3-5s backend updates render continuously.
+        const k = Math.min(1, dtMs / 900);
+        const pos = lerpLatLng(lt.position, lt.fix.pos, k);
+        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
+        const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
+        trail.push(pos);
+        let history = lt.history;
+        let lastUpdate = lt.lastUpdate;
+        if (now - lt.lastUpdate >= HISTORY_INTERVAL_MS) {
+          history = lt.history.length >= HISTORY_CAP ? lt.history.slice(-HISTORY_CAP + 1) : lt.history.slice();
+          history.push({ at: now, pos });
+          lastUpdate = now;
+        }
+        next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, history, lastUpdate };
+        changed = true;
+      }
+      if (changed) set({ trucks: next, tick: state.tick + 1 });
+      return;
+    }
     for (const id in state.trucks) {
       const lt = state.trucks[id];
       if (lt.status === "offline") {
