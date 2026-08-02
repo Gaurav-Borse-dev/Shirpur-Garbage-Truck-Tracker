@@ -360,6 +360,11 @@ export function startSimulation() {
   started = true;
   startOfflineWatcher();
   restoreSnapshot();
+  if (LIVE_BACKEND) {
+    // Live mode: open the backend transport. The RAF loop below only
+    // interpolates between backend GPS fixes — it generates no motion.
+    void import("@/lib/realtime").then((m) => m.getSocket());
+  }
   const snapshotTimer = window.setInterval(persistSnapshot, 10_000);
   window.addEventListener("pagehide", () => {
     window.clearInterval(snapshotTimer);
@@ -435,10 +440,12 @@ export function startSimulation() {
   };
   window.addEventListener("offline", goOffline);
   window.addEventListener("online", goOnline);
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) goOffline();
-    else goOnline();
-  });
+  if (!LIVE_BACKEND) {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) goOffline();
+      else goOnline();
+    });
+  }
   if (typeof navigator !== "undefined" && navigator.onLine === false) goOffline();
 }
 /** Per-truck subscription: components re-render only when *their* truck changes. */
