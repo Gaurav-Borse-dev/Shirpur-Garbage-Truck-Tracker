@@ -14,6 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_daily: {
+        Row: {
+          active_drivers: number
+          active_trucks: number
+          avg_rating: number | null
+          complaints_opened: number
+          created_at: string
+          day: string
+          id: string
+          missed_stops: number
+          total_stops_completed: number
+          updated_at: string
+        }
+        Insert: {
+          active_drivers?: number
+          active_trucks?: number
+          avg_rating?: number | null
+          complaints_opened?: number
+          created_at?: string
+          day: string
+          id?: string
+          missed_stops?: number
+          total_stops_completed?: number
+          updated_at?: string
+        }
+        Update: {
+          active_drivers?: number
+          active_trucks?: number
+          avg_rating?: number | null
+          complaints_opened?: number
+          created_at?: string
+          day?: string
+          id?: string
+          missed_stops?: number
+          total_stops_completed?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity: string | null
+          entity_id: string | null
+          id: string
+          metadata: Json
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      citizen_geofence_settings: {
+        Row: {
+          address: string | null
+          created_at: string
+          home_location: unknown
+          id: string
+          inside_truck_id: string | null
+          last_notified_at: string | null
+          notify_enabled: boolean
+          radius_meters: number
+          updated_at: string
+          user_id: string
+          ward: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          home_location: unknown
+          id?: string
+          inside_truck_id?: string | null
+          last_notified_at?: string | null
+          notify_enabled?: boolean
+          radius_meters?: number
+          updated_at?: string
+          user_id: string
+          ward?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          home_location?: unknown
+          id?: string
+          inside_truck_id?: string | null
+          last_notified_at?: string | null
+          notify_enabled?: boolean
+          radius_meters?: number
+          updated_at?: string
+          user_id?: string
+          ward?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citizen_geofence_settings_inside_truck_id_fkey"
+            columns: ["inside_truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collection_history: {
         Row: {
           completed_at: string
@@ -82,6 +204,51 @@ export type Database = {
           },
         ]
       }
+      complaints: {
+        Row: {
+          category: string
+          citizen_id: string
+          created_at: string
+          description: string
+          id: string
+          location: unknown
+          photo_url: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["complaint_status"]
+          updated_at: string
+          ward: string | null
+        }
+        Insert: {
+          category: string
+          citizen_id: string
+          created_at?: string
+          description: string
+          id?: string
+          location?: unknown
+          photo_url?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["complaint_status"]
+          updated_at?: string
+          ward?: string | null
+        }
+        Update: {
+          category?: string
+          citizen_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          location?: unknown
+          photo_url?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["complaint_status"]
+          updated_at?: string
+          ward?: string | null
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           assigned_truck_id: string | null
@@ -129,6 +296,179 @@ export type Database = {
           {
             foreignKeyName: "drivers_assigned_truck_id_fkey"
             columns: ["assigned_truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eta_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          distance_m: number
+          duration_s: number
+          expires_at: string
+          id: string
+          truck_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          distance_m: number
+          duration_s: number
+          expires_at: string
+          id?: string
+          truck_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          distance_m?: number
+          duration_s?: number
+          expires_at?: string
+          id?: string
+          truck_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eta_cache_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          citizen_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          truck_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          citizen_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          truck_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          citizen_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          truck_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_retry_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          device_token: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          notification_id: string | null
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          device_token: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id?: string | null
+          payload?: Json
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          device_token?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id?: string | null
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_retry_queue_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          deep_link: string | null
+          id: string
+          read: boolean
+          recipient_id: string
+          sent_at: string
+          title: string
+          truck_id: string | null
+          type: Database["public"]["Enums"]["notification_type"]
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          read?: boolean
+          recipient_id: string
+          sent_at?: string
+          title: string
+          truck_id?: string | null
+          type?: Database["public"]["Enums"]["notification_type"]
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          read?: boolean
+          recipient_id?: string
+          sent_at?: string
+          title?: string
+          truck_id?: string | null
+          type?: Database["public"]["Enums"]["notification_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_truck_id_fkey"
+            columns: ["truck_id"]
             isOneToOne: false
             referencedRelation: "trucks"
             referencedColumns: ["id"]
@@ -773,8 +1113,37 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_truck_location: {
+        Args: {
+          _accuracy_m?: number
+          _heading?: number
+          _lat: number
+          _lng: number
+          _speed_kmh?: number
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      nearest_trucks: {
+        Args: {
+          _lat: number
+          _limit?: number
+          _lng: number
+          _radius_m?: number
+        }
+        Returns: {
+          distance_m: number
+          fixed_at: string
+          heading: number
+          lat: number
+          lng: number
+          speed_kmh: number
+          status: Database["public"]["Enums"]["truck_status"]
+          truck_code: string
+          truck_id: string
+        }[]
+      }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -1410,7 +1779,17 @@ export type Database = {
     }
     Enums: {
       app_role: "citizen" | "driver" | "admin"
+      complaint_status: "open" | "in_progress" | "resolved" | "rejected"
       duty_state: "offline" | "available" | "on_duty" | "paused" | "emergency"
+      notification_type:
+        | "truck_nearby"
+        | "truck_arrived"
+        | "route_started"
+        | "route_completed"
+        | "announcement"
+        | "emergency"
+        | "complaint_update"
+        | "system"
       route_status:
         | "scheduled"
         | "in_progress"
@@ -1561,7 +1940,18 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["citizen", "driver", "admin"],
+      complaint_status: ["open", "in_progress", "resolved", "rejected"],
       duty_state: ["offline", "available", "on_duty", "paused", "emergency"],
+      notification_type: [
+        "truck_nearby",
+        "truck_arrived",
+        "route_started",
+        "route_completed",
+        "announcement",
+        "emergency",
+        "complaint_update",
+        "system",
+      ],
       route_status: [
         "scheduled",
         "in_progress",
