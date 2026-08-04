@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ChevronLeft } from "@/components/icons";
 import { useAuth } from "@/store/auth";
+import { verifyOtp } from "@/lib/auth.functions";
 
 const search = z.object({
   phone: z.string().regex(/^\d{10}$/),
@@ -20,9 +22,11 @@ function Otp() {
   const navigate = useNavigate();
   const setSession = useAuth((s) => s.setSession);
   const findDriver = useAuth((s) => s.findDriverByPhone);
+  const queryClient = useQueryClient();
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
+  const [checking, setChecking] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => { refs.current[0]?.focus(); }, []);
@@ -47,27 +51,42 @@ function Otp() {
 
   useEffect(() => {
     const code = digits.join("");
-    if (code.length !== 6) return;
-    if (code !== "123456") {
-      setError("Wrong code. Try 123456.");
-      setShake(true);
-      setTimeout(() => setShake(false), 450);
-      setTimeout(() => { setDigits(["", "", "", "", "", ""]); refs.current[0]?.focus(); }, 600);
-      return;
-    }
-    if (role === "driver") {
-      const driver = findDriver(phone);
-      if (!driver) {
-        navigate({ to: "/login/driver", search: { denied: 1 } as never });
-        setError("Access denied. Contact your municipal administrator.");
-        return;
+    if (code.length !== 6 || checking) return;
+    let cancelled = false;
+    setChecking(true);
+    void (async () => {
+      const reject = (msg: string) => {
+        if (cancelled) return;
+        setError(msg);
+        setShake(true);
+        setTimeout(() => setShake(false), 450);
+        setTimeout(() => { setDigits(["", "", "", "", "", ""]); refs.current[0]?.focus(); }, 600);
+      };
+      try {
+        const res = await verifyOtp({ data: { phone, role, code } });
+        if (cancelled) return;
+        if (!res.ok) return reject("Incorrect code. Please try again.");
+        await queryClient.invalidateQueries({ queryKey: ["server-session"] });
+        if (role === "driver") {
+          const driver = findDriver(phone);
+          if (!driver) {
+            navigate({ to: "/login/driver", search: { denied: 1 } as never });
+            setError("Access denied. Contact your municipal administrator.");
+            return;
+          }
+          setSession({ role: "driver", phone, driverName: driver.name, truckId: driver.truckId });
+          navigate({ to: "/driver" });
+        } else {
+          setSession({ role: "resident", phone, city: "Shirpur" });
+          navigate({ to: "/resident" });
+        }
+      } catch {
+        reject("Unable to verify the code right now.");
+      } finally {
+        if (!cancelled) setChecking(false);
       }
-      setSession({ role: "driver", phone, driverName: driver.name, truckId: driver.truckId });
-      navigate({ to: "/driver" });
-    } else {
-      setSession({ role: "resident", phone, city: "Shirpur" });
-      navigate({ to: "/resident" });
-    }
+    })();
+    return () => { cancelled = true; };
   }, [digits]); // eslint-disable-line
 
   return (
@@ -97,7 +116,7 @@ function Otp() {
       </div>
       {error && <div className="px-6 mt-4 text-sm text-red-600 text-center">{error}</div>}
       <div className="px-6 mt-6 text-center text-xs text-neutral-400">
-        Demo code: <span className="font-semibold text-ink">123456</span>
+        Enter the 6-digit verification code sent to your mobile number.
       </div>
     </MobileFrame>
   );

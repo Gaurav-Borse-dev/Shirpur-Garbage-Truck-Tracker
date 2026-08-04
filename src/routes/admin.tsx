@@ -1,21 +1,30 @@
-import { createFileRoute, Outlet, Link, useLocation, Navigate, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
 import { ToastHost } from "@/components/Toast";
 import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon, CalendarIcon } from "@/components/icons";
 import { useBookings } from "@/store/bookings";
 import { useRealtime } from "@/hooks/useRealtime";
+import { RequireRole } from "@/components/RequireRole";
+import { serverSignOut } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/admin")({
-  component: AdminLayout,
+  component: AdminRoute,
 });
+
+function AdminRoute() {
+  return (
+    <RequireRole role="admin" redirectTo="/login/admin">
+      <AdminLayout />
+    </RequireRole>
+  );
+}
 
 function AdminLayout() {
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
   const loc = useLocation();
-  if (!session || session.role !== "admin") return <Navigate to="/login/admin" />;
   const pendingBookings = useBookings((s) => s.bookings.filter((b) => b.status === "pending").length);
   // Admin receives updates for every truck.
   useRealtime({ role: "admin" });
@@ -59,11 +68,11 @@ function AdminLayout() {
         </nav>
         <div className="p-3 border-t border-neutral-200">
           <div className="px-2 py-1 text-xs">
-            <div className="font-semibold text-ink">{session.username}</div>
+            <div className="font-semibold text-ink">{session?.role === "admin" ? session.username : "Admin"}</div>
             <div className="text-neutral-400">Municipal Admin</div>
           </div>
           <button
-            onClick={() => { logout(); navigate({ to: "/role" }); }}
+            onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
             className="mt-2 w-full h-9 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 flex items-center justify-center gap-2 hover:bg-neutral-50"
           >
             <LogoutIcon className="w-3.5 h-3.5" /> Logout

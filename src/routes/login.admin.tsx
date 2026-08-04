@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/store/auth";
+import { adminLogin } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/login/admin")({
   component: AdminLogin,
@@ -10,17 +12,29 @@ export const Route = createFileRoute("/login/admin")({
 function AdminLogin() {
   const navigate = useNavigate();
   const setSession = useAuth((s) => s.setSession);
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (username === "admin" && password === "cleantrack2024") {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await adminLogin({ data: { username, password } });
+      if (!res.ok) {
+        setError("Invalid credentials");
+        return;
+      }
       setSession({ role: "admin", username });
+      await queryClient.invalidateQueries({ queryKey: ["server-session"] });
       navigate({ to: "/admin" });
-    } else {
-      setError("Invalid credentials");
+    } catch {
+      setError("Unable to sign in right now");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -47,12 +61,11 @@ function AdminLogin() {
             className="w-full h-14 px-4 rounded-xl bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
           />
           {error && <div className="text-sm text-red-600">{error}</div>}
-          <button className="w-full h-14 rounded-xl bg-ink text-white font-semibold">Sign in</button>
+          <button disabled={busy} className="w-full h-14 rounded-xl bg-ink text-white font-semibold disabled:opacity-60">
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
         </form>
-        <div className="mt-6 text-xs text-neutral-400 text-center">
-          Demo: admin / cleantrack2024
-        </div>
-        <div className="mt-3 text-center">
+        <div className="mt-6 text-center">
           <Link to="/role" className="text-xs text-neutral-500 hover:text-ink">← Back to role selection</Link>
         </div>
       </div>

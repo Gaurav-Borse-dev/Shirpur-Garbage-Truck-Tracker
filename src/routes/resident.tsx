@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, Link, useLocation, Navigate } from "@tanstack/react-router";
+import { RequireRole } from "@/components/RequireRole";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/store/auth";
 import { MobileFrame } from "@/components/MobileFrame";
@@ -10,8 +11,16 @@ import { useSettings } from "@/store/settings";
 import { SHIRPUR } from "@/lib/trucks";
 
 export const Route = createFileRoute("/resident")({
-  component: ResidentLayout,
+  component: ResidentRoute,
 });
+
+function ResidentRoute() {
+  return (
+    <RequireRole role="resident" redirectTo="/role">
+      <ResidentLayout />
+    </RequireRole>
+  );
+}
 
 function ResidentLayout() {
   const session = useAuth((s) => s.session);
