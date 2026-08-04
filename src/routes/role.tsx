@@ -7,7 +7,21 @@ import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/role")({
   head: () => ({
-    meta: [{ title: "Choose your role · CleanTrack" }],
+    meta: [
+      { title: "Choose Your Role — CleanTrack Shirpur" },
+      {
+        name: "description",
+        content:
+          "Pick how you use CleanTrack in Shirpur: resident truck tracking, driver duty and stops, or the municipal admin fleet dashboard.",
+      },
+      { property: "og:title", content: "Choose Your Role — CleanTrack Shirpur" },
+      {
+        property: "og:description",
+        content: "Resident, driver or municipal admin — choose your CleanTrack experience.",
+      },
+      { property: "og:url", content: "https://street-scan-track.lovable.app/role" },
+    ],
+    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/role" }],
   }),
   component: RolePage,
 });

@@ -6,6 +6,23 @@ import { useAuth } from "@/store/auth";
 import { adminLogin } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/login/admin")({
+  head: () => ({
+    meta: [
+      { title: "Admin Sign In — CleanTrack Shirpur" },
+      {
+        name: "description",
+        content:
+          "Municipal staff sign-in for the CleanTrack admin portal: fleet monitoring, driver management and dustbin booking approvals.",
+      },
+      { property: "og:title", content: "Admin Sign In — CleanTrack Shirpur" },
+      {
+        property: "og:description",
+        content: "Secure sign-in for Shirpur Municipal Corporation fleet administrators.",
+      },
+      { property: "og:url", content: "https://street-scan-track.lovable.app/login/admin" },
+    ],
+    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/login/admin" }],
+  }),
   component: AdminLogin,
 });
 
