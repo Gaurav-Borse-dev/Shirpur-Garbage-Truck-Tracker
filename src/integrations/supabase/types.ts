@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      collection_history: {
+        Row: {
+          completed_at: string
+          created_at: string
+          driver_id: string | null
+          id: string
+          notes: string | null
+          route_id: string | null
+          status: Database["public"]["Enums"]["stop_status"]
+          stop_id: string | null
+          truck_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          route_id?: string | null
+          status: Database["public"]["Enums"]["stop_status"]
+          stop_id?: string | null
+          truck_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          route_id?: string | null
+          status?: Database["public"]["Enums"]["stop_status"]
+          stop_id?: string | null
+          truck_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_history_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_history_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_history_stop_id_fkey"
+            columns: ["stop_id"]
+            isOneToOne: false
+            referencedRelation: "route_stops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_history_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drivers: {
         Row: {
           assigned_truck_id: string | null
@@ -103,6 +171,113 @@ export type Database = {
         }
         Relationships: []
       }
+      route_stops: {
+        Row: {
+          address: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          location: unknown
+          name: string
+          notes: string | null
+          route_id: string
+          sequence_no: number
+          status: Database["public"]["Enums"]["stop_status"]
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          location: unknown
+          name: string
+          notes?: string | null
+          route_id: string
+          sequence_no: number
+          status?: Database["public"]["Enums"]["stop_status"]
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          location?: unknown
+          name?: string
+          notes?: string | null
+          route_id?: string
+          sequence_no?: number
+          status?: Database["public"]["Enums"]["stop_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          assigned_driver_id: string | null
+          assigned_truck_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          name: string
+          scheduled_date: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["route_status"]
+          updated_at: string
+          ward: string
+        }
+        Insert: {
+          assigned_driver_id?: string | null
+          assigned_truck_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          scheduled_date?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["route_status"]
+          updated_at?: string
+          ward: string
+        }
+        Update: {
+          assigned_driver_id?: string | null
+          assigned_truck_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          scheduled_date?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["route_status"]
+          updated_at?: string
+          ward?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_assigned_truck_id_fkey"
+            columns: ["assigned_truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -126,6 +301,104 @@ export type Database = {
           srtext?: string | null
         }
         Relationships: []
+      }
+      truck_live_location: {
+        Row: {
+          accuracy_m: number | null
+          created_at: string
+          fixed_at: string
+          heading: number
+          id: string
+          location: unknown
+          previous_location: unknown
+          sequence_no: number
+          speed_kmh: number
+          truck_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          created_at?: string
+          fixed_at?: string
+          heading?: number
+          id?: string
+          location: unknown
+          previous_location?: unknown
+          sequence_no?: number
+          speed_kmh?: number
+          truck_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          created_at?: string
+          fixed_at?: string
+          heading?: number
+          id?: string
+          location?: unknown
+          previous_location?: unknown
+          sequence_no?: number
+          speed_kmh?: number
+          truck_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truck_live_location_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: true
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      truck_location_history: {
+        Row: {
+          created_at: string
+          heading: number
+          id: string
+          location: unknown
+          recorded_at: string
+          route_id: string | null
+          speed_kmh: number
+          truck_id: string
+        }
+        Insert: {
+          created_at?: string
+          heading?: number
+          id?: string
+          location: unknown
+          recorded_at?: string
+          route_id?: string | null
+          speed_kmh?: number
+          truck_id: string
+        }
+        Update: {
+          created_at?: string
+          heading?: number
+          id?: string
+          location?: unknown
+          recorded_at?: string
+          route_id?: string | null
+          speed_kmh?: number
+          truck_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_history_route"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truck_location_history_truck_id_fkey"
+            columns: ["truck_id"]
+            isOneToOne: false
+            referencedRelation: "trucks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trucks: {
         Row: {
@@ -1138,6 +1411,13 @@ export type Database = {
     Enums: {
       app_role: "citizen" | "driver" | "admin"
       duty_state: "offline" | "available" | "on_duty" | "paused" | "emergency"
+      route_status:
+        | "scheduled"
+        | "in_progress"
+        | "paused"
+        | "completed"
+        | "cancelled"
+      stop_status: "pending" | "en_route" | "completed" | "skipped"
       truck_status:
         | "available"
         | "collecting"
@@ -1282,6 +1562,14 @@ export const Constants = {
     Enums: {
       app_role: ["citizen", "driver", "admin"],
       duty_state: ["offline", "available", "on_duty", "paused", "emergency"],
+      route_status: [
+        "scheduled",
+        "in_progress",
+        "paused",
+        "completed",
+        "cancelled",
+      ],
+      stop_status: ["pending", "en_route", "completed", "skipped"],
       truck_status: [
         "available",
         "collecting",
