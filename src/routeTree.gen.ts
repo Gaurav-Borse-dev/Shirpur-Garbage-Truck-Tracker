@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as ResidentRouteImport } from './routes/resident'
 import { Route as OtpRouteImport } from './routes/otp'
@@ -31,6 +32,11 @@ import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments'
 import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoleRoute = RoleRouteImport.update({
   id: '/role',
   path: '/role',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/otp': typeof OtpRoute
   '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
   '/role': typeof RoleRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/otp': typeof OtpRoute
   '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/assignments': typeof AdminAssignmentsRoute
   '/admin/bookings': typeof AdminBookingsRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/otp'
     | '/resident'
     | '/role'
+    | '/sitemap.xml'
     | '/admin/alerts'
     | '/admin/assignments'
     | '/admin/bookings'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/driver'
     | '/otp'
     | '/role'
+    | '/sitemap.xml'
     | '/admin/alerts'
     | '/admin/assignments'
     | '/admin/bookings'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/otp'
     | '/resident'
     | '/role'
+    | '/sitemap.xml'
     | '/admin/alerts'
     | '/admin/assignments'
     | '/admin/bookings'
@@ -282,6 +294,7 @@ export interface RootRouteChildren {
   OtpRoute: typeof OtpRoute
   ResidentRoute: typeof ResidentRouteWithChildren
   RoleRoute: typeof RoleRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   LoginAdminRoute: typeof LoginAdminRoute
   LoginDriverRoute: typeof LoginDriverRoute
   LoginResidentRoute: typeof LoginResidentRoute
@@ -289,6 +302,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/role': {
       id: '/role'
       path: '/role'
@@ -488,6 +508,7 @@ const rootRouteChildren: RootRouteChildren = {
   OtpRoute: OtpRoute,
   ResidentRoute: ResidentRouteWithChildren,
   RoleRoute: RoleRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   LoginAdminRoute: LoginAdminRoute,
   LoginDriverRoute: LoginDriverRoute,
   LoginResidentRoute: LoginResidentRoute,

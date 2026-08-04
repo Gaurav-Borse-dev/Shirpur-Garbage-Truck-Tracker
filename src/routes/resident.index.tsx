@@ -15,6 +15,21 @@ import { useFormat } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident/")({
+  head: () => ({
+    meta: [
+      { title: "Resident Live Tracking — CleanTrack" },
+      {
+        name: "description",
+        content:
+          "See where your garbage truck is right now, how far away it is, and when it will reach your street in Shirpur.",
+      },
+      { property: "og:title", content: "Resident Live Tracking — CleanTrack" },
+      {
+        property: "og:description",
+        content: "Live truck position, distance and ETA for your street in Shirpur.",
+      },
+    ],
+  }),
   component: ResidentHome,
 });
 
@@ -85,6 +100,7 @@ function ResidentHome() {
 
   return (
     <div className="absolute inset-0">
+      <h1 className="sr-only">Live garbage truck tracking for your street</h1>
       {/* Map */}
       <div className="absolute inset-0">
         <ClientOnly fallback={<MapSkeleton />}>

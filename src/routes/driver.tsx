@@ -18,6 +18,21 @@ import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/driver")({
+  head: () => ({
+    meta: [
+      { title: "Driver Route & Stops — CleanTrack" },
+      {
+        name: "description",
+        content:
+          "Driver app for Shirpur collection crews: go online, share live GPS, and mark each collection stop as en route, arrived or completed.",
+      },
+      { property: "og:title", content: "Driver Route & Stops — CleanTrack" },
+      {
+        property: "og:description",
+        content: "Share live location and manage your collection stops on the CleanTrack driver app.",
+      },
+    ],
+  }),
   component: DriverRoute,
 });
 

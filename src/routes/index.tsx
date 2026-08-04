@@ -8,10 +8,38 @@ import { useAuth } from "@/store/auth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CleanTrack — Live garbage truck tracking" },
-      { name: "description", content: "Never miss your truck again. Live tracking for Shirpur." },
-      { property: "og:title", content: "CleanTrack" },
-      { property: "og:description", content: "Never miss your truck again." },
+      { title: "CleanTrack — Live Garbage Truck Tracking, Shirpur" },
+      {
+        name: "description",
+        content:
+          "Track Shirpur's municipal garbage trucks live on a map, see accurate arrival times for your street, and never miss a collection again.",
+      },
+      { property: "og:title", content: "CleanTrack — Live Garbage Truck Tracking, Shirpur" },
+      {
+        property: "og:description",
+        content:
+          "Live truck positions, street-level arrival alerts and dustbin bookings for residents of Shirpur, Maharashtra.",
+      },
+      { property: "og:url", content: "https://street-scan-track.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Service",
+          name: "CleanTrack Garbage Truck Tracking",
+          serviceType: "Live municipal waste collection tracking",
+          description:
+            "Live garbage truck tracking, collection arrival alerts and community dustbin bookings for residents of Shirpur.",
+          areaServed: { "@type": "City", name: "Shirpur" },
+          provider: {
+            "@type": "GovernmentOrganization",
+            name: "Shirpur Municipal Corporation",
+          },
+        }),
+      },
     ],
   }),
   component: Splash,
@@ -40,6 +68,7 @@ function Splash() {
           className="flex flex-col items-center text-center"
         >
           <Logo size={88} />
+          <h1 className="sr-only">CleanTrack — Live Garbage Truck Tracking in Shirpur</h1>
           <p className="mt-6 text-base text-neutral-500 max-w-[260px]">
             Never miss your truck again.
           </p>

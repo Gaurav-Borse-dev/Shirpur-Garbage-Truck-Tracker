@@ -6,6 +6,21 @@ import { useTrucks } from "@/store/trucks";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/")({
+  head: () => ({
+    meta: [
+      { title: "Fleet Dashboard — CleanTrack Admin" },
+      {
+        name: "description",
+        content:
+          "Municipal fleet dashboard: monitor all 16 Shirpur garbage trucks, stops completed today and residents alerted in real time.",
+      },
+      { property: "og:title", content: "Fleet Dashboard — CleanTrack Admin" },
+      {
+        property: "og:description",
+        content: "Real-time overview of the Shirpur municipal garbage collection fleet.",
+      },
+    ],
+  }),
   component: Dashboard,
 });
 
