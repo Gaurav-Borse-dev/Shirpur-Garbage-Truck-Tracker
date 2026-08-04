@@ -14,10 +14,20 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { LIVE_BACKEND } from "@/lib/backend";
 import { startDriverLocation, stopDriverLocation } from "@/lib/driver-location";
 import { emitDriverDuty } from "@/lib/realtime";
+import { RequireRole } from "@/components/RequireRole";
+import { serverSignOut } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/driver")({
-  component: DriverHome,
+  component: DriverRoute,
 });
+
+function DriverRoute() {
+  return (
+    <RequireRole role="driver" redirectTo="/role">
+      <DriverHome />
+    </RequireRole>
+  );
+}
 
 type StopStatus = "enroute" | "arrived" | "completed";
 
@@ -209,7 +219,7 @@ function DriverHome() {
             </div>
 
             <button
-              onClick={() => { setOnline(truckId, false); logout(); navigate({ to: "/role" }); }}
+              onClick={async () => { setOnline(truckId, false); await serverSignOut(); logout(); navigate({ to: "/role" }); }}
               className="mt-4 w-full h-12 rounded-xl border border-neutral-200 text-neutral-600 font-semibold flex items-center justify-center gap-2"
             >
               <LogoutIcon className="w-4 h-4" /> Go offline & logout

@@ -85,7 +85,7 @@ function ProfilePage() {
 
       <div className="px-6 mt-8 pb-10">
         <button
-          onClick={() => { logout(); navigate({ to: "/role" }); }}
+          onClick={async () => { const { serverSignOut } = await import("@/lib/auth.functions"); await serverSignOut(); logout(); navigate({ to: "/role" }); }}
           className="w-full h-12 rounded-xl border border-red-200 text-red-600 font-semibold"
         >
           Logout
