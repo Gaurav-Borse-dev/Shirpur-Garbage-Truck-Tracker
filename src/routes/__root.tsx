@@ -83,10 +83,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CleanTrack — Live garbage truck tracking" },
       { name: "description", content: "Track your municipal garbage truck in real time across Shirpur." },
-      { property: "og:title", content: "CleanTrack" },
-      { property: "og:description", content: "Never miss your truck again." },
+      { property: "og:site_name", content: "CleanTrack" },
+      { property: "og:title", content: "CleanTrack — Live Garbage Truck Tracking" },
+      {
+        property: "og:description",
+        content:
+          "Follow Shirpur's municipal garbage trucks live on a map, get arrival alerts for your street, and book community dustbins in seconds.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "CleanTrack — Live Garbage Truck Tracking" },
+      {
+        name: "twitter:description",
+        content:
+          "Live garbage truck tracking and collection alerts for residents of Shirpur, Maharashtra.",
+      },
       { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#ffffff" },
     ],
@@ -99,6 +110,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" },
       { rel: "stylesheet", href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "GovernmentOrganization",
+          name: "Shirpur Municipal Corporation",
+          alternateName: "CleanTrack — Shirpur Municipal Corporation",
+          url: "https://street-scan-track.lovable.app",
+          areaServed: {
+            "@type": "City",
+            name: "Shirpur",
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: "Shirpur",
+              addressRegion: "Maharashtra",
+              addressCountry: "IN",
+            },
+          },
+        }),
+      },
     ],
   }),
   shellComponent: RootShell,
