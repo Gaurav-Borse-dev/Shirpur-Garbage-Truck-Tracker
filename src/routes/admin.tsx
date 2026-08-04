@@ -5,17 +5,25 @@ import { ToastHost } from "@/components/Toast";
 import { MapIcon, UserIcon, BellIcon, TruckIcon, LogoutIcon, ClockIcon, CalendarIcon } from "@/components/icons";
 import { useBookings } from "@/store/bookings";
 import { useRealtime } from "@/hooks/useRealtime";
+import { RequireRole } from "@/components/RequireRole";
 
 export const Route = createFileRoute("/admin")({
-  component: AdminLayout,
+  component: AdminRoute,
 });
+
+function AdminRoute() {
+  return (
+    <RequireRole role="admin" redirectTo="/login/admin">
+      <AdminLayout />
+    </RequireRole>
+  );
+}
 
 function AdminLayout() {
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
   const loc = useLocation();
-  if (!session || session.role !== "admin") return <Navigate to="/login/admin" />;
   const pendingBookings = useBookings((s) => s.bookings.filter((b) => b.status === "pending").length);
   // Admin receives updates for every truck.
   useRealtime({ role: "admin" });
