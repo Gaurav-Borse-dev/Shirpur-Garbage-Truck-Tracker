@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { serverSignOut } from "@/lib/auth.functions";
 import { useState } from "react";
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
@@ -85,7 +86,7 @@ function ProfilePage() {
 
       <div className="px-6 mt-8 pb-10">
         <button
-          onClick={async () => { const { serverSignOut } = await import("@/lib/auth.functions"); await serverSignOut(); logout(); navigate({ to: "/role" }); }}
+          onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
           className="w-full h-12 rounded-xl border border-red-200 text-red-600 font-semibold"
         >
           Logout
