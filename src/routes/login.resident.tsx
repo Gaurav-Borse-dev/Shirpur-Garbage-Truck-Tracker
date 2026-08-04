@@ -4,6 +4,23 @@ import { MobileFrame } from "@/components/MobileFrame";
 import { ChevronLeft } from "@/components/icons";
 
 export const Route = createFileRoute("/login/resident")({
+  head: () => ({
+    meta: [
+      { title: "Resident Sign In — CleanTrack Shirpur" },
+      {
+        name: "description",
+        content:
+          "Sign in with your mobile number to track Shirpur garbage trucks near your home and get collection alerts.",
+      },
+      { property: "og:title", content: "Resident Sign In — CleanTrack Shirpur" },
+      {
+        property: "og:description",
+        content: "Mobile sign-in for Shirpur residents to follow their garbage truck live.",
+      },
+      { property: "og:url", content: "https://street-scan-track.lovable.app/login/resident" },
+    ],
+    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/login/resident" }],
+  }),
   component: ResidentLogin,
 });
 
@@ -14,7 +31,7 @@ function ResidentLogin() {
   return (
     <MobileFrame>
       <div className="px-4 pt-4">
-        <Link to="/role" className="inline-grid place-items-center w-10 h-10 rounded-full hover:bg-neutral-100">
+        <Link to="/role" aria-label="Back to role selection" className="inline-grid place-items-center w-10 h-10 rounded-full hover:bg-neutral-100">
           <ChevronLeft />
         </Link>
       </div>
