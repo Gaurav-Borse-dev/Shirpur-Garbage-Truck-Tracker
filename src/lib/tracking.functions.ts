@@ -47,12 +47,13 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: result, error } = await db.rpc("ingest_truck_location_for", {
       _truck_id: truckId,
-      _driver_id: null,
+      // no Supabase-auth driver row is linked to the cookie session yet
+      _driver_id: null as unknown as string,
       _lat: data.lat,
       _lng: data.lng,
       _heading: data.heading ?? 0,
       _speed_kmh: data.speedKmh ?? 0,
-      _accuracy_m: data.accuracyM ?? null,
+      ...(data.accuracyM === undefined ? {} : { _accuracy_m: data.accuracyM }),
     });
     if (error) {
       console.error("[gps] ingest failed", error.message);
