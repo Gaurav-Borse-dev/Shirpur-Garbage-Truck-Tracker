@@ -1123,8 +1123,21 @@ export type Database = {
         }
         Returns: Json
       }
+      ingest_truck_location_for: {
+        Args: {
+          _accuracy_m?: number
+          _driver_id: string
+          _heading?: number
+          _lat: number
+          _lng: number
+          _speed_kmh?: number
+          _truck_id: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      mark_stale_drivers_offline: { Args: never; Returns: number }
       nearest_trucks: {
         Args: {
           _lat: number
@@ -1184,6 +1197,7 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      prune_tracking_data: { Args: never; Returns: number }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown
