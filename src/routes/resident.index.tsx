@@ -7,6 +7,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { BellIcon, ClockIcon, TruckIcon, ChevronLeft } from "@/components/icons";
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
+import { useTruckEta } from "@/hooks/useTruckEta";
 import { useToast } from "@/components/Toast";
 import { useTrucks } from "@/store/trucks";
 import { RESIDENT_DEMO } from "@/lib/trucks";
