@@ -19,7 +19,7 @@
  * batched commit budget, so markers/polylines never re-render per event.
  */
 import { io, type Socket } from "socket.io-client";
-import { LIVE_BACKEND, SOCKET_PATH, SOCKET_URL, getToken } from "@/lib/backend";
+import { SOCKET_ENABLED, SOCKET_PATH, SOCKET_URL, getToken } from "@/lib/backend";
 import { useTrucks, type TruckFix } from "@/store/trucks";
 import { handleBackendNotification, type BackendNotification } from "@/lib/notifications";
 
@@ -58,7 +58,7 @@ function sendSubscribe(s: Socket) {
 
 /** Idempotent: repeated calls reuse the single connection. */
 export function getSocket(): Socket | null {
-  if (!LIVE_BACKEND || typeof window === "undefined") return null;
+  if (!SOCKET_ENABLED || typeof window === "undefined") return null;
   if (socket) return socket;
 
   socket = io(SOCKET_URL, {
