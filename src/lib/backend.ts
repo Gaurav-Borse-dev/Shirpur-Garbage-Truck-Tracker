@@ -17,8 +17,15 @@ export const API_URL = (env["VITE_API_URL"] ?? "").replace(/\/$/, "");
 export const SOCKET_URL = (env["VITE_SOCKET_URL"] ?? API_URL).replace(/\/$/, "");
 export const SOCKET_PATH = env["VITE_SOCKET_PATH"] ?? "/socket.io";
 
-/** True when a production backend is configured. */
-export const LIVE_BACKEND = Boolean(SOCKET_URL);
+/** True only when an external Socket.IO gateway is configured. */
+export const SOCKET_ENABLED = Boolean(SOCKET_URL);
+
+/**
+ * True whenever positions come from a backend rather than the on-device
+ * engine. CleanTrack now always tracks against Lovable Cloud (PostGIS live
+ * locations), so no motion is ever synthesized on the client.
+ */
+export const LIVE_BACKEND = true;
 
 const TOKEN_KEY = "ct.token";
 

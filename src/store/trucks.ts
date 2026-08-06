@@ -4,7 +4,7 @@ import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, turnAngle,
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
 import { startOfflineWatcher } from "@/store/offline";
-import { LIVE_BACKEND } from "@/lib/backend";
+import { LIVE_BACKEND, SOCKET_ENABLED } from "@/lib/backend";
 
 export type LiveTruck = {
   id: string;
@@ -360,7 +360,7 @@ export function startSimulation() {
   started = true;
   startOfflineWatcher();
   restoreSnapshot();
-  if (LIVE_BACKEND) {
+  if (SOCKET_ENABLED) {
     // Live mode: open the backend transport. The RAF loop below only
     // interpolates between backend GPS fixes — it generates no motion.
     void import("@/lib/realtime").then((m) => m.getSocket());

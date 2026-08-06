@@ -31,6 +31,13 @@ export function formatEta(meters: number, lang: Lang) {
   return `${formatNumber(mins, lang)} ${mins === 1 ? u.min : u.mins}`;
 }
 
+/** Localized duration in seconds (used for backend/OSRM travel times). */
+export function formatDuration(seconds: number, lang: Lang) {
+  const mins = Math.max(1, Math.round(seconds / 60));
+  const u = UNITS[lang];
+  return `${formatNumber(mins, lang)} ${mins === 1 ? u.min : u.mins}`;
+}
+
 /** Localized clock time. */
 export function formatTime(d: Date | number, lang: Lang) {
   try {
@@ -58,6 +65,7 @@ export function useFormat() {
     number: (n: number, o?: Intl.NumberFormatOptions) => formatNumber(n, lang, o),
     distance: (m: number) => formatDistance(m, lang),
     eta: (m: number) => formatEta(m, lang),
+    duration: (s: number) => formatDuration(s, lang),
     time: (d: Date | number) => formatTime(d, lang),
     date: (d: Date | number | string) => formatDate(d, lang),
   };
