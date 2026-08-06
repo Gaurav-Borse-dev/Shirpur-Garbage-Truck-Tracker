@@ -6,7 +6,9 @@
  * offline and replayed automatically on reconnect. No position is ever
  * synthesized.
  */
+import { SOCKET_ENABLED } from "@/lib/backend";
 import { emitDriverGps } from "@/lib/realtime";
+import { ingestDriverGps } from "@/lib/tracking.functions";
 import { useOffline, type PendingAction } from "@/store/offline";
 
 export type GpsPayload = {
@@ -26,9 +28,32 @@ let keepalive: number | null = null;
 let lastSentAt = 0;
 let latest: GpsPayload | null = null;
 
+/** Pushes one fix to the backend; returns false when it must be queued. */
+async function deliver(p: GpsPayload): Promise<boolean> {
+  if (SOCKET_ENABLED) return emitDriverGps(p);
+  try {
+    const res = await ingestDriverGps({
+      data: {
+        truckCode: p.truckId,
+        lat: p.lat,
+        lng: p.lng,
+        ...(p.heading === undefined || p.heading === null ? {} : { heading: p.heading }),
+        ...(p.speed === undefined || p.speed === null ? {} : { speedKmh: Math.max(0, p.speed * 3.6) }),
+      },
+    });
+    // Server-side rejections (rate limited, implausible jump) are final —
+    // re-queueing them would replay stale positions on reconnect.
+    return res.accepted || res.reason !== "ingest_error";
+  } catch {
+    return false;
+  }
+}
+
 function send(p: GpsPayload) {
   lastSentAt = Date.now();
-  if (!emitDriverGps(p)) useOffline.getState().enqueue("duty", p);
+  void deliver(p).then((ok) => {
+    if (!ok) useOffline.getState().enqueue("duty", p);
+  });
 }
 
 /** Start streaming real device GPS for this truck. Idempotent. */
@@ -73,6 +98,8 @@ export function stopDriverLocation() {
 export function syncPendingGps() {
   return useOffline.getState().flush((a: PendingAction) => {
     if (a.kind !== "duty") return false;
-    return emitDriverGps(a.payload as GpsPayload);
+    if (SOCKET_ENABLED) return emitDriverGps(a.payload as GpsPayload);
+    void deliver(a.payload as GpsPayload);
+    return true;
   });
 }
