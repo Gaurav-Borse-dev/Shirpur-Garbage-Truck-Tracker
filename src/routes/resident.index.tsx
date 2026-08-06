@@ -60,6 +60,10 @@ function ResidentHome() {
   }, [trucks, city, resident]);
 
   const distance = nearest ? haversine(nearest.position, resident) : 0;
+  // Backend (OSRM) road-network ETA; falls back to the straight-line estimate.
+  const backendEta = useTruckEta(nearest?.truck.id, resident);
+  const etaLabel = backendEta ? fmt.duration(backendEta.durationS) : fmt.eta(distance);
+  const distanceLabel = backendEta ? fmt.distance(backendEta.distanceM) : fmt.distance(distance);
   const insideArriving = distance < radius * 0.3;
   const insideNearby = distance < radius;
 
@@ -137,10 +141,10 @@ function ResidentHome() {
                 {tr("Arriving in")}
               </div>
               <div className="text-lg font-bold text-ink leading-tight">
-                {fmt.eta(distance)}
+                {etaLabel}
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                {fmt.distance(distance)} {tr("away")}
+                {distanceLabel} {tr("away")}
               </div>
             </div>
           </div>
@@ -171,11 +175,11 @@ function ResidentHome() {
             <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-2 overflow-hidden">
               <div className="p-3.5">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Distance")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{fmt.distance(distance)}</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{distanceLabel}</div>
               </div>
               <div className="p-3.5 border-l border-neutral-200/70">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("ETA")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{fmt.eta(distance)}</div>
+                <div className="text-xl font-bold text-ink mt-0.5">{etaLabel}</div>
               </div>
             </div>
 
