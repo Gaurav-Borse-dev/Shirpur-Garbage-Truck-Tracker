@@ -78,7 +78,13 @@ function ProfilePage() {
       </div>
 
       <div className="px-6 mt-8 space-y-1">
-        <Row label="Notifications" value="On" />
+        <button
+          onClick={() => navigate({ to: "/resident/notifications" })}
+          className="w-full flex items-center justify-between py-3 border-b border-neutral-100 text-left"
+        >
+          <div className="text-sm text-ink">Notifications</div>
+          <div className="text-sm text-neutral-500">Manage ›</div>
+        </button>
         <Row label="Language" value="English" />
         <Row label="Help & Support" value="›" />
         <Row label="About CleanTrack" value="v1.0" />

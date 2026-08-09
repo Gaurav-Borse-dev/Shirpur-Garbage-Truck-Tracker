@@ -249,6 +249,48 @@ export type Database = {
         }
         Relationships: []
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          failure_count: number
+          id: string
+          last_seen_at: string
+          platform: string
+          revoked_at: string | null
+          subject_key: string
+          subject_role: string
+          token: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          failure_count?: number
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          revoked_at?: string | null
+          subject_key: string
+          subject_role: string
+          token: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          failure_count?: number
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          revoked_at?: string | null
+          subject_key?: string
+          subject_role?: string
+          token?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           assigned_truck_id: string | null
@@ -381,6 +423,39 @@ export type Database = {
           },
         ]
       }
+      notification_prefs: {
+        Row: {
+          alert_frequency: string
+          created_at: string
+          id: string
+          last_alert_at: string | null
+          nearby_alerts_enabled: boolean
+          subject_key: string
+          subject_role: string
+          updated_at: string
+        }
+        Insert: {
+          alert_frequency?: string
+          created_at?: string
+          id?: string
+          last_alert_at?: string | null
+          nearby_alerts_enabled?: boolean
+          subject_key: string
+          subject_role: string
+          updated_at?: string
+        }
+        Update: {
+          alert_frequency?: string
+          created_at?: string
+          id?: string
+          last_alert_at?: string | null
+          nearby_alerts_enabled?: boolean
+          subject_key?: string
+          subject_role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_retry_queue: {
         Row: {
           attempts: number
@@ -510,6 +585,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      push_deliveries: {
+        Row: {
+          body: string | null
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          subject_key: string
+          subject_role: string
+          success: boolean
+          title: string
+          token_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          subject_key: string
+          subject_role: string
+          success?: boolean
+          title: string
+          token_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          subject_key?: string
+          subject_role?: string
+          success?: boolean
+          title?: string
+          token_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_deliveries_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "device_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       route_stops: {
         Row: {
@@ -1197,6 +1322,7 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      prune_push_data: { Args: never; Returns: undefined }
       prune_tracking_data: { Args: never; Returns: number }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }

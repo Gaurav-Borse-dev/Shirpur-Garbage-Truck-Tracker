@@ -20,6 +20,7 @@ import { Route as ResidentIndexRouteImport } from './routes/resident.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
 import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
+import { Route as ResidentNotificationsRouteImport } from './routes/resident.notifications'
 import { Route as ResidentBookingRouteImport } from './routes/resident.booking'
 import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
 import { Route as LoginResidentRouteImport } from './routes/login.resident'
@@ -85,6 +86,11 @@ const ResidentScheduleRoute = ResidentScheduleRouteImport.update({
 const ResidentProfileRoute = ResidentProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentNotificationsRoute = ResidentNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => ResidentRoute,
 } as any)
 const ResidentBookingRoute = ResidentBookingRouteImport.update({
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
+  '/resident/notifications': typeof ResidentNotificationsRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
+  '/resident/notifications': typeof ResidentNotificationsRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin': typeof AdminIndexRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/login/resident': typeof LoginResidentRoute
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
+  '/resident/notifications': typeof ResidentNotificationsRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/login/resident'
     | '/resident/alerts'
     | '/resident/booking'
+    | '/resident/notifications'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/login/resident'
     | '/resident/alerts'
     | '/resident/booking'
+    | '/resident/notifications'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin'
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/login/resident'
     | '/resident/alerts'
     | '/resident/booking'
+    | '/resident/notifications'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -377,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/resident/profile'
       preLoaderRoute: typeof ResidentProfileRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/notifications': {
+      id: '/resident/notifications'
+      path: '/notifications'
+      fullPath: '/resident/notifications'
+      preLoaderRoute: typeof ResidentNotificationsRouteImport
       parentRoute: typeof ResidentRoute
     }
     '/resident/booking': {
@@ -484,6 +503,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 interface ResidentRouteChildren {
   ResidentAlertsRoute: typeof ResidentAlertsRoute
   ResidentBookingRoute: typeof ResidentBookingRoute
+  ResidentNotificationsRoute: typeof ResidentNotificationsRoute
   ResidentProfileRoute: typeof ResidentProfileRoute
   ResidentScheduleRoute: typeof ResidentScheduleRoute
   ResidentIndexRoute: typeof ResidentIndexRoute
@@ -492,6 +512,7 @@ interface ResidentRouteChildren {
 const ResidentRouteChildren: ResidentRouteChildren = {
   ResidentAlertsRoute: ResidentAlertsRoute,
   ResidentBookingRoute: ResidentBookingRoute,
+  ResidentNotificationsRoute: ResidentNotificationsRoute,
   ResidentProfileRoute: ResidentProfileRoute,
   ResidentScheduleRoute: ResidentScheduleRoute,
   ResidentIndexRoute: ResidentIndexRoute,

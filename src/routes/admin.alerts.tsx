@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { TRUCKS } from "@/lib/trucks";
 import { TruckIcon, BellIcon, UserIcon, CheckIcon } from "@/components/icons";
+import { sendTestPush } from "@/lib/push.functions";
 
 export const Route = createFileRoute("/admin/alerts")({
   component: AlertsPage,
@@ -49,6 +51,8 @@ function AlertsPage() {
         ))}
       </div>
 
+      <TestPushPanel />
+
       <div className="mt-5 rounded-2xl border border-neutral-200 overflow-hidden">
         {filtered.map((e, i) => {
           const Icon = e.type === "geofence" ? BellIcon : e.type === "stop" ? CheckIcon : UserIcon;
@@ -64,6 +68,121 @@ function AlertsPage() {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function TestPushPanel() {
+  const [mode, setMode] = useState<"resident" | "truck">("resident");
+  const [phone, setPhone] = useState("");
+  const [truckCode, setTruckCode] = useState(TRUCKS[0]?.id ?? "GBR-01");
+  const [title, setTitle] = useState("CleanTrack test alert");
+  const [body, setBody] = useState("This is a test notification from the municipal dashboard.");
+  const [status, setStatus] = useState<string | null>(null);
+
+  const send = useMutation({
+    mutationFn: () =>
+      sendTestPush({
+        data: {
+          target: mode === "resident" ? { kind: "resident", phone } : { kind: "truck", truckCode },
+          title,
+          ...(body ? { body } : {}),
+        },
+      }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setStatus(res.reason === "unauthorized" ? "Not authorised to send." : "Unknown truck.");
+        return;
+      }
+      if (res.skipped === "not_configured") setStatus("Push credentials are not configured yet.");
+      else if (res.skipped === "no_devices") setStatus("No registered devices for this target.");
+      else setStatus(`Sent to ${res.sent} device(s)${res.failed ? `, ${res.failed} failed` : ""}.`);
+    },
+    onError: () => setStatus("Send failed. Check the server logs."),
+  });
+
+  const invalid = mode === "resident" ? !/^\d{10}$/.test(phone) : !truckCode;
+
+  return (
+    <div className="mt-6 rounded-2xl border border-neutral-200 p-5">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg grid place-items-center bg-brand-soft text-brand">
+          <BellIcon className="w-4 h-4" />
+        </div>
+        <div>
+          <div className="text-sm font-bold text-ink">Send test notification</div>
+          <div className="text-xs text-neutral-500">Delivers a real push to registered devices</div>
+        </div>
+      </div>
+
+      <div className="mt-4 inline-flex p-0.5 rounded-lg bg-neutral-100 text-xs">
+        {(["resident", "truck"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => { setMode(m); setStatus(null); }}
+            className={`px-3 py-1.5 rounded-md font-semibold ${mode === m ? "bg-white shadow-sm text-ink" : "text-neutral-500"}`}
+          >
+            {m === "resident" ? "Resident" : "Truck route"}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 max-w-3xl">
+        {mode === "resident" ? (
+          <label className="text-xs font-semibold text-neutral-500">
+            Resident phone
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="10-digit number"
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm text-ink font-normal"
+            />
+          </label>
+        ) : (
+          <label className="text-xs font-semibold text-neutral-500">
+            Truck route
+            <select
+              value={truckCode}
+              onChange={(e) => setTruckCode(e.target.value)}
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm text-ink font-normal"
+            >
+              {TRUCKS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.id} · {t.wardName}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="text-xs font-semibold text-neutral-500">
+          Title
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 80))}
+            className="mt-1 w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm text-ink font-normal"
+          />
+        </label>
+        <label className="text-xs font-semibold text-neutral-500 md:col-span-2">
+          Message
+          <input
+            value={body}
+            onChange={(e) => setBody(e.target.value.slice(0, 200))}
+            className="mt-1 w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm text-ink font-normal"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          disabled={invalid || !title || send.isPending}
+          onClick={() => { setStatus(null); send.mutate(); }}
+          className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold disabled:bg-neutral-200 disabled:text-neutral-400 inline-flex items-center gap-2"
+        >
+          <TruckIcon className="w-4 h-4" />
+          {send.isPending ? "Sending…" : "Send test push"}
+        </button>
+        {status && <span className="text-xs text-neutral-600">{status}</span>}
       </div>
     </div>
   );
