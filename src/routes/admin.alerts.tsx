@@ -43,7 +43,6 @@ function AlertsPage() {
       </div>
 
       <div className="mt-5 inline-flex p-0.5 rounded-lg bg-neutral-100 text-xs">
-        {null}
         {(["all", "geofence", "stop", "login"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-md font-semibold capitalize ${filter === f ? "bg-white shadow-sm text-ink" : "text-neutral-500"}`}>
