@@ -9,10 +9,12 @@ import { DRIVER_NAMES, TRUCKS } from "./trucks";
 export type SubjectRole = "resident" | "driver" | "admin";
 export type Subject = { role: SubjectRole; key: string };
 export type AlertFrequency = "immediate" | "every_15m" | "hourly" | "daily";
+export type PermissionState = "default" | "granted" | "denied" | "unsupported";
 
 export type Prefs = {
   nearbyAlertsEnabled: boolean;
   alertFrequency: AlertFrequency;
+  permissionState: PermissionState;
 };
 
 const FREQUENCY_MS: Record<AlertFrequency, number> = {
@@ -27,13 +29,17 @@ async function db() {
   return supabaseAdmin;
 }
 
-export const DEFAULT_PREFS: Prefs = { nearbyAlertsEnabled: true, alertFrequency: "immediate" };
+export const DEFAULT_PREFS: Prefs = {
+  nearbyAlertsEnabled: true,
+  alertFrequency: "immediate",
+  permissionState: "default",
+};
 
 export async function getPrefs(subject: Subject): Promise<Prefs> {
   const sb = await db();
   const { data } = await sb
     .from("notification_prefs")
-    .select("nearby_alerts_enabled, alert_frequency")
+    .select("nearby_alerts_enabled, alert_frequency, permission_state")
     .eq("subject_role", subject.role)
     .eq("subject_key", subject.key)
     .maybeSingle();
@@ -41,24 +47,31 @@ export async function getPrefs(subject: Subject): Promise<Prefs> {
   return {
     nearbyAlertsEnabled: data.nearby_alerts_enabled,
     alertFrequency: (data.alert_frequency as AlertFrequency) ?? "immediate",
+    permissionState: (data.permission_state as PermissionState) ?? "default",
   };
 }
 
-export async function savePrefs(subject: Subject, prefs: Prefs): Promise<Prefs> {
+export async function savePrefs(
+  subject: Subject,
+  prefs: Omit<Prefs, "permissionState"> & { permissionState?: PermissionState },
+): Promise<Prefs> {
   const sb = await db();
+  const current = await getPrefs(subject);
+  const permissionState = prefs.permissionState ?? current.permissionState;
   await sb.from("notification_prefs").upsert(
     {
       subject_role: subject.role,
       subject_key: subject.key,
       nearby_alerts_enabled: prefs.nearbyAlertsEnabled,
       alert_frequency: prefs.alertFrequency,
+      permission_state: permissionState,
     },
     { onConflict: "subject_role,subject_key" },
   );
   // Turning alerts off retires the device tokens too, so nothing can be pushed
   // to a device whose owner opted out.
   if (!prefs.nearbyAlertsEnabled) await revokeAllTokens(subject);
-  return prefs;
+  return { ...prefs, permissionState };
 }
 
 /** Registers (or refreshes) a device token, re-binding it to the current subject. */
