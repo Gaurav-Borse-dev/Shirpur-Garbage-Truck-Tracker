@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
@@ -7,6 +8,7 @@ import { useBookings } from "@/store/bookings";
 import { useRealtime } from "@/hooks/useRealtime";
 import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
+import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
 
 export const Route = createFileRoute("/admin")({
   component: AdminRoute,
@@ -28,6 +30,11 @@ function AdminLayout() {
   const pendingBookings = useBookings((s) => s.bookings.filter((b) => b.status === "pending").length);
   // Admin receives updates for every truck.
   useRealtime({ role: "admin" });
+  // Admin devices register through the native wrapper token bridge too.
+  useEffect(() => {
+    installNativeTokenBridge();
+    void registerThisDevice({ requirePermission: false });
+  }, []);
 
   const nav = [
     { to: "/admin", label: "Dashboard", Icon: MapIcon, exact: true },

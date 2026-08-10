@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 export const alertFrequencies = ["immediate", "every_15m", "hourly", "daily"] as const;
+export const permissionStates = ["default", "granted", "denied", "unsupported"] as const;
 
 export const prefsInput = z.object({
   nearbyAlertsEnabled: z.boolean(),
   alertFrequency: z.enum(alertFrequencies),
+  permissionState: z.enum(permissionStates).optional(),
 });
 
 export const registerTokenInput = z.object({
