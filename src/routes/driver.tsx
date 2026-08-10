@@ -16,6 +16,7 @@ import { startDriverLocation, stopDriverLocation } from "@/lib/driver-location";
 import { emitDriverDuty } from "@/lib/realtime";
 import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
+import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
 
 export const Route = createFileRoute("/driver")({
   head: () => ({
@@ -64,6 +65,12 @@ function DriverHome() {
   const [expanded, setExpanded] = useState(false);
 
   useRealtime({ role: "driver", truckId });
+  // Mobile wrapper path: the native shell supplies the FCM token, so no VAPID
+  // key or Firebase web config is needed here.
+  useEffect(() => {
+    installNativeTokenBridge();
+    void registerThisDevice({ requirePermission: false });
+  }, []);
   const onDuty = useTrucks((s) => s.trucks[truckId]?.status) !== "offline";
   useEffect(() => {
     if (!LIVE_BACKEND) return;
