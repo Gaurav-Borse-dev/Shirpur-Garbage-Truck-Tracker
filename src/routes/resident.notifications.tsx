@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getNotificationPrefs,
-  saveNotificationPrefs,
-  revokeDeviceToken,
-} from "@/lib/push.functions";
+import { getNotificationPrefs, saveNotificationPrefs } from "@/lib/push.functions";
 import { ensureNotificationPermission } from "@/lib/notifications";
+import {
+  permissionState as readPermission,
+  registerThisDevice,
+  unregisterThisDevice,
+} from "@/lib/push-client";
 import { useSettings } from "@/store/settings";
 import { BellIcon, ChevronLeft } from "@/components/icons";
 import { useToast } from "@/components/Toast";
@@ -40,6 +41,7 @@ const FREQUENCIES = [
 ] as const;
 
 type Frequency = (typeof FREQUENCIES)[number]["value"];
+type Permission = "default" | "granted" | "denied" | "unsupported";
 
 function NotificationSettingsPage() {
   const navigate = useNavigate();
@@ -56,6 +58,10 @@ function NotificationSettingsPage() {
 
   const [enabled, setEnabled] = useState(true);
   const [frequency, setFrequency] = useState<Frequency>("immediate");
+  const [permission, setPermission] = useState<Permission>("default");
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => setPermission(readPermission()), []);
 
   useEffect(() => {
     if (!data?.prefs) return;
@@ -65,9 +71,17 @@ function NotificationSettingsPage() {
 
   const save = useMutation({
     mutationFn: async (next: { nearbyAlertsEnabled: boolean; alertFrequency: Frequency }) => {
-      if (next.nearbyAlertsEnabled) await ensureNotificationPermission();
-      else await revokeDeviceToken({ data: {} });
-      return saveNotificationPrefs({ data: next });
+      let state: Permission = readPermission();
+      if (next.nearbyAlertsEnabled) {
+        if (state === "default") state = (await ensureNotificationPermission()) ? "granted" : readPermission();
+        // Registers this device (native FCM token when the app runs inside the
+        // mobile wrapper) so nearby-truck pushes can actually be delivered.
+        if (state === "granted") await registerThisDevice({ requirePermission: false });
+      } else {
+        await unregisterThisDevice();
+      }
+      setPermission(state);
+      return saveNotificationPrefs({ data: { ...next, permissionState: state } });
     },
     onSuccess: (_res, next) => {
       setNotifications(next.nearbyAlertsEnabled);
@@ -87,6 +101,29 @@ function NotificationSettingsPage() {
     !!data?.prefs &&
     (enabled !== data.prefs.nearbyAlertsEnabled || frequency !== data.prefs.alertFrequency);
 
+  async function askPermission() {
+    setAsking(true);
+    try {
+      const granted = await ensureNotificationPermission();
+      const state = readPermission();
+      setPermission(state);
+      if (granted) await registerThisDevice({ requirePermission: false });
+      await saveNotificationPrefs({
+        data: { nearbyAlertsEnabled: enabled, alertFrequency: frequency, permissionState: state },
+      });
+      void qc.invalidateQueries({ queryKey: ["notification-prefs"] });
+      push({
+        title: granted ? "Notifications allowed" : "Permission not granted",
+        subtitle: granted
+          ? "This device is registered for nearby-truck alerts."
+          : "Enable notifications for this site in your browser settings.",
+        tone: granted ? "success" : "warning",
+      });
+    } finally {
+      setAsking(false);
+    }
+  }
+
   return (
     <div className="absolute inset-0 overflow-y-auto bg-white">
       <div className="px-6 pt-8 pb-2 flex items-center gap-3">
@@ -104,6 +141,28 @@ function NotificationSettingsPage() {
       </div>
 
       <div className="px-6 mt-6">
+        <div className="rounded-2xl border border-neutral-200 p-4 mb-4">
+          <div className="text-sm font-bold text-ink">Step 1 · Device permission</div>
+          <div className="text-xs text-neutral-500 mt-0.5">
+            {permission === "granted"
+              ? "This device is allowed to show CleanTrack notifications."
+              : permission === "denied"
+                ? "Notifications are blocked. Allow them for this site in your browser settings, then retry."
+                : permission === "unsupported"
+                  ? "This device can't show system notifications — in-app alerts still work."
+                  : "Allow notifications so alerts reach you even when CleanTrack is closed."}
+          </div>
+          {permission !== "granted" && permission !== "unsupported" && (
+            <button
+              onClick={() => void askPermission()}
+              disabled={asking}
+              className="mt-3 h-10 px-4 rounded-xl bg-ink text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {asking ? "Requesting…" : "Allow notifications"}
+            </button>
+          )}
+        </div>
+
         <div className="rounded-2xl border border-neutral-200 p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-brand-soft text-brand grid place-items-center">
             <BellIcon className="w-5 h-5" />
