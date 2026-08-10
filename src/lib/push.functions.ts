@@ -1,5 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
-import { prefsInput, registerTokenInput, revokeTokenInput, testPushInput } from "./push-schemas";
+import {
+  prefsInput,
+  recentDeliveriesInput,
+  registerTokenInput,
+  revokeTokenIdInput,
+  revokeTokenInput,
+  selfTestInput,
+  testPushInput,
+} from "./push-schemas";
 
 /** Reads the caller's notification preferences from the encrypted session cookie. */
 export const getNotificationPrefs = createServerFn({ method: "GET" }).handler(async () => {
@@ -92,4 +100,66 @@ export const sendTestPush = createServerFn({ method: "POST" })
       respectPrefs: false,
     });
     return { ok: true as const, targets: 1, ...result };
+  });
+/** Lists this account's registered devices (token values are never returned). */
+export const listMyDevices = createServerFn({ method: "GET" }).handler(async () => {
+  const { getUser } = await import("./session.server");
+  const { listTokens } = await import("./push.server");
+  const user = await getUser();
+  if (!user) return { ok: false as const, devices: [] };
+  const devices = await listTokens({ role: user.role, key: user.phone ?? user.username ?? "" });
+  return { ok: true as const, devices };
+});
+
+/** Removes one registered device from this account. */
+export const removeMyDevice = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => revokeTokenIdInput.parse(data))
+  .handler(async ({ data }) => {
+    const { getUser } = await import("./session.server");
+    const { revokeTokenById } = await import("./push.server");
+    const user = await getUser();
+    if (!user) return { ok: false as const };
+    const ok = await revokeTokenById(
+      { role: user.role, key: user.phone ?? user.username ?? "" },
+      data.id,
+    );
+    return { ok };
+  });
+
+/** Deliveries since a timestamp, replayed as in-app toasts while the app is open. */
+export const getRecentDeliveries = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => recentDeliveriesInput.parse(data))
+  .handler(async ({ data }) => {
+    const { getUser } = await import("./session.server");
+    const { recentDeliveries } = await import("./push.server");
+    const user = await getUser();
+    if (!user) return { ok: false as const, items: [] };
+    const items = await recentDeliveries(
+      { role: user.role, key: user.phone ?? user.username ?? "" },
+      data.since,
+    );
+    return { ok: true as const, items };
+  });
+
+/** Sends a real nearby-truck style push to the caller's own devices. */
+export const sendSelfTestPush = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => selfTestInput.parse(data))
+  .handler(async ({ data }) => {
+    const { getUser } = await import("./session.server");
+    const { sendToSubject } = await import("./push.server");
+    const user = await getUser();
+    if (!user) return { ok: false as const, reason: "unauthorized" as const };
+
+    const truck = data.truckCode ? ` ${data.truckCode}` : "";
+    const result = await sendToSubject(
+      { role: user.role, key: user.phone ?? user.username ?? "" },
+      {
+        title: "Truck nearby",
+        body: `Test alert: garbage truck${truck} is approaching your area.`,
+        kind: "truck_nearby",
+        link: "/resident",
+      },
+      { respectPrefs: false },
+    );
+    return { ok: true as const, ...result };
   });

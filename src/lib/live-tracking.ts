@@ -35,6 +35,14 @@ function toFix(t: {
   };
 }
 
+/** Set while a scope is streaming, so pushes can force an immediate refresh. */
+let activeRefresh: (() => void) | null = null;
+
+/** Pulls a fresh set of fixes right now (used when a push alert arrives). */
+export function refreshLiveTracking() {
+  activeRefresh?.();
+}
+
 /** Starts streaming live fixes for a scope. Returns a teardown function. */
 export function startLiveTracking(scope: LiveScope): () => void {
   if (typeof window === "undefined") return () => {};
@@ -65,6 +73,7 @@ export function startLiveTracking(scope: LiveScope): () => void {
   }
 
   void refresh();
+  activeRefresh = () => void refresh();
   const timer = window.setInterval(refresh, POLL_MS);
 
   const channel = supabase
@@ -76,6 +85,7 @@ export function startLiveTracking(scope: LiveScope): () => void {
 
   return () => {
     stopped = true;
+    if (activeRefresh) activeRefresh = null;
     window.clearInterval(timer);
     void supabase.removeChannel(channel);
   };

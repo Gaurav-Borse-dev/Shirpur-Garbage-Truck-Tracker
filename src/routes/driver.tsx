@@ -154,9 +154,9 @@ function DriverHome() {
               </div>
               <div className="font-bold text-ink mt-1">{live.truck.wardName}</div>
               <div className="text-[11px] text-neutral-400 mt-0.5">
-                Assigned by Municipal Admin · live sync
+                {tr("Assigned by Municipal Admin · live sync")}
               </div>
-              <div className="text-xs text-neutral-500">Collection point #{stopNum}</div>
+              <div className="text-xs text-neutral-500">{tr("Collection point")} #{stopNum}</div>
               <div className="mt-3 grid grid-cols-3 gap-1.5">
                 {(["enroute", "arrived", "completed"] as const).map((s) => (
                   <button
@@ -208,7 +208,7 @@ function DriverHome() {
                             {done ? <CheckIcon className="w-3 h-3" /> : i + 1}
                           </div>
                           <div className={`flex-1 text-sm ${done ? "text-neutral-400 line-through" : current ? "font-semibold text-ink" : "text-neutral-600"}`}>
-                            Stop {i + 1} · {live.truck.wardName.split("—")[0].trim()}
+                            {tr("Stop")} {i + 1} · {live.truck.wardName.split("—")[0].trim()}
                           </div>
                           <div className="text-xs text-neutral-400">~{(8 + i * 0.25).toFixed(2).replace(".", ":")} AM</div>
                         </div>
@@ -222,11 +222,11 @@ function DriverHome() {
             {/* Stats */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-neutral-200 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Today</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Today")}</div>
                 <div className="text-2xl font-bold text-ink">{live.completedStops}<span className="text-base text-neutral-400">/{live.truck.totalStops}</span></div>
               </div>
               <div className="rounded-2xl border border-neutral-200 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Progress</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Progress")}</div>
                 <div className="text-2xl font-bold text-ink">{progress.toFixed(0)}%</div>
               </div>
             </div>
@@ -234,7 +234,7 @@ function DriverHome() {
             {/* Route info */}
             <div className="mt-3 p-4 rounded-2xl bg-neutral-50">
               <div className="text-xs font-semibold text-neutral-500">{live.truck.wardName}</div>
-              <div className="text-xs text-neutral-400 mt-0.5">{live.completedStops} of {live.truck.totalStops} stops completed</div>
+              <div className="text-xs text-neutral-400 mt-0.5">{live.completedStops} {tr("of")} {live.truck.totalStops} {tr("stops completed")}</div>
               <div className="mt-2 h-2 rounded-full bg-neutral-200 overflow-hidden">
                 <motion.div className="h-full bg-brand" animate={{ width: `${progress}%` }} transition={{ type: "spring", stiffness: 120 }} />
               </div>
@@ -244,7 +244,7 @@ function DriverHome() {
               onClick={async () => { setOnline(truckId, false); await serverSignOut(); logout(); navigate({ to: "/role" }); }}
               className="mt-4 w-full h-12 rounded-xl border border-neutral-200 text-neutral-600 font-semibold flex items-center justify-center gap-2"
             >
-              <LogoutIcon className="w-4 h-4" /> Go offline & logout
+              <LogoutIcon className="w-4 h-4" /> {tr("Go offline & logout")}
             </button>
           </div>
         </BottomSheet>

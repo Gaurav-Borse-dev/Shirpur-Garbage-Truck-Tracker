@@ -9,6 +9,7 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
 import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin")({
   component: AdminRoute,
@@ -23,6 +24,7 @@ function AdminRoute() {
 }
 
 function AdminLayout() {
+  const tr = useT();
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
@@ -37,13 +39,13 @@ function AdminLayout() {
   }, []);
 
   const nav = [
-    { to: "/admin", label: "Dashboard", Icon: MapIcon, exact: true },
-    { to: "/admin/map", label: "Live Map", Icon: TruckIcon },
-    { to: "/admin/assignments", label: "Route Assignments", Icon: MapIcon },
-    { to: "/admin/replay", label: "Route Replay", Icon: ClockIcon },
-    { to: "/admin/drivers", label: "Driver Management", Icon: UserIcon },
-    { to: "/admin/bookings", label: "Dustbin Bookings", Icon: CalendarIcon, badge: pendingBookings },
-    { to: "/admin/alerts", label: "Alerts & Logs", Icon: BellIcon },
+    { to: "/admin", label: tr("Dashboard"), Icon: MapIcon, exact: true },
+    { to: "/admin/map", label: tr("Live Map"), Icon: TruckIcon },
+    { to: "/admin/assignments", label: tr("Route Assignments"), Icon: MapIcon },
+    { to: "/admin/replay", label: tr("Route Replay"), Icon: ClockIcon },
+    { to: "/admin/drivers", label: tr("Driver Management"), Icon: UserIcon },
+    { to: "/admin/bookings", label: tr("Dustbin Bookings"), Icon: CalendarIcon, badge: pendingBookings },
+    { to: "/admin/alerts", label: tr("Alerts & Logs"), Icon: BellIcon },
   ];
 
   return (
@@ -51,7 +53,7 @@ function AdminLayout() {
       <aside className="w-[240px] shrink-0 border-r border-neutral-200 flex flex-col">
         <div className="px-5 py-5 flex items-center justify-between">
           <Logo size={36} />
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">ADMIN</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">{tr("ADMIN")}</span>
         </div>
         <nav className="flex-1 px-2 py-2 space-y-0.5">
           {nav.map(({ to, label, Icon, exact, badge }) => {
@@ -75,14 +77,14 @@ function AdminLayout() {
         </nav>
         <div className="p-3 border-t border-neutral-200">
           <div className="px-2 py-1 text-xs">
-            <div className="font-semibold text-ink">{session?.role === "admin" ? session.username : "Admin"}</div>
-            <div className="text-neutral-400">Municipal Admin</div>
+            <div className="font-semibold text-ink">{session?.role === "admin" ? session.username : tr("Admin")}</div>
+            <div className="text-neutral-400">{tr("Municipal Admin")}</div>
           </div>
           <button
             onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
             className="mt-2 w-full h-9 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 flex items-center justify-center gap-2 hover:bg-neutral-50"
           >
-            <LogoutIcon className="w-3.5 h-3.5" /> Logout
+            <LogoutIcon className="w-3.5 h-3.5" /> {tr("Logout")}
           </button>
         </div>
       </aside>

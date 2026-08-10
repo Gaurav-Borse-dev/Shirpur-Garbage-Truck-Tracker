@@ -121,6 +121,54 @@ export async function revokeAllTokens(subject: Subject) {
     .is("revoked_at", null);
 }
 
+/** Every live device registered by one subject, newest first. */
+export async function listTokens(subject: Subject) {
+  const sb = await db();
+  const { data } = await sb
+    .from("device_tokens")
+    .select("id, token, platform, user_agent, last_seen_at, created_at")
+    .eq("subject_role", subject.role)
+    .eq("subject_key", subject.key)
+    .is("revoked_at", null)
+    .order("last_seen_at", { ascending: false });
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    // Never echo the full token to the browser.
+    tokenPreview: `${d.token.slice(0, 8)}…${d.token.slice(-6)}`,
+    platform: d.platform,
+    userAgent: d.user_agent,
+    lastSeenAt: d.last_seen_at,
+    createdAt: d.created_at,
+  }));
+}
+
+/** Revokes a single device by its row id, scoped to the owning subject. */
+export async function revokeTokenById(subject: Subject, id: string) {
+  const sb = await db();
+  const { error } = await sb
+    .from("device_tokens")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("subject_role", subject.role)
+    .eq("subject_key", subject.key);
+  return !error;
+}
+
+/** Recent successful deliveries, used for in-app (foreground) delivery. */
+export async function recentDeliveries(subject: Subject, sinceIso: string) {
+  const sb = await db();
+  const { data } = await sb
+    .from("push_deliveries")
+    .select("id, title, body, kind, created_at")
+    .eq("subject_role", subject.role)
+    .eq("subject_key", subject.key)
+    .eq("success", true)
+    .gt("created_at", sinceIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return data ?? [];
+}
+
 async function activeTokens(subject: Subject) {
   const sb = await db();
   const { data } = await sb

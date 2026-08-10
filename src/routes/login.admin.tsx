@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/store/auth";
 import { adminLogin } from "@/lib/auth.functions";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login/admin")({
   head: () => ({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/login/admin")({
 });
 
 function AdminLogin() {
+  const tr = useT();
   const navigate = useNavigate();
   const setSession = useAuth((s) => s.setSession);
   const queryClient = useQueryClient();
@@ -42,14 +44,14 @@ function AdminLogin() {
     try {
       const res = await adminLogin({ data: { username, password } });
       if (!res.ok) {
-        setError("Invalid credentials");
+        setError(tr("Invalid credentials"));
         return;
       }
       setSession({ role: "admin", username });
       await queryClient.invalidateQueries({ queryKey: ["server-session"] });
       navigate({ to: "/admin" });
     } catch {
-      setError("Unable to sign in right now");
+      setError(tr("Unable to sign in right now"));
     } finally {
       setBusy(false);
     }
@@ -59,13 +61,13 @@ function AdminLogin() {
     <div className="min-h-screen w-full bg-neutral-50 grid place-items-center px-4">
       <div className="w-full max-w-[420px] bg-white rounded-3xl border border-neutral-200 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
         <Logo />
-        <h1 className="mt-6 text-2xl font-bold text-ink">Admin Portal</h1>
-        <p className="text-sm text-neutral-500 mt-1">Sign in to monitor the fleet.</p>
+        <h1 className="mt-6 text-2xl font-bold text-ink">{tr("Admin Portal")}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{tr("Sign in to monitor the fleet.")}</p>
         <form onSubmit={submit} className="mt-6 space-y-3">
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={tr("Username")}
             autoComplete="username"
             className="w-full h-14 px-4 rounded-xl bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
           />
@@ -73,17 +75,17 @@ function AdminLogin() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={tr("Password")}
             autoComplete="current-password"
             className="w-full h-14 px-4 rounded-xl bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
           />
           {error && <div className="text-sm text-red-600">{error}</div>}
           <button disabled={busy} className="w-full h-14 rounded-xl bg-ink text-white font-semibold disabled:opacity-60">
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? tr("Signing in…") : tr("Sign in")}
           </button>
         </form>
         <div className="mt-6 text-center">
-          <Link to="/role" className="text-xs text-neutral-500 hover:text-ink">← Back to role selection</Link>
+          <Link to="/role" className="text-xs text-neutral-500 hover:text-ink">← {tr("Back to role selection")}</Link>
         </div>
       </div>
     </div>

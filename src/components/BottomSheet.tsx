@@ -1,5 +1,6 @@
 import { motion, useMotionValue, animate, type PanInfo } from "framer-motion";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/lib/i18n";
 
 /**
  * Draggable bottom sheet with two snap points:
@@ -16,6 +17,7 @@ export function BottomSheet({
   springKey?: string | number;
   peekHeight?: number;
 }) {
+  const tr = useT();
   const y = useMotionValue(80);
   const ref = useRef<HTMLDivElement>(null);
   const [collapsedY, setCollapsedY] = useState(0);
@@ -77,7 +79,7 @@ export function BottomSheet({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
-        aria-label={expanded ? "Collapse details" : "Expand details"}
+        aria-label={expanded ? tr("Collapse details") : tr("Expand details")}
       >
         <div className="w-10 h-1.5 rounded-full bg-neutral-300" />
       </button>

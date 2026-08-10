@@ -9,6 +9,7 @@ import { MapIcon, CalendarIcon, BellIcon, UserIcon } from "@/components/icons";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useSettings } from "@/store/settings";
 import { SHIRPUR } from "@/lib/trucks";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident")({
   component: ResidentRoute,
@@ -43,6 +44,7 @@ function ResidentLayout() {
 function useBookingNotifications(phone: string) {
   const bookings = useBookings((s) => s.bookings);
   const push = useToast((s) => s.push);
+  const tr = useT();
   const seen = useRef<Map<string, string> | null>(null);
   useEffect(() => {
     const mine = bookings.filter((b) => b.residentPhone === phone);
@@ -54,7 +56,7 @@ function useBookingNotifications(phone: string) {
       const prev = seen.current.get(b.id);
       if (prev && prev !== b.status && b.status !== "pending") {
         push({
-          title: b.status === "approved" ? "Booking approved" : "Booking rejected",
+          title: b.status === "approved" ? tr("Booking approved") : tr("Booking rejected"),
           subtitle: `${b.id} · ${b.reason.slice(0, 40)}`,
           tone: b.status === "approved" ? "success" : "warning",
         });
@@ -66,11 +68,12 @@ function useBookingNotifications(phone: string) {
 
 function BottomNav() {
   const loc = useLocation();
+  const tr = useT();
   const items: { to: string; label: string; Icon: typeof MapIcon; exact?: boolean }[] = [
-    { to: "/resident", label: "Map", Icon: MapIcon, exact: true },
-    { to: "/resident/schedule", label: "Schedule", Icon: CalendarIcon },
-    { to: "/resident/alerts", label: "Alerts", Icon: BellIcon },
-    { to: "/resident/profile", label: "Profile", Icon: UserIcon },
+    { to: "/resident", label: tr("Map"), Icon: MapIcon, exact: true },
+    { to: "/resident/schedule", label: tr("Schedule"), Icon: CalendarIcon },
+    { to: "/resident/alerts", label: tr("Alerts"), Icon: BellIcon },
+    { to: "/resident/profile", label: tr("Profile"), Icon: UserIcon },
   ];
   return (
     <nav className="border-t border-neutral-200 bg-white relative z-[700]">

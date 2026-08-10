@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import shirpurLogo from "@/assets/shirpur-logo.jpg.asset.json";
+import { useT } from "@/lib/i18n";
 
 const SESSION_KEY = "cleantrack-splash-shown";
 
 export function AppSplash({ children }: { children: ReactNode }) {
+  const tr = useT();
   const [show, setShow] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -49,13 +51,13 @@ export function AppSplash({ children }: { children: ReactNode }) {
                 />
               </div>
               <div className="mt-6 text-[11px] uppercase tracking-[0.22em] text-neutral-400 font-semibold">
-                Shirpur–Varvade Nagarparishad
+                {tr("Shirpur–Varvade Nagarparishad")}
               </div>
               <div className="mt-2 text-2xl font-extrabold text-ink tracking-tight">
-                CleanTrack
+                {tr("CleanTrack")}
               </div>
               <div className="mt-1 text-xs text-neutral-500">
-                Shirpur · Maharashtra
+                {tr("Shirpur · Maharashtra")}
               </div>
               <motion.div
                 initial={{ width: 0 }}

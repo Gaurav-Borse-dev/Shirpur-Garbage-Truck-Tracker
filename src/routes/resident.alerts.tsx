@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAlertHistory } from "@/lib/schedule";
 import { CheckIcon, BellIcon, ClockIcon } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident/alerts")({
   component: () => {
+    const tr = useT();
     const items = getAlertHistory();
     return (
       <div className="absolute inset-0 overflow-y-auto bg-white">
         <div className="px-6 pt-8 pb-4">
-          <div className="text-xs text-neutral-400 font-semibold">HISTORY</div>
-          <h1 className="text-2xl font-bold text-ink mt-1">Alerts</h1>
+          <div className="text-xs text-neutral-400 font-semibold">{tr("HISTORY")}</div>
+          <h1 className="text-2xl font-bold text-ink mt-1">{tr("Alerts")}</h1>
         </div>
         <div className="px-4 pb-8 space-y-2">
           {items.map((it) => {

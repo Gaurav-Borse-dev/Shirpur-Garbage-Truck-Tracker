@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/store/auth";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/")({
 
 function Splash() {
   const navigate = useNavigate();
+  const tr = useT();
   const session = useAuth((s) => s.session);
   useEffect(() => {
     const t = setTimeout(() => {
@@ -68,14 +70,14 @@ function Splash() {
           className="flex flex-col items-center text-center"
         >
           <Logo size={88} />
-          <h1 className="sr-only">CleanTrack — Live Garbage Truck Tracking in Shirpur</h1>
+          <h1 className="sr-only">{tr("CleanTrack — Live Garbage Truck Tracking in Shirpur")}</h1>
           <p className="mt-6 text-base text-neutral-500 max-w-[260px]">
-            Never miss your truck again.
+            {tr("Never miss your truck again.")}
           </p>
         </motion.div>
       </div>
       <div className="pb-10 text-center text-xs text-neutral-400">
-        Shirpur Municipal Corporation
+        {tr("Shirpur Municipal Corporation")}
       </div>
     </MobileFrame>
   );
