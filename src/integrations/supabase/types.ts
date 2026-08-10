@@ -430,6 +430,7 @@ export type Database = {
           id: string
           last_alert_at: string | null
           nearby_alerts_enabled: boolean
+          permission_state: string
           subject_key: string
           subject_role: string
           updated_at: string
@@ -440,6 +441,7 @@ export type Database = {
           id?: string
           last_alert_at?: string | null
           nearby_alerts_enabled?: boolean
+          permission_state?: string
           subject_key: string
           subject_role: string
           updated_at?: string
@@ -450,6 +452,7 @@ export type Database = {
           id?: string
           last_alert_at?: string | null
           nearby_alerts_enabled?: boolean
+          permission_state?: string
           subject_key?: string
           subject_role?: string
           updated_at?: string
