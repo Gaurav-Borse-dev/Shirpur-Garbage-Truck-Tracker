@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+<<<<<<< Updated upstream
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as ResidentRouteImport } from './routes/resident'
@@ -16,9 +17,16 @@ import { Route as OtpRouteImport } from './routes/otp'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as AdminRouteImport } from './routes/admin'
+=======
+>>>>>>> Stashed changes
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ResidentIndexRouteImport } from './routes/resident.index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as DriverRouteImport } from './routes/driver'
+import { Route as OtpRouteImport } from './routes/otp'
+import { Route as ResidentRouteImport } from './routes/resident'
+import { Route as RoleRouteImport } from './routes/role'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+<<<<<<< Updated upstream
 import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
 import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
 import { Route as ResidentNotificationsRouteImport } from './routes/resident.notifications'
@@ -32,8 +40,24 @@ import { Route as AdminMapRouteImport } from './routes/admin.map'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments'
+=======
+>>>>>>> Stashed changes
 import { Route as AdminAlertsRouteImport } from './routes/admin.alerts'
+import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
+import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
+import { Route as AdminMapRouteImport } from './routes/admin.map'
+import { Route as AdminReplayRouteImport } from './routes/admin.replay'
+import { Route as LoginAdminRouteImport } from './routes/login.admin'
+import { Route as LoginDriverRouteImport } from './routes/login.driver'
+import { Route as LoginResidentRouteImport } from './routes/login.resident'
+import { Route as ResidentIndexRouteImport } from './routes/resident.index'
+import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
+import { Route as ResidentBookingRouteImport } from './routes/resident.booking'
+import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
+import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
 
+<<<<<<< Updated upstream
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -57,6 +81,11 @@ const OtpRoute = OtpRouteImport.update({
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
+=======
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+>>>>>>> Stashed changes
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevicesRoute = DevicesRouteImport.update({
@@ -69,21 +98,32 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResidentIndexRoute = ResidentIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ResidentRoute,
+const OtpRoute = OtpRouteImport.update({
+  id: '/otp',
+  path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResidentRoute = ResidentRouteImport.update({
+  id: '/resident',
+  path: '/resident',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoleRoute = RoleRouteImport.update({
+  id: '/role',
+  path: '/role',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+<<<<<<< Updated upstream
 const ResidentScheduleRoute = ResidentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -105,43 +145,11 @@ const ResidentBookingRoute = ResidentBookingRouteImport.update({
   getParentRoute: () => ResidentRoute,
 } as any)
 const ResidentAlertsRoute = ResidentAlertsRouteImport.update({
+=======
+const AdminAlertsRoute = AdminAlertsRouteImport.update({
+>>>>>>> Stashed changes
   id: '/alerts',
   path: '/alerts',
-  getParentRoute: () => ResidentRoute,
-} as any)
-const LoginResidentRoute = LoginResidentRouteImport.update({
-  id: '/login/resident',
-  path: '/login/resident',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginDriverRoute = LoginDriverRouteImport.update({
-  id: '/login/driver',
-  path: '/login/driver',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginAdminRoute = LoginAdminRouteImport.update({
-  id: '/login/admin',
-  path: '/login/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminReplayRoute = AdminReplayRouteImport.update({
-  id: '/replay',
-  path: '/replay',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMapRoute = AdminMapRouteImport.update({
-  id: '/map',
-  path: '/map',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDriversRoute = AdminDriversRouteImport.update({
-  id: '/drivers',
-  path: '/drivers',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminBookingsRoute = AdminBookingsRouteImport.update({
-  id: '/bookings',
-  path: '/bookings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAssignmentsRoute = AdminAssignmentsRouteImport.update({
@@ -149,10 +157,65 @@ const AdminAssignmentsRoute = AdminAssignmentsRouteImport.update({
   path: '/assignments',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminAlertsRoute = AdminAlertsRouteImport.update({
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDriversRoute = AdminDriversRouteImport.update({
+  id: '/drivers',
+  path: '/drivers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMapRoute = AdminMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReplayRoute = AdminReplayRouteImport.update({
+  id: '/replay',
+  path: '/replay',
+  getParentRoute: () => AdminRoute,
+} as any)
+const LoginAdminRoute = LoginAdminRouteImport.update({
+  id: '/login/admin',
+  path: '/login/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginDriverRoute = LoginDriverRouteImport.update({
+  id: '/login/driver',
+  path: '/login/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginResidentRoute = LoginResidentRouteImport.update({
+  id: '/login/resident',
+  path: '/login/resident',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResidentIndexRoute = ResidentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentAlertsRoute = ResidentAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentBookingRoute = ResidentBookingRouteImport.update({
+  id: '/booking',
+  path: '/booking',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentProfileRoute = ResidentProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ResidentRoute,
+} as any)
+const ResidentScheduleRoute = ResidentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => ResidentRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -327,6 +390,7 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+<<<<<<< Updated upstream
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -360,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/driver'
       fullPath: '/driver'
       preLoaderRoute: typeof DriverRouteImport
+=======
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+>>>>>>> Stashed changes
       parentRoute: typeof rootRouteImport
     }
     '/devices': {
@@ -376,19 +447,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/resident/': {
-      id: '/resident/'
-      path: '/'
-      fullPath: '/resident/'
-      preLoaderRoute: typeof ResidentIndexRouteImport
-      parentRoute: typeof ResidentRoute
+    '/otp': {
+      id: '/otp'
+      path: '/otp'
+      fullPath: '/otp'
+      preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resident': {
+      id: '/resident'
+      path: '/resident'
+      fullPath: '/resident'
+      preLoaderRoute: typeof ResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/role': {
+      id: '/role'
+      path: '/role'
+      fullPath: '/role'
+      preLoaderRoute: typeof RoleRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/': {
       id: '/admin/'
@@ -397,6 +482,7 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+<<<<<<< Updated upstream
     '/resident/schedule': {
       id: '/resident/schedule'
       path: '/schedule'
@@ -427,58 +513,13 @@ declare module '@tanstack/react-router' {
     }
     '/resident/alerts': {
       id: '/resident/alerts'
+=======
+    '/admin/alerts': {
+      id: '/admin/alerts'
+>>>>>>> Stashed changes
       path: '/alerts'
-      fullPath: '/resident/alerts'
-      preLoaderRoute: typeof ResidentAlertsRouteImport
-      parentRoute: typeof ResidentRoute
-    }
-    '/login/resident': {
-      id: '/login/resident'
-      path: '/login/resident'
-      fullPath: '/login/resident'
-      preLoaderRoute: typeof LoginResidentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login/driver': {
-      id: '/login/driver'
-      path: '/login/driver'
-      fullPath: '/login/driver'
-      preLoaderRoute: typeof LoginDriverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login/admin': {
-      id: '/login/admin'
-      path: '/login/admin'
-      fullPath: '/login/admin'
-      preLoaderRoute: typeof LoginAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/replay': {
-      id: '/admin/replay'
-      path: '/replay'
-      fullPath: '/admin/replay'
-      preLoaderRoute: typeof AdminReplayRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/map': {
-      id: '/admin/map'
-      path: '/map'
-      fullPath: '/admin/map'
-      preLoaderRoute: typeof AdminMapRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/drivers': {
-      id: '/admin/drivers'
-      path: '/drivers'
-      fullPath: '/admin/drivers'
-      preLoaderRoute: typeof AdminDriversRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/bookings': {
-      id: '/admin/bookings'
-      path: '/bookings'
-      fullPath: '/admin/bookings'
-      preLoaderRoute: typeof AdminBookingsRouteImport
+      fullPath: '/admin/alerts'
+      preLoaderRoute: typeof AdminAlertsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/assignments': {
@@ -488,12 +529,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAssignmentsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/alerts': {
-      id: '/admin/alerts'
-      path: '/alerts'
-      fullPath: '/admin/alerts'
-      preLoaderRoute: typeof AdminAlertsRouteImport
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/drivers': {
+      id: '/admin/drivers'
+      path: '/drivers'
+      fullPath: '/admin/drivers'
+      preLoaderRoute: typeof AdminDriversRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/map': {
+      id: '/admin/map'
+      path: '/map'
+      fullPath: '/admin/map'
+      preLoaderRoute: typeof AdminMapRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/replay': {
+      id: '/admin/replay'
+      path: '/replay'
+      fullPath: '/admin/replay'
+      preLoaderRoute: typeof AdminReplayRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/login/admin': {
+      id: '/login/admin'
+      path: '/login/admin'
+      fullPath: '/login/admin'
+      preLoaderRoute: typeof LoginAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/driver': {
+      id: '/login/driver'
+      path: '/login/driver'
+      fullPath: '/login/driver'
+      preLoaderRoute: typeof LoginDriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/resident': {
+      id: '/login/resident'
+      path: '/login/resident'
+      fullPath: '/login/resident'
+      preLoaderRoute: typeof LoginResidentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resident/': {
+      id: '/resident/'
+      path: '/'
+      fullPath: '/resident/'
+      preLoaderRoute: typeof ResidentIndexRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/alerts': {
+      id: '/resident/alerts'
+      path: '/alerts'
+      fullPath: '/resident/alerts'
+      preLoaderRoute: typeof ResidentAlertsRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/booking': {
+      id: '/resident/booking'
+      path: '/booking'
+      fullPath: '/resident/booking'
+      preLoaderRoute: typeof ResidentBookingRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/profile': {
+      id: '/resident/profile'
+      path: '/profile'
+      fullPath: '/resident/profile'
+      preLoaderRoute: typeof ResidentProfileRouteImport
+      parentRoute: typeof ResidentRoute
+    }
+    '/resident/schedule': {
+      id: '/resident/schedule'
+      path: '/schedule'
+      fullPath: '/resident/schedule'
+      preLoaderRoute: typeof ResidentScheduleRouteImport
+      parentRoute: typeof ResidentRoute
     }
   }
 }
@@ -558,3 +676,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
