@@ -67,7 +67,7 @@ export function installNativeTokenBridge() {
   if (typeof window === "undefined") return;
   window.CleanTrackSetFcmToken = (token, platform = "android") => {
     storeNativeToken(token, platform);
-    void registerDeviceToken({ data: { token, platform, userAgent: navigator.userAgent } });
+    void registerThisDevice({ requirePermission: false });
   };
 }
 
@@ -98,6 +98,89 @@ export async function acquireDeviceToken(): Promise<AcquiredToken | null> {
   return readStoredToken();
 }
 
+const QUEUE_KEY = "cleantrack.push-queue";
+const MAX_ATTEMPTS = 5;
+const BASE_DELAY_MS = 800;
+
+type PendingOp =
+  | { kind: "register"; token: string; platform: TokenPlatform }
+  | { kind: "revoke"; token?: string };
+
+function readQueue(): PendingOp[] {
+  const s = storage();
+  try {
+    return s ? (JSON.parse(s.getItem(QUEUE_KEY) ?? "[]") as PendingOp[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeQueue(ops: PendingOp[]) {
+  const s = storage();
+  if (!s) return;
+  try {
+    s.setItem(QUEUE_KEY, JSON.stringify(ops.slice(-10)));
+  } catch {}
+}
+
+function enqueue(op: PendingOp) {
+  const ops = readQueue().filter(
+    (o) => !(o.kind === op.kind && (o as { token?: string }).token === (op as { token?: string }).token),
+  );
+  writeQueue([...ops, op]);
+}
+
+function dequeue(op: PendingOp) {
+  writeQueue(readQueue().filter((o) => JSON.stringify(o) !== JSON.stringify(op)));
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Retries a token operation with exponential backoff + jitter. */
+async function withBackoff(run: () => Promise<boolean>): Promise<boolean> {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      if (await run()) return true;
+    } catch (error) {
+      console.warn("[push] token operation failed", error);
+    }
+    if (attempt === MAX_ATTEMPTS - 1) break;
+    const delay = BASE_DELAY_MS * 2 ** attempt + Math.random() * 250;
+    await wait(delay);
+  }
+  return false;
+}
+
+async function runOp(op: PendingOp): Promise<boolean> {
+  if (op.kind === "register") {
+    const res = await registerDeviceToken({
+      data: {
+        token: op.token,
+        platform: op.platform,
+        userAgent:
+          typeof navigator === "undefined" ? undefined : navigator.userAgent.slice(0, 300),
+      },
+    });
+    return res.ok;
+  }
+  const res = await revokeDeviceToken({ data: op.token ? { token: op.token } : {} });
+  return res.ok;
+}
+
+/** Replays operations that never made it to the server (offline, 5xx, tab closed). */
+export async function flushPendingPushOps() {
+  for (const op of readQueue()) {
+    if (await withBackoff(() => runOp(op))) dequeue(op);
+  }
+}
+
+/** Call once on app start: retries stragglers now and whenever the network returns. */
+export function installPushRetry() {
+  if (typeof window === "undefined") return;
+  void flushPendingPushOps();
+  window.addEventListener("online", () => void flushPendingPushOps());
+}
+
 export type RegisterOutcome =
   | { ok: true; platform: TokenPlatform }
   | { ok: false; reason: "no_token" | "denied" | "failed" };
@@ -117,19 +200,28 @@ export async function registerThisDevice(
     if (!(await ensureNotificationPermission())) return { ok: false, reason: "denied" };
   }
 
-  const res = await registerDeviceToken({
-    data: {
-      token: acquired.token,
-      platform: acquired.platform,
-      userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent.slice(0, 300),
-    },
-  });
-  return res.ok ? { ok: true, platform: acquired.platform } : { ok: false, reason: "failed" };
+  const op: PendingOp = {
+    kind: "register",
+    token: acquired.token,
+    platform: acquired.platform,
+  };
+  const ok = await withBackoff(() => runOp(op));
+  if (!ok) {
+    // Queue it so the device still ends up registered once the network recovers.
+    enqueue(op);
+    return { ok: false, reason: "failed" };
+  }
+  dequeue(op);
+  return { ok: true, platform: acquired.platform };
 }
 
 export async function unregisterThisDevice() {
   const stored = readStoredToken();
-  await revokeDeviceToken({ data: stored ? { token: stored.token } : {} });
+  const op: PendingOp = stored ? { kind: "revoke", token: stored.token } : { kind: "revoke" };
+  const ok = await withBackoff(() => runOp(op));
+  if (!ok) enqueue(op);
+  else dequeue(op);
+  return ok;
 }
 
 /** Current browser permission, normalised for storage in notification settings. */

@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/MobileFrame";
 import { ChevronLeft } from "@/components/icons";
 import { useAuth } from "@/store/auth";
 import { verifyOtp } from "@/lib/auth.functions";
+import { useT } from "@/lib/i18n";
 
 const search = z.object({
   phone: z.string().regex(/^\d{10}$/),
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/otp")({
 });
 
 function Otp() {
+  const tr = useT();
   const { phone, role } = Route.useSearch();
   const navigate = useNavigate();
   const setSession = useAuth((s) => s.setSession);
@@ -65,13 +67,13 @@ function Otp() {
       try {
         const res = await verifyOtp({ data: { phone, role, code } });
         if (cancelled) return;
-        if (!res.ok) return reject("Incorrect code. Please try again.");
+        if (!res.ok) return reject(tr("Incorrect code. Please try again."));
         await queryClient.invalidateQueries({ queryKey: ["server-session"] });
         if (role === "driver") {
           const driver = findDriver(phone);
           if (!driver) {
             navigate({ to: "/login/driver", search: { denied: 1 } as never });
-            setError("Access denied. Contact your municipal administrator.");
+            setError(tr("Access denied. Contact your municipal administrator."));
             return;
           }
           setSession({ role: "driver", phone, driverName: driver.name, truckId: driver.truckId });
@@ -81,7 +83,7 @@ function Otp() {
           navigate({ to: "/resident" });
         }
       } catch {
-        reject("Unable to verify the code right now.");
+        reject(tr("Unable to verify the code right now."));
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -97,8 +99,8 @@ function Otp() {
         </Link>
       </div>
       <div className="px-6 mt-4">
-        <h1 className="text-2xl font-bold text-ink">Enter the 6-digit code</h1>
-        <p className="mt-1 text-sm text-neutral-500">Sent to +91 {phone.replace(/(\d{5})(\d{5})/, "$1 $2")}</p>
+        <h1 className="text-2xl font-bold text-ink">{tr("Enter the 6-digit code")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{tr("Sent to")} +91 {phone.replace(/(\d{5})(\d{5})/, "$1 $2")}</p>
       </div>
       <div className={`px-6 mt-8 flex justify-between gap-2 ${shake ? "ct-shake" : ""}`}>
         {digits.map((d, i) => (
@@ -116,7 +118,7 @@ function Otp() {
       </div>
       {error && <div className="px-6 mt-4 text-sm text-red-600 text-center">{error}</div>}
       <div className="px-6 mt-6 text-center text-xs text-neutral-400">
-        Enter the 6-digit verification code sent to your mobile number.
+        {tr("Enter the 6-digit verification code sent to your mobile number.")}
       </div>
     </MobileFrame>
   );

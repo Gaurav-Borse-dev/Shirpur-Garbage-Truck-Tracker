@@ -19,6 +19,18 @@ export const revokeTokenInput = z.object({
   token: z.string().min(20).max(4096).optional(),
 });
 
+export const revokeTokenIdInput = z.object({
+  id: z.string().uuid(),
+});
+
+export const recentDeliveriesInput = z.object({
+  since: z.string().datetime(),
+});
+
+export const selfTestInput = z.object({
+  truckCode: z.string().max(20).optional(),
+});
+
 export const testPushInput = z.object({
   target: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("resident"), phone: z.string().regex(/^\d{10}$/) }),

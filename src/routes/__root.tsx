@@ -15,6 +15,8 @@ import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PerfOverlay } from "@/components/PerfOverlay";
 import { ClientOnly } from "@/components/ClientOnly";
+import { installPushRetry } from "@/lib/push-client";
+import { startForegroundPush } from "@/lib/push-foreground";
 
 function NotFoundComponent() {
   return (
@@ -154,6 +156,14 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PushRuntime() {
+  useEffect(() => {
+    installPushRetry();
+    return startForegroundPush();
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -165,6 +175,7 @@ function RootComponent() {
         <LanguageSwitcher />
         <ClientOnly>
           <PerfOverlay />
+          <PushRuntime />
         </ClientOnly>
       </AppSplash>
     </QueryClientProvider>

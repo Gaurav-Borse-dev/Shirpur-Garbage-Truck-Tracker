@@ -7,6 +7,7 @@ import { haversine } from "@/lib/geo";
 import { bumpRender } from "@/store/perf";
 import { formatEta } from "@/lib/format";
 import { useI18n } from "@/store/i18n";
+import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
 const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
@@ -115,13 +116,19 @@ function landmarkIcon(name: string, color = "#3B82F6") {
   return icon;
 }
 
-const HOME_ICON = L.divIcon({
-  html: `<div class="ct-home-pin">Home</div>`,
-  className: "",
-  iconSize: [10, 10],
-  iconAnchor: [-12, 30],
-});
-function homeIcon() { return HOME_ICON; }
+const HOME_ICON_CACHE = new Map<string, L.DivIcon>();
+function homeIcon(lang: "en" | "hi" | "mr") {
+  const cached = HOME_ICON_CACHE.get(lang);
+  if (cached) return cached;
+  const icon = L.divIcon({
+    html: `<div class="ct-home-pin">${translate("Home", lang)}</div>`,
+    className: "",
+    iconSize: [10, 10],
+    iconAnchor: [-12, 30],
+  });
+  HOME_ICON_CACHE.set(lang, icon);
+  return icon;
+}
 
 const CITY_BADGE_CACHE = new Map<string, L.DivIcon>();
 function cityBadge(name: string) {
@@ -247,7 +254,7 @@ export function TruckMap(props: Props) {
 
         {/* Resident location + Home label */}
         <Marker position={[props.resident.lat, props.resident.lng]} icon={residentIcon()} />
-        <Marker position={[props.resident.lat, props.resident.lng]} icon={homeIcon()} interactive={false} />
+        <Marker position={[props.resident.lat, props.resident.lng]} icon={homeIcon(lang)} interactive={false} />
 
         {/* Idle scattered trucks — bearing matches their current road segment */}
         {list
@@ -373,6 +380,7 @@ const AdminTruckMarker = memo(
     onClick?: (id: string) => void;
   }) {
     bumpRender();
+    const lang = useI18n((s) => s.lang);
     return (
       <Marker
         position={[truck.position.lat, truck.position.lng]}
@@ -392,9 +400,9 @@ const AdminTruckMarker = memo(
             <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.driverName}</div>
             <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.wardName}</div>
             <div style={{ marginTop: 6, fontSize: 12 }}>
-              Stops: {truck.completedStops}/{truck.truck.totalStops}
+              {translate("Stops", lang)}: {truck.completedStops}/{truck.truck.totalStops}
             </div>
-            <div style={{ fontSize: 12 }}>Status: {truck.status}</div>
+            <div style={{ fontSize: 12 }}>{translate("Status", lang)}: {truck.status}</div>
           </div>
         </Popup>
       </Marker>

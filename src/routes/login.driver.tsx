@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ChevronLeft } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login/driver")({
   head: () => ({
@@ -25,22 +26,23 @@ export const Route = createFileRoute("/login/driver")({
 });
 
 function DriverLogin() {
+  const tr = useT();
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const ok = /^\d{10}$/.test(phone);
   return (
     <MobileFrame>
       <div className="px-4 pt-4">
-        <Link to="/role" aria-label="Back to role selection" className="inline-grid place-items-center w-10 h-10 rounded-full hover:bg-neutral-100">
+        <Link to="/role" aria-label={tr("Back to role selection")} className="inline-grid place-items-center w-10 h-10 rounded-full hover:bg-neutral-100">
           <ChevronLeft />
         </Link>
       </div>
       <div className="px-6 mt-4">
-        <h1 className="text-2xl font-bold text-ink">Driver sign in</h1>
-        <p className="mt-1 text-sm text-neutral-500">Only admin-approved numbers can access the driver app.</p>
+        <h1 className="text-2xl font-bold text-ink">{tr("Driver sign in")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{tr("Only admin-approved numbers can access the driver app.")}</p>
       </div>
       <div className="px-6 mt-8 space-y-3">
-        <label className="text-xs font-semibold text-neutral-500">Mobile number</label>
+        <label className="text-xs font-semibold text-neutral-500">{tr("Mobile number")}</label>
         <div className="flex items-center gap-2">
           <div className="h-14 px-4 grid place-items-center rounded-xl bg-neutral-50 font-semibold text-ink">+91</div>
           <input
@@ -57,9 +59,9 @@ function DriverLogin() {
           onClick={() => navigate({ to: "/otp", search: { phone, role: "driver" } })}
           className="w-full h-14 rounded-xl bg-ink text-white font-semibold disabled:bg-neutral-200 disabled:text-neutral-400"
         >
-          Send code
+          {tr("Send code")}
         </button>
-        <p className="text-xs text-neutral-400 text-center pt-2">Try demo: 9822011001 (Ramesh Patil, GBR-01)</p>
+        <p className="text-xs text-neutral-400 text-center pt-2">{tr("Try demo:")} 9822011001 (Ramesh Patil, GBR-01)</p>
       </div>
     </MobileFrame>
   );

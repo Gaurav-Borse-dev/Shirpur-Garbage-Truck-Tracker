@@ -14,6 +14,7 @@ import { Route as RoleRouteImport } from './routes/role'
 import { Route as ResidentRouteImport } from './routes/resident'
 import { Route as OtpRouteImport } from './routes/otp'
 import { Route as DriverRouteImport } from './routes/driver'
+import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResidentIndexRouteImport } from './routes/resident.index'
@@ -56,6 +57,11 @@ const OtpRoute = OtpRouteImport.update({
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevicesRoute = DevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -152,6 +158,7 @@ const AdminAlertsRoute = AdminAlertsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
   '/resident': typeof ResidentRouteWithChildren
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
   '/role': typeof RoleRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
   '/resident': typeof ResidentRouteWithChildren
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/devices'
     | '/driver'
     | '/otp'
     | '/resident'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/devices'
     | '/driver'
     | '/otp'
     | '/role'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/devices'
     | '/driver'
     | '/otp'
     | '/resident'
@@ -302,6 +314,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  DevicesRoute: typeof DevicesRoute
   DriverRoute: typeof DriverRoute
   OtpRoute: typeof OtpRoute
   ResidentRoute: typeof ResidentRouteWithChildren
@@ -347,6 +360,13 @@ declare module '@tanstack/react-router' {
       path: '/driver'
       fullPath: '/driver'
       preLoaderRoute: typeof DriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devices': {
+      id: '/devices'
+      path: '/devices'
+      fullPath: '/devices'
+      preLoaderRoute: typeof DevicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -525,6 +545,7 @@ const ResidentRouteWithChildren = ResidentRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  DevicesRoute: DevicesRoute,
   DriverRoute: DriverRoute,
   OtpRoute: OtpRoute,
   ResidentRoute: ResidentRouteWithChildren,

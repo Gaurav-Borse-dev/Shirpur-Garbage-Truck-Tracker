@@ -4,12 +4,14 @@ import { motion } from "framer-motion";
 import { useTrucks } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { CheckIcon } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/assignments")({
   component: AssignmentsPage,
 });
 
 function AssignmentsPage() {
+  const tr = useT();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const assign = useTrucks((s) => s.assignTruck);
@@ -43,7 +45,7 @@ function AssignmentsPage() {
       setError(err);
       return;
     }
-    push({ title: "Assignment updated", subtitle: `${selectedId} now covers ${ward}` });
+    push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 1800);
   }
@@ -52,9 +54,9 @@ function AssignmentsPage() {
     <div className="p-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Route Assignments</h1>
+          <h1 className="text-2xl font-bold text-ink">{tr("Route Assignments")}</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            Reassign a truck's ward and city. Drivers receive the new route instantly.
+            {tr("Reassign a truck's ward and city. Drivers receive the new route instantly.")}
           </p>
         </div>
       </div>
@@ -89,7 +91,7 @@ function AssignmentsPage() {
 
         <div className="rounded-2xl border border-neutral-200 p-6">
           {!selected ? (
-            <div className="text-sm text-neutral-500">Select a truck to reassign.</div>
+            <div className="text-sm text-neutral-500">{tr("Select a truck to reassign.")}</div>
           ) : (
             <form onSubmit={submit} className="max-w-xl">
               <div className="flex items-center gap-3">
@@ -103,17 +105,17 @@ function AssignmentsPage() {
               </div>
 
               <div className="mt-6 space-y-4">
-                <Field label="Assigned ward">
+                <Field label={tr("Assigned ward")}>
                   <input
                     value={ward}
                     onChange={(e) => setWard(e.target.value)}
                     maxLength={80}
-                    placeholder="e.g. Shirpur Ward 4 — Subhash Nagar"
+                    placeholder={tr("e.g. Shirpur Ward 4 — Subhash Nagar")}
                     className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
                   />
-                  <div className="text-[11px] text-neutral-400 mt-1">3–80 characters</div>
+                  <div className="text-[11px] text-neutral-400 mt-1">{tr("3–80 characters")}</div>
                 </Field>
-                <Field label="City">
+                <Field label={tr("City")}>
                   <div className="h-11 px-3 rounded-lg bg-neutral-50 flex items-center text-sm font-semibold text-ink">
                     {city}
                   </div>
@@ -121,8 +123,7 @@ function AssignmentsPage() {
               </div>
 
               <div className="mt-6 rounded-xl bg-neutral-50 p-4 text-xs text-neutral-600 leading-relaxed">
-                Saving will reset {selected.id}'s route to a freshly generated collection loop centered on the
-                selected city. The driver's app updates instantly — no app restart required.
+                {tr("Saving resets the route for")} {selected.id} {tr("to a freshly generated collection loop centered on the selected city. The driver's app updates instantly — no app restart required.")}
               </div>
 
               {error && (
@@ -134,7 +135,7 @@ function AssignmentsPage() {
                   type="submit"
                   className="h-11 px-6 rounded-lg bg-ink text-white font-semibold"
                 >
-                  Apply assignment
+                  {tr("Apply assignment")}
                 </button>
                 {justSaved && (
                   <motion.div
@@ -142,7 +143,7 @@ function AssignmentsPage() {
                     animate={{ opacity: 1, x: 0 }}
                     className="flex items-center gap-1 text-sm text-brand font-semibold"
                   >
-                    <CheckIcon className="w-4 h-4" /> Synced to driver
+                    <CheckIcon className="w-4 h-4" /> {tr("Synced to driver")}
                   </motion.div>
                 )}
               </div>
