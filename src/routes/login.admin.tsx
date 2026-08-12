@@ -20,9 +20,9 @@ export const Route = createFileRoute("/login/admin")({
         property: "og:description",
         content: "Secure sign-in for Shirpur Municipal Corporation fleet administrators.",
       },
-      { property: "og:url", content: "https://street-scan-track.lovable.app/login/admin" },
+      { property: "og:url", content: "https://street-scan-track.shirpur.app/login/admin" },
     ],
-    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/login/admin" }],
+    links: [{ rel: "canonical", href: "https://street-scan-track.shirpur.app/login/admin" }],
   }),
   component: AdminLogin,
 });

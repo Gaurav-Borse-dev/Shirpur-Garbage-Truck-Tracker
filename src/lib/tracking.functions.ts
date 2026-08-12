@@ -15,7 +15,7 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     if (!user || user.role !== "driver" || !user.phone) {
       return { accepted: false as const, reason: "unauthorized" };
     }
-    const ownCode = truckCodeForPhone(user.phone);
+    const ownCode = await truckCodeForPhone(user.phone);
     if (!ownCode || ownCode !== data.truckCode) {
       return { accepted: false as const, reason: "no_assigned_truck" };
     }
@@ -101,3 +101,144 @@ export const getTruckEta = createServerFn({ method: "POST" })
       cached: eta.cached,
     };
   });
+
+/** Fetches the full truck fleet from the database. Used to replace hardcoded TRUCKS array. */
+export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { admin } = await import("./tracking.server");
+    const db = await admin();
+    const { data: rows, error } = await db
+      .from("trucks")
+      .select("id, truck_code, registration_no, status, capacity_kg, ward, photo_url")
+      .order("truck_code", { ascending: true });
+
+    if (error || !rows?.length) {
+      console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+      return { trucks: null, error: error?.message ?? "empty" };
+    }
+
+    return {
+      trucks: rows.map((r) => ({
+        dbId: r.id,
+        truckCode: r.truck_code,
+        registrationNo: r.registration_no,
+        status: r.status as string,
+        capacityKg: r.capacity_kg,
+        ward: r.ward,
+        photoUrl: r.photo_url,
+      })),
+      error: null,
+    };
+  } catch (err) {
+    console.error("[fleet] trucks fetch failed", err);
+    return { trucks: null, error: "unavailable" };
+  }
+});
+
+/** Fetches the driver roster from the database. Used to replace hardcoded DRIVER_NAMES array. */
+export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { admin } = await import("./tracking.server");
+    const db = await admin();
+    const { data: rows, error } = await db
+      .from("drivers")
+      .select(`
+        id, user_id, license_no, on_duty, duty_state,
+        assigned_truck_id, duty_started_at, last_heartbeat, trip_distance_m,
+        assigned_truck:trucks!drivers_assigned_truck_id_fkey ( truck_code, ward )
+      `)
+      .order("created_at", { ascending: true });
+
+    if (error || !rows?.length) {
+      console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+      return { drivers: null, error: error?.message ?? "empty" };
+    }
+
+    // Also fetch profiles to get driver names and phones
+    const userIds = rows.map((r) => r.user_id);
+    const { data: profiles } = await db
+      .from("profiles")
+      .select("user_id, full_name, phone")
+      .in("user_id", userIds);
+
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [p.user_id, { name: p.full_name, phone: p.phone }]),
+    );
+
+    return {
+      drivers: rows.map((r) => {
+        const profile = profileMap.get(r.user_id);
+        const truck = r.assigned_truck as { truck_code: string; ward: string | null } | null;
+        return {
+          dbId: r.id,
+          userId: r.user_id,
+          name: profile?.name ?? "Unknown",
+          phone: profile?.phone ?? "",
+          licenseNo: r.license_no,
+          onDuty: r.on_duty,
+          dutyState: r.duty_state as string,
+          assignedTruckCode: truck?.truck_code ?? null,
+          assignedTruckWard: truck?.ward ?? null,
+          assignedTruckId: r.assigned_truck_id,
+          dutyStartedAt: r.duty_started_at,
+          lastHeartbeat: r.last_heartbeat,
+          tripDistanceM: r.trip_distance_m,
+        };
+      }),
+      error: null,
+    };
+  } catch (err) {
+    console.error("[fleet] drivers fetch failed", err);
+    return { drivers: null, error: "unavailable" };
+  }
+});
+
+/** Dashboard stats aggregated from the database. */
+export const getDashboardStats = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { admin } = await import("./tracking.server");
+    const db = await admin();
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Count residents alerted today (notifications sent)
+    const { count: notifCount } = await db
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .gte("sent_at", `${today}T00:00:00Z`);
+
+    // Count stops completed today
+    const { count: stopsCount } = await db
+      .from("collection_history")
+      .select("*", { count: "exact", head: true })
+      .gte("completed_at", `${today}T00:00:00Z`)
+      .eq("status", "completed");
+
+    // Count active drivers (on duty)
+    const { count: activeDrivers } = await db
+      .from("drivers")
+      .select("*", { count: "exact", head: true })
+      .eq("on_duty", true);
+
+    // Count complaints opened today
+    const { count: complaintsToday } = await db
+      .from("complaints")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", `${today}T00:00:00Z`);
+
+    return {
+      residentsAlerted: notifCount ?? 0,
+      stopsCompleted: stopsCount ?? 0,
+      activeDrivers: activeDrivers ?? 0,
+      complaintsToday: complaintsToday ?? 0,
+    };
+  } catch (err) {
+    console.error("[dashboard] stats fetch failed", err);
+    return {
+      residentsAlerted: 0,
+      stopsCompleted: 0,
+      activeDrivers: 0,
+      complaintsToday: 0,
+    };
+  }
+});

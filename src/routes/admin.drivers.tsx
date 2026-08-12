@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth, type ApprovedDriver } from "@/store/auth";
-import { TRUCKS } from "@/lib/trucks";
+import { useTrucks } from "@/store/trucks";
 import { PlusIcon, EditIcon, TrashIcon } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
@@ -17,6 +17,8 @@ function DriversPage() {
   const add = useAuth((s) => s.addDriver);
   const update = useAuth((s) => s.updateDriver);
   const remove = useAuth((s) => s.removeDriver);
+  const allTrucks = useTrucks((s) => s.trucks);
+  const truckList = useMemo(() => Object.values(allTrucks).map((lt) => lt.truck), [allTrucks]);
   const push = useToast((s) => s.push);
   const [editing, setEditing] = useState<ApprovedDriver | null>(null);
   const [adding, setAdding] = useState(false);
@@ -27,7 +29,7 @@ function DriversPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink">{tr("Driver Management")}</h1>
-          <p className="text-sm text-neutral-500 mt-1">{drivers.length} {tr("drivers approved")} · {TRUCKS.length - drivers.filter(d => d.active).length} {tr("trucks available")}</p>
+          <p className="text-sm text-neutral-500 mt-1">{drivers.length} {tr("drivers approved")} · {truckList.length - drivers.filter(d => d.active).length} {tr("trucks available")}</p>
         </div>
         <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold flex items-center gap-2">
           <PlusIcon className="w-4 h-4" /> {tr("Add Driver")}
@@ -49,7 +51,7 @@ function DriversPage() {
           <tbody>
             <AnimatePresence>
               {drivers.map((d, i) => {
-                const truck = TRUCKS.find((t) => t.id === d.truckId);
+                const truck = truckList.find((t) => t.id === d.truckId);
                 return (
                   <motion.tr
                     key={d.phone}
@@ -119,13 +121,15 @@ function DriverModal({ existing, onClose, onSubmit }: {
 }) {
   const tr = useT();
   const drivers = useAuth((s) => s.approvedDrivers);
+  const allTrucks = useTrucks((s) => s.trucks);
+  const truckList = useMemo(() => Object.values(allTrucks).map((lt) => lt.truck), [allTrucks]);
   const [name, setName] = useState(existing?.name ?? "");
   const [phone, setPhone] = useState(existing?.phone ?? "");
-  const [truckId, setTruckId] = useState(existing?.truckId ?? TRUCKS[10].id);
+  const [truckId, setTruckId] = useState(existing?.truckId ?? truckList[0]?.id ?? "GBR-01");
   const [error, setError] = useState("");
-  const ward = TRUCKS.find((t) => t.id === truckId)?.wardName ?? "—";
+  const ward = truckList.find((t) => t.id === truckId)?.wardName ?? "—";
 
-  const availableTrucks = TRUCKS.filter((t) => t.id === existing?.truckId || !drivers.some((d) => d.truckId === t.id && d.active));
+  const availableTrucks = truckList.filter((t) => t.id === existing?.truckId || !drivers.some((d) => d.truckId === t.id && d.active));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

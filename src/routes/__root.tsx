@@ -10,7 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+import { reportShirpurError } from "../lib/shirpur-error-reporting";
 import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PerfOverlay } from "@/components/PerfOverlay";
@@ -44,7 +44,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportShirpurError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
   return (
@@ -100,7 +100,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Live garbage truck tracking and collection alerts for residents of Shirpur, Maharashtra.",
       },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@Shirpur" },
       { name: "theme-color", content: "#ffffff" },
     ],
     links: [
@@ -121,7 +121,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@type": "GovernmentOrganization",
           name: "Shirpur Municipal Corporation",
           alternateName: "CleanTrack — Shirpur Municipal Corporation",
-          url: "https://street-scan-track.lovable.app",
+          url: "https://street-scan-track.shirpur.app",
           areaServed: {
             "@type": "City",
             name: "Shirpur",

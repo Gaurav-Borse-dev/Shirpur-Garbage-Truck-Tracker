@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ClientOnly } from "@/components/ClientOnly";
 import { TruckMap } from "@/components/TruckMap";
 import { useTrucks } from "@/store/trucks";
+import { getDashboardStats } from "@/lib/tracking.functions";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/")({
@@ -31,7 +33,14 @@ function Dashboard() {
   const list = Object.values(trucks);
   const online = list.filter((t) => t.status !== "offline").length;
   const totalStopsToday = list.reduce((a, t) => a + t.completedStops, 0);
-  const residentsAlerted = totalStopsToday * 7 + 14;
+  // Fetch real dashboard stats from the database
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: () => getDashboardStats(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const residentsAlerted = stats?.residentsAlerted ?? 0;
   const [highlight, setHighlight] = useState<string | undefined>();
 
   return (

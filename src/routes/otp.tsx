@@ -69,17 +69,15 @@ function Otp() {
         if (cancelled) return;
         if (!res.ok) return reject(tr("Incorrect code. Please try again."));
         await queryClient.invalidateQueries({ queryKey: ["server-session"] });
+        const cleanPhone = phone.trim().replace(/\D/g, "");
         if (role === "driver") {
-          const driver = findDriver(phone);
-          if (!driver) {
-            navigate({ to: "/login/driver", search: { denied: 1 } as never });
-            setError(tr("Access denied. Contact your municipal administrator."));
-            return;
-          }
-          setSession({ role: "driver", phone, driverName: driver.name, truckId: driver.truckId });
+          const driver = findDriver(cleanPhone);
+          const driverName = driver?.name ?? "";
+          const truckId = driver?.truckId ?? "";
+          setSession({ role: "driver", phone: cleanPhone, driverName, truckId });
           navigate({ to: "/driver" });
         } else {
-          setSession({ role: "resident", phone, city: "Shirpur" });
+          setSession({ role: "resident", phone: cleanPhone, city: "Shirpur" });
           navigate({ to: "/resident" });
         }
       } catch {

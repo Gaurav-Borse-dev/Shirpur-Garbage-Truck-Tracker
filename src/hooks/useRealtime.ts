@@ -19,7 +19,7 @@ export function useRealtime(sub: Subscription | null) {
       subscribe(parsed);
       return;
     }
-    // Lovable Cloud transport: PostGIS nearest_trucks + realtime invalidation.
+    // Shirpur Cloud transport: PostGIS nearest_trucks + realtime invalidation.
     const scope: LiveScope =
       parsed.role === "resident"
         ? { lat: parsed.lat, lng: parsed.lng, radiusM: parsed.radiusM }

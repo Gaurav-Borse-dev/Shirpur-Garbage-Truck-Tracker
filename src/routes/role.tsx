@@ -19,9 +19,9 @@ export const Route = createFileRoute("/role")({
         property: "og:description",
         content: "Resident, driver or municipal admin — choose your CleanTrack experience.",
       },
-      { property: "og:url", content: "https://street-scan-track.lovable.app/role" },
+      { property: "og:url", content: "https://street-scan-track.shirpur.app/role" },
     ],
-    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/role" }],
+    links: [{ rel: "canonical", href: "https://street-scan-track.shirpur.app/role" }],
   }),
   component: RolePage,
 });

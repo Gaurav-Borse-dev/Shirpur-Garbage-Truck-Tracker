@@ -1,5 +1,5 @@
 /**
- * Lovable Cloud live-tracking transport.
+ * Shirpur Cloud live-tracking transport.
  *
  * Positions come from PostGIS (`nearest_trucks`) — nothing is simulated. A
  * realtime subscription on `truck_live_location` nudges an immediate refetch

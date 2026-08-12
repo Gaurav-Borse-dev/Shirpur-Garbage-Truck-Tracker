@@ -10,8 +10,8 @@ import { useSettings } from "@/store/settings";
 import { useTruckEta } from "@/hooks/useTruckEta";
 import { useToast } from "@/components/Toast";
 import { useTrucks } from "@/store/trucks";
-import { RESIDENT_DEMO } from "@/lib/trucks";
-import { haversine } from "@/lib/geo";
+import { SHIRPUR } from "@/lib/trucks";
+import { haversine, type LatLng } from "@/lib/geo";
 import { useFormat } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 
@@ -36,13 +36,32 @@ export const Route = createFileRoute("/resident/")({
 
 type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
 
+/** Use real device geolocation, falling back to city center. */
+function useResidentLocation(): { location: LatLng; gpsAvailable: boolean } {
+  const [location, setLocation] = useState<LatLng>(SHIRPUR);
+  const [gpsAvailable, setGpsAvailable] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsAvailable(true);
+      },
+      () => setGpsAvailable(false),
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+  return { location, gpsAvailable };
+}
+
 function ResidentHome() {
   const navigate = useNavigate();
   const tr = useT();
   const fmt = useFormat();
   const session = useAuth((s) => s.session)!;
   const city = session.role === "resident" ? session.city : "Shirpur";
-  const resident = RESIDENT_DEMO[city];
+  const { location: resident, gpsAvailable } = useResidentLocation();
   const radius = useSettings((s) => s.alertRadius);
   const notifEnabled = useSettings((s) => s.notificationsEnabled);
   const setNotif = useSettings((s) => s.setNotifications);

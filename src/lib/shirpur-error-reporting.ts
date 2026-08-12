@@ -1,26 +1,26 @@
-type LovableErrorOptions = {
+type ShirpurErrorOptions = {
   mechanism?: "manual" | "onerror" | "unhandledrejection" | "react_error_boundary";
   handled?: boolean;
   severity?: "error" | "warning" | "info";
 };
 
-type LovableEvents = {
+type ShirpurEvents = {
   captureException?: (
     error: unknown,
     context?: Record<string, unknown>,
-    options?: LovableErrorOptions,
+    options?: ShirpurErrorOptions,
   ) => void;
 };
 
 declare global {
   interface Window {
-    __lovableEvents?: LovableEvents;
+    __shirpurEvents?: ShirpurEvents;
   }
 }
 
-export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
+export function reportShirpurError(error: unknown, context: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
-  window.__lovableEvents?.captureException?.(
+  window.__shirpurEvents?.captureException?.(
     error,
     {
       source: "react_error_boundary",

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ChevronLeft } from "@/components/icons";
+import { sendOtp } from "@/lib/auth.functions";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login/driver")({
@@ -18,9 +19,9 @@ export const Route = createFileRoute("/login/driver")({
         property: "og:description",
         content: "Sign-in for admin-approved CleanTrack garbage truck drivers in Shirpur.",
       },
-      { property: "og:url", content: "https://street-scan-track.lovable.app/login/driver" },
+      { property: "og:url", content: "https://street-scan-track.shirpur.app/login/driver" },
     ],
-    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/login/driver" }],
+    links: [{ rel: "canonical", href: "https://street-scan-track.shirpur.app/login/driver" }],
   }),
   component: DriverLogin,
 });
@@ -29,7 +30,22 @@ function DriverLogin() {
   const tr = useT();
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
+  const [sending, setSending] = useState(false);
   const ok = /^\d{10}$/.test(phone);
+
+  async function handleSend() {
+    if (!ok || sending) return;
+    setSending(true);
+    try {
+      await sendOtp({ data: { phone } });
+    } catch {
+      // Ignore error and navigate anyway so fallback code works
+    } finally {
+      setSending(false);
+      navigate({ to: "/otp", search: { phone, role: "driver" } });
+    }
+  }
+
   return (
     <MobileFrame>
       <div className="px-4 pt-4">
@@ -55,11 +71,11 @@ function DriverLogin() {
           />
         </div>
         <button
-          disabled={!ok}
-          onClick={() => navigate({ to: "/otp", search: { phone, role: "driver" } })}
+          disabled={!ok || sending}
+          onClick={() => void handleSend()}
           className="w-full h-14 rounded-xl bg-ink text-white font-semibold disabled:bg-neutral-200 disabled:text-neutral-400"
         >
-          {tr("Send code")}
+          {sending ? tr("Sending code…") : tr("Send code")}
         </button>
         <p className="text-xs text-neutral-400 text-center pt-2">{tr("Try demo:")} 9822011001 (Ramesh Patil, GBR-01)</p>
       </div>

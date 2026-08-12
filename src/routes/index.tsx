@@ -21,9 +21,9 @@ export const Route = createFileRoute("/")({
         content:
           "Live truck positions, street-level arrival alerts and dustbin bookings for residents of Shirpur, Maharashtra.",
       },
-      { property: "og:url", content: "https://street-scan-track.lovable.app/" },
+      { property: "og:url", content: "https://street-scan-track.shirpur.app/" },
     ],
-    links: [{ rel: "canonical", href: "https://street-scan-track.lovable.app/" }],
+    links: [{ rel: "canonical", href: "https://street-scan-track.shirpur.app/" }],
     scripts: [
       {
         type: "application/ld+json",

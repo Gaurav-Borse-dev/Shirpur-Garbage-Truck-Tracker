@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://street-scan-track.lovable.app/sitemap.xml

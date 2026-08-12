@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useLocation, Navigate } from "@tanstack/react-router";
 import { RequireRole } from "@/components/RequireRole";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/store/auth";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ToastHost, useToast } from "@/components/Toast";
@@ -9,6 +9,7 @@ import { MapIcon, CalendarIcon, BellIcon, UserIcon } from "@/components/icons";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useSettings } from "@/store/settings";
 import { SHIRPUR } from "@/lib/trucks";
+import type { LatLng } from "@/lib/geo";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/resident")({
@@ -26,9 +27,19 @@ function ResidentRoute() {
 function ResidentLayout() {
   const session = useAuth((s) => s.session);
   if (!session || session.role !== "resident") return <Navigate to="/role" />;
-  // Citizens only receive updates for trucks near their home.
+  // Use real device geolocation for the realtime subscription radius
   const radiusM = useSettings((s) => s.alertRadius);
-  useRealtime({ role: "resident", lat: SHIRPUR.lat, lng: SHIRPUR.lng, radiusM: Math.max(radiusM, 2000) });
+  const [location, setLocation] = useState<LatLng>(SHIRPUR);
+  useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}, // Keep SHIRPUR fallback
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+  useRealtime({ role: "resident", lat: location.lat, lng: location.lng, radiusM: Math.max(radiusM, 2000) });
   useBookingNotifications(session.phone);
   return (
     <MobileFrame>

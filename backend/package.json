@@ -1,0 +1,21 @@
+{
+  "name": "street-scan-track-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nitro dev",
+    "build": "nitro build",
+    "preview": "node .output/server/index.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.0",
+    "date-fns": "^4.1.0",
+    "nitro": "3.0.260603-beta",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "typescript": "^5.8.3"
+  }
+}
