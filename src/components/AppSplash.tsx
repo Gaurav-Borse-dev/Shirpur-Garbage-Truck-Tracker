@@ -10,17 +10,19 @@ export function AppSplash({ children }: { children: ReactNode }) {
   const [show, setShow] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const handleContinue = () => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch {}
+    setShow(false);
+  };
+
   useEffect(() => {
     setMounted(true);
     try {
       const shown = sessionStorage.getItem(SESSION_KEY);
       if (!shown) {
         setShow(true);
-        const t = setTimeout(() => {
-          sessionStorage.setItem(SESSION_KEY, "1");
-          setShow(false);
-        }, 1800);
-        return () => clearTimeout(t);
       }
     } catch {}
   }, []);
@@ -32,24 +34,32 @@ export function AppSplash({ children }: { children: ReactNode }) {
         {mounted && show && (
           <motion.div
             key="app-splash"
+            onClick={handleContinue}
+            onTouchStart={handleContinue}
+            whileTap={{ scale: 0.99 }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-            className="fixed inset-0 z-[9999] bg-white grid place-items-center"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed inset-0 z-[9999] bg-white grid place-items-center cursor-pointer select-none touch-manipulation"
           >
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.96 }}
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
               className="flex flex-col items-center text-center px-8"
             >
-              <div className="w-32 h-32 rounded-2xl overflow-hidden p-2 ring-1 ring-neutral-200 shadow-[0_12px_36px_rgba(0,0,0,0.08)] bg-white grid place-items-center">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="w-32 h-32 rounded-2xl overflow-hidden p-2 ring-1 ring-neutral-200 shadow-[0_12px_36px_rgba(0,0,0,0.08)] bg-white grid place-items-center"
+              >
                 <img
                   src={shirpurLogoImg}
                   alt={tr("Shirpur–Varvade Nagarparishad")}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
-              </div>
+              </motion.div>
               <div className="mt-6 text-[11px] uppercase tracking-[0.22em] text-red-800 font-extrabold">
                 {tr("Shirpur–Varvade Nagarparishad")}
               </div>
@@ -62,9 +72,16 @@ export function AppSplash({ children }: { children: ReactNode }) {
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: 96 }}
-                transition={{ duration: 1.2, ease: "easeInOut" }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
                 className="mt-5 h-[3px] rounded-full bg-brand"
               />
+              <motion.div
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                className="mt-6 text-xs text-neutral-400 font-medium tracking-wide"
+              >
+                {tr("Touch anywhere to continue")}
+              </motion.div>
             </motion.div>
           </motion.div>
         )}

@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { LockIcon, TruckIcon, UserIcon } from "@/components/icons";
 import { motion } from "framer-motion";
 import { useT } from "@/lib/i18n";
+import ShirpurImageSlider from "@/components/ShirpurImageSlider";
 
 export const Route = createFileRoute("/role")({
   head: () => ({
@@ -30,10 +31,11 @@ function RolePage() {
   const t = useT();
   return (
     <MobileFrame>
-      <div className="pt-10 px-6">
+      <div className="pt-6 px-6">
         <Logo />
       </div>
-      <div className="px-6 pt-8">
+      <ShirpurImageSlider />
+      <div className="px-6 pt-4">
         <h1 className="text-2xl font-bold tracking-tight text-ink">{t("Who's signing in?")}</h1>
         <p className="mt-1 text-neutral-500 text-sm">{t("Pick the experience that fits you.")}</p>
       </div>

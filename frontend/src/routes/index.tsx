@@ -51,13 +51,10 @@ function Splash() {
   const tr = useT();
   const session = useAuth((s) => s.session);
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (session?.role === "resident") navigate({ to: "/resident" });
-      else if (session?.role === "driver") navigate({ to: "/driver" });
-      else if (session?.role === "admin") navigate({ to: "/admin" });
-      else navigate({ to: "/role" });
-    }, 1800);
-    return () => clearTimeout(t);
+    if (session?.role === "resident") navigate({ to: "/resident", replace: true });
+    else if (session?.role === "driver") navigate({ to: "/driver", replace: true });
+    else if (session?.role === "admin") navigate({ to: "/admin", replace: true });
+    else navigate({ to: "/role", replace: true });
   }, [navigate, session]);
 
   return (
