@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -166,13 +167,19 @@ function PushRuntime() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  // Show language switcher only on these 2 pages
+  const showLanguageSwitcher =
+    location.pathname === "/role" ||
+    location.pathname === "/resident/profile";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AppSplash>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
-        <LanguageSwitcher />
+        {showLanguageSwitcher && <LanguageSwitcher />}
         <ClientOnly>
           <PerfOverlay />
           <PushRuntime />

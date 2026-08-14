@@ -9,19 +9,18 @@ const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
 ];
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
+
   const lang = useI18n((s) => s.lang);
   const setLang = useI18n((s) => s.setLang);
-  const hydrateLang = useI18n((s) => s.hydrate);
   const t = useT();
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = LANGS.find((l) => l.code === lang) ?? LANGS[0];
 
   // Restore the saved language after mount so SSR markup and the first client
   // render always match (localStorage is unavailable on the server).
-  useEffect(() => {
-    hydrateLang();
-  }, [hydrateLang]);
+  
 
   useEffect(() => {
     if (!open) return;
