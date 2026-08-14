@@ -65,21 +65,15 @@ function Otp() {
         setTimeout(() => { setDigits(["", "", "", "", "", ""]); refs.current[0]?.focus(); }, 600);
       };
       try {
-        let ok = false;
-        try {
-          const res = await verifyOtp({ data: { phone, role, code } });
-          ok = res.ok;
-        } catch {
-          ok = (code === "123456");
-        }
+        const res = await verifyOtp({ data: { phone, role, code } });
         if (cancelled) return;
-        if (!ok) return reject(tr("Incorrect code. Please try again."));
+        if (!res.ok) return reject(tr("Incorrect code. Please try again."));
         await queryClient.invalidateQueries({ queryKey: ["server-session"] });
         const cleanPhone = phone.trim().replace(/\D/g, "");
         if (role === "driver") {
           const driver = findDriver(cleanPhone);
-          const driverName = driver?.name || "Ramesh Patil";
-          const truckId = driver?.truckId || "GBR-01";
+          const driverName = driver?.name ?? "";
+          const truckId = driver?.truckId ?? "";
           setSession({ role: "driver", phone: cleanPhone, driverName, truckId });
           navigate({ to: "/driver" });
         } else {

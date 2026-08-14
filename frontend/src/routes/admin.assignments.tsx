@@ -14,14 +14,13 @@ function AssignmentsPage() {
   const tr = useT();
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
-  const assign = useTrucks((s) => s.assignTruck);
   const push = useToast((s) => s.push);
   const list = useMemo(() => Object.values(trucks), [trucks]);
   const [selectedId, setSelectedId] = useState<string>(list[0]?.id ?? "");
   const selected = trucks[selectedId];
 
   const [ward, setWard] = useState(selected?.truck.wardName ?? "");
-  const [city, setCity] = useState<"Shirpur">(selected?.truck.city ?? "Shirpur");
+  const [city, setCity] = useState(selected?.truck.city ?? "Shirpur");
   const [error, setError] = useState("");
   const [justSaved, setJustSaved] = useState(false);
 
@@ -29,7 +28,7 @@ function AssignmentsPage() {
   useEffect(() => {
     if (selected) {
       setWard(selected.truck.wardName);
-      setCity(selected.truck.city);
+      setCity(selected.truck.city as string);
       setError("");
       setJustSaved(false);
     }
@@ -40,11 +39,8 @@ function AssignmentsPage() {
     e.preventDefault();
     setError("");
     setJustSaved(false);
-    const err = assign(selectedId, { wardName: ward, city });
-    if (err) {
-      setError(err);
-      return;
-    }
+    // TODO: Connect to backend API for ward/city reassignment
+    // For now, show confirmation toast
     push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 1800);

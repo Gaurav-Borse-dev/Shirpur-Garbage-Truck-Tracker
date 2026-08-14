@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { TRUCKS, makeRoute, SHIRPUR, type Truck } from "@/lib/trucks";
-import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, turnAngle, type LatLng } from "@/lib/geo";
+import { FALLBACK_TRUCKS, SHIRPUR_WARDS, type Truck } from "@/lib/trucks";
+import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, type LatLng } from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
 import { startOfflineWatcher } from "@/store/offline";
@@ -20,7 +20,6 @@ export type LiveTruck = {
   segmentT: number; // 0..1 progress within segment
   completedStops: number;
   trail: LatLng[];
-  history: { at: number; pos: LatLng }[]; // ring buffer for replay
   lastUpdate: number;
   /** Latest GPS fix received from the backend (live mode only). */
   fix?: { pos: LatLng; bearing: number; speedMps: number; at: number };
@@ -43,56 +42,55 @@ export type TruckFix = {
 type TrucksState = {
   trucks: Record<string, LiveTruck>;
   tick: number;
+  /** Whether the fleet has been loaded from the database yet. */
+  dbLoaded: boolean;
   connection: "live" | "reconnecting";
   lastDrop: number | null;
   setStatus: (id: string, status: LiveTruck["status"]) => void;
   setDriverOnline: (id: string, online: boolean) => void;
   completeStop: (id: string) => void;
-  assignTruck: (
-    id: string,
-    patch: { wardName?: string; city?: "Shirpur" },
-  ) => string | null;
   setConnection: (c: "live" | "reconnecting") => void;
   /** Apply a batch of backend GPS fixes. Interpolation happens in _step. */
   ingestFixes: (fixes: TruckFix[]) => void;
   /** Apply a backend-provided route/stop assignment. */
   applyRoute: (truckId: string, route: LatLng[], totalStops?: number) => void;
+  /** Replace the truck fleet with data from the database. */
+  loadFleet: (trucks: Truck[]) => void;
   _step: (dtMs: number) => void;
 };
 
+const PALETTE = ["#22C55E", "#06B6D4", "#F97316", "#A855F7", "#EAB308", "#EC4899", "#0EA5E9", "#14B8A6"];
+
 function initLive(truck: Truck): LiveTruck {
-  const path = smoothClosedPath(truck.route, 8);
-  const a = path[0];
-  const b = path[1] ?? path[0];
+  const path = truck.route.length >= 3 ? smoothClosedPath(truck.route, 8) : [];
+  const a = path[0] ?? { lat: 21.3483, lng: 74.8827 }; // Shirpur center fallback
+  const b = path[1] ?? a;
   return {
     id: truck.id,
     truck,
     path,
     position: a,
-    bearing: bearing(a, b),
+    bearing: path.length >= 2 ? bearing(a, b) : 0,
     speedMps: 0,
     status: truck.startOnline ? "online" : "offline",
     segmentIndex: 0,
     segmentT: 0,
     completedStops: 0,
     trail: [],
-    history: [],
     lastUpdate: Date.now(),
   };
 }
 
-const initial: Record<string, LiveTruck> = Object.fromEntries(TRUCKS.map((t) => [t.id, initLive(t)]));
+// Start with fallback trucks — replaced when DB loads
+const initial: Record<string, LiveTruck> = Object.fromEntries(
+  FALLBACK_TRUCKS.map((t) => [t.id, initLive(t)]),
+);
 
-// ~20 km/h cruise, with realistic acceleration through the curved path
-const CRUISE_MPS = 5.5;
-const ACCEL_MPS2 = 1.1;
-const DECEL_MPS2 = 2.2;
-const HISTORY_CAP = 600; // ~5 min @ 2Hz capture
-const HISTORY_INTERVAL_MS = 500;
 
 export const useTrucks = create<TrucksState>((set, get) => ({
   trucks: initial,
   tick: 0,
+  dbLoaded: false,
   connection: "live",
   lastDrop: null,
   setStatus: (id, status) =>
@@ -108,88 +106,48 @@ export const useTrucks = create<TrucksState>((set, get) => ({
       const next = Math.min(t.truck.totalStops, t.completedStops + 1);
       return { trucks: { ...s.trucks, [id]: { ...t, completedStops: next } } };
     }),
-  assignTruck: (id, patch) => {
-    const state = get();
-    const lt = state.trucks[id];
-    if (!lt) return "Truck not found";
-    const nextWard = (patch.wardName ?? lt.truck.wardName).trim();
-    const nextCity = patch.city ?? lt.truck.city;
-    if (!nextWard || nextWard.length < 3) return "Ward name is required";
-    if (nextWard.length > 80) return "Ward name too long";
-    // Conflict: same ward + city assigned to a DIFFERENT online truck
-    const conflict = Object.values(state.trucks).some(
-      (o) =>
-        o.id !== id &&
-        o.status !== "offline" &&
-        o.truck.city === nextCity &&
-        o.truck.wardName.trim().toLowerCase() === nextWard.toLowerCase(),
-    );
-    if (conflict) return "Another active truck already covers this ward";
-    const center = SHIRPUR;
-    const seed = hashCode(id + nextWard + nextCity);
-    const newRoute =
-      patch.city || patch.wardName
-        ? makeRoute(
-            { lat: center.lat + ((seed % 17) - 8) * 0.0012, lng: center.lng + ((seed % 13) - 6) * 0.0012 },
-            seed,
-            0.8,
-            12,
-          )
-        : lt.truck.route;
-    const newTruck: Truck = {
-      ...lt.truck,
-      wardName: nextWard,
-      city: nextCity,
-      route: newRoute,
-    };
-    const newPath = smoothClosedPath(newTruck.route, 8);
-    const a = newPath[0];
-    const b = newPath[1] ?? newPath[0];
-    set({
-      trucks: {
-        ...state.trucks,
-        [id]: {
-          ...lt,
-          truck: newTruck,
-          path: newPath,
-          position: a,
-          bearing: bearing(a, b),
-          speedMps: 0,
-          segmentIndex: 0,
-          segmentT: 0,
-          completedStops: 0,
-          trail: [],
-          history: [],
-          lastUpdate: Date.now(),
-        },
-      },
-      tick: state.tick + 1,
-    });
-    return null;
-  },
   setConnection: (connection) =>
     set((s) => ({ connection, lastDrop: connection === "reconnecting" ? Date.now() : s.lastDrop })),
+
   ingestFixes: (fixes) => {
     if (!fixes.length) return;
     const state = get();
     const next = { ...state.trucks };
     let changed = false;
     for (const f of fixes) {
-      const lt = next[f.truckId];
-      if (!lt) continue;
+      let lt = next[f.truckId];
+      // Auto-create entry for trucks we learn about from realtime but don't have yet
+      if (!lt) {
+        const idx = Object.keys(next).length;
+        const truck: Truck = {
+          id: f.truckId,
+          name: f.truckId,
+          driverName: "",
+          driverPhone: "",
+          wardName: SHIRPUR_WARDS[idx % SHIRPUR_WARDS.length] ?? f.truckId,
+          city: "Shirpur",
+          color: PALETTE[idx % PALETTE.length],
+          route: [],
+          totalStops: 12,
+          startOnline: true,
+        };
+        lt = initLive(truck);
+        next[f.truckId] = lt;
+      }
       const pos = { lat: f.lat, lng: f.lng };
       const at = typeof f.ts === "string" ? Date.parse(f.ts) : (f.ts ?? Date.now());
       const prev = lt.fix?.pos ?? lt.position;
       const heading = f.heading ?? (haversine(prev, pos) > 1 ? bearing(prev, pos) : lt.bearing);
       next[f.truckId] = {
         ...lt,
-        status: f.status ?? lt.status,
+        status: f.status ?? (f.speed && f.speed > 0.5 ? "collecting" : "online"),
         fix: { pos, bearing: heading, speedMps: f.speed ?? 0, at },
       };
       changed = true;
     }
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
+
   applyRoute: (truckId, route, totalStops) => {
     const state = get();
     const lt = state.trucks[truckId];
@@ -208,6 +166,25 @@ export const useTrucks = create<TrucksState>((set, get) => ({
       tick: state.tick + 1,
     });
   },
+
+  loadFleet: (trucks) => {
+    const state = get();
+    const next: Record<string, LiveTruck> = {};
+    for (const truck of trucks) {
+      // Preserve existing fix/position if we already had this truck
+      const existing = state.trucks[truck.id];
+      if (existing) {
+        next[truck.id] = {
+          ...existing,
+          truck: { ...truck, route: existing.truck.route.length ? existing.truck.route : truck.route },
+        };
+      } else {
+        next[truck.id] = initLive(truck);
+      }
+    }
+    set({ trucks: next, tick: state.tick + 1, dbLoaded: true });
+  },
+
   _step: (dtMs) => {
     const state = get();
     // Hard-pause stepping while reconnecting so positions don't jump on resume
@@ -215,103 +192,32 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     const next: Record<string, LiveTruck> = {};
     let changed = false;
     const now = Date.now();
-    // --- LIVE MODE: no motion is generated locally. We only ease the marker
+
+    // LIVE MODE: no motion is generated locally. We only ease the marker
     // toward the last GPS fix received from the backend (position, heading and
     // speed all originate server-side).
-    if (LIVE_BACKEND) {
-      for (const id in state.trucks) {
-        const lt = state.trucks[id];
-        if (!lt.fix) {
-          next[id] = lt;
-          continue;
-        }
-        const gap = haversine(lt.position, lt.fix.pos);
-        if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
-          next[id] = lt;
-          continue;
-        }
-        // Ease over ~1 fix interval so 3-5s backend updates render continuously.
-        const k = Math.min(1, dtMs / 900);
-        const pos = lerpLatLng(lt.position, lt.fix.pos, k);
-        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
-        const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-        trail.push(pos);
-        let history = lt.history;
-        let lastUpdate = lt.lastUpdate;
-        if (now - lt.lastUpdate >= HISTORY_INTERVAL_MS) {
-          history = lt.history.length >= HISTORY_CAP ? lt.history.slice(-HISTORY_CAP + 1) : lt.history.slice();
-          history.push({ at: now, pos });
-          lastUpdate = now;
-        }
-        next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, history, lastUpdate };
-        changed = true;
-      }
-      if (changed) set({ trucks: next, tick: state.tick + 1 });
-      return;
-    }
     for (const id in state.trucks) {
       const lt = state.trucks[id];
-      if (lt.status === "offline") {
+      if (!lt.fix) {
         next[id] = lt;
         continue;
       }
-      const route = lt.path;
-      const a = route[lt.segmentIndex % route.length];
-      const b = route[(lt.segmentIndex + 1) % route.length];
-      const segLen = Math.max(0.5, haversine(a, b));
-      // --- speed model: ease down into curves, accelerate out of them ---
-      const ahead = route[(lt.segmentIndex + 3) % route.length];
-      const curve = turnAngle(a, b, ahead); // 0..180
-      const curveFactor = Math.max(0.45, 1 - curve / 60);
-      const target = CRUISE_MPS * curveFactor;
-      const dtS = dtMs / 1000;
-      const accel = target > lt.speedMps ? ACCEL_MPS2 : -DECEL_MPS2;
-      let speed = lt.speedMps + accel * dtS;
-      speed = accel > 0 ? Math.min(target, speed) : Math.max(target, speed);
-      speed = Math.max(0.8, speed);
-      const advanceM = speed * dtS;
-      let t = lt.segmentT + advanceM / segLen;
-      let segIdx = lt.segmentIndex;
-      let bear = lt.bearing;
-      while (t >= 1) {
-        t -= 1;
-        segIdx = (segIdx + 1) % route.length;
+      const gap = haversine(lt.position, lt.fix.pos);
+      if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
+        next[id] = lt;
+        continue;
       }
-      const segA = route[segIdx];
-      const segB = route[(segIdx + 1) % route.length];
-      const pos = lerpLatLng(segA, segB, t);
-      const targetBearing = bearing(segA, segB);
-      // Heading smoothing: slower easing at speed, snappier when crawling.
-      bear = lerpAngle(bear, targetBearing, Math.min(1, dtMs / (180 + speed * 30)));
+      // Ease over ~1 fix interval so 3-5s backend updates render continuously.
+      const k = Math.min(1, dtMs / 900);
+      const pos = lerpLatLng(lt.position, lt.fix.pos, k);
+      const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
       const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-      trail.push(pos);
-      let history = lt.history;
-      if (now - lt.lastUpdate >= HISTORY_INTERVAL_MS) {
-        history = lt.history.length >= HISTORY_CAP ? lt.history.slice(-HISTORY_CAP + 1) : lt.history.slice();
-        history.push({ at: now, pos });
-      }
-      next[id] = {
-        ...lt,
-        position: pos,
-        bearing: bear,
-        speedMps: speed,
-        segmentIndex: segIdx,
-        segmentT: t,
-        trail,
-        history,
-        lastUpdate: history === lt.history ? lt.lastUpdate : now,
-      };
+      next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
       changed = true;
     }
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
 }));
-
-function hashCode(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
 
 // Global RAF loop (runs once in client)
 let started = false;
@@ -355,11 +261,43 @@ function persistSnapshot() {
   writeCache(SNAPSHOT_KEY, snap);
 }
 
+/** Loads fleet data from the database and populates the store. */
+async function loadFleetFromDb() {
+  try {
+    const { getFleetTrucks } = await import("@/lib/tracking.functions");
+    const res = await getFleetTrucks();
+    if (!res.trucks?.length) return; // DB unavailable — keep fallback
+
+    const trucks: Truck[] = res.trucks.map((r, i) => ({
+      id: r.truckCode,
+      dbId: r.dbId,
+      name: r.truckCode,
+      driverName: "", // Will be filled by driver data
+      driverPhone: "",
+      wardName: r.ward ?? SHIRPUR_WARDS[i % SHIRPUR_WARDS.length] ?? r.truckCode,
+      city: "Shirpur",
+      color: PALETTE[i % PALETTE.length],
+      route: [], // Positions come from live tracking, not static routes
+      totalStops: 12,
+      startOnline: r.status !== "offline" && r.status !== "decommissioned",
+    }));
+
+    useTrucks.getState().loadFleet(trucks);
+    console.info(`[fleet] Loaded ${trucks.length} trucks from database`);
+  } catch (err) {
+    console.warn("[fleet] Could not load trucks from DB, using fallback", err);
+  }
+}
+
 export function startSimulation() {
   if (started || typeof window === "undefined") return;
   started = true;
   startOfflineWatcher();
   restoreSnapshot();
+
+  // Load real fleet data from the database
+  void loadFleetFromDb();
+
   if (SOCKET_ENABLED) {
     // Live mode: open the backend transport. The RAF loop below only
     // interpolates between backend GPS fixes — it generates no motion.
@@ -424,30 +362,24 @@ export function startSimulation() {
   };
   requestAnimationFrame(loop);
 
-  // --- "WebSocket" simulation: detect online / offline / hidden tab ---
-  const set = (c: "live" | "reconnecting") => {
+  // Detect online / offline / hidden tab
+  const setConn = (c: "live" | "reconnecting") => {
     if (useTrucks.getState().connection !== c) useTrucks.getState().setConnection(c);
     // Reset RAF clock on resume to avoid a giant dt the next frame
     last = performance.now();
     pending = 0;
     sinceCommit = 0;
   };
-  const goOffline = () => set("reconnecting");
+  const goOffline = () => setConn("reconnecting");
   const goOnline = () => {
-    // Simulate a short reconnect handshake before resuming smoothly
-    set("reconnecting");
-    setTimeout(() => set("live"), 700);
+    setConn("reconnecting");
+    setTimeout(() => setConn("live"), 700);
   };
   window.addEventListener("offline", goOffline);
   window.addEventListener("online", goOnline);
-  if (!LIVE_BACKEND) {
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) goOffline();
-      else goOnline();
-    });
-  }
   if (typeof navigator !== "undefined" && navigator.onLine === false) goOffline();
 }
+
 /** Per-truck subscription: components re-render only when *their* truck changes. */
 export function useTruck(id: string | undefined) {
   return useTrucks((s) => (id ? s.trucks[id] : undefined));

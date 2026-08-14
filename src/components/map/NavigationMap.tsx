@@ -99,7 +99,6 @@ export function NavigationMap(props: Props) {
         pitch: props.mode === "driver" ? DRIVER_PITCH : 0,
         bearing: 0,
         attributionControl: false,
-        antialias: true,
         maxZoom: 19,
         minZoom: 8,
       });
@@ -540,8 +539,8 @@ function MapControls({ mode, onRecenter }: { mode: string; onRecenter: () => voi
 function SpeedBadge({ truckId }: { truckId: string }) {
   const truck = useTrucks((s) => s.trucks[truckId]);
   if (!truck || truck.status === "offline") return null;
-  // Speed comes from real GPS data — truck.speed (km/h)
-  const speed = Math.round(truck.speed ?? 0);
+  // Speed comes from real GPS data (speedMps converted to km/h)
+  const speed = Math.round((truck.speedMps ?? 0) * 3.6);
   if (speed <= 0) return null;
 
   return (

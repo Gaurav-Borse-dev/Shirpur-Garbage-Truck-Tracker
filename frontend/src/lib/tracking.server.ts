@@ -4,8 +4,12 @@
  * Everything here runs inside a server-function handler: it resolves the
  * signed-in driver from the encrypted session cookie, talks to the database
  * with the service-role client, and calls OSRM for road-network ETAs.
+ *
+ * The driver → truck mapping is resolved from the database `drivers` table.
+ * A local fallback from DRIVER_NAMES / FALLBACK_TRUCKS is used when the
+ * database is unreachable so the app never hard-fails on cold start.
  */
-import { DRIVER_NAMES, TRUCKS } from "@/lib/trucks";
+import { DRIVER_NAMES, FALLBACK_TRUCKS } from "@/lib/trucks";
 
 export type TruckFixRow = {
   truckId: string;
@@ -19,11 +23,37 @@ export type TruckFixRow = {
   fixedAt: string;
 };
 
-/** Static roster mapping: driver phone -> truck code (GBR-01 .. GBR-16). */
-export function truckCodeForPhone(phone: string): string | null {
+/**
+ * Resolves a driver phone number to the truck code they're assigned to.
+ * Tries the database first; falls back to the static DRIVER_NAMES roster.
+ */
+export async function truckCodeForPhone(phone: string): Promise<string | null> {
+  try {
+    const db = await admin();
+    const { data: profile } = await db
+      .from("profiles")
+      .select("user_id")
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (profile?.user_id) {
+      const { data: driver } = await db
+        .from("drivers")
+        .select("assigned_truck:trucks!drivers_assigned_truck_id_fkey ( truck_code )")
+        .eq("user_id", profile.user_id)
+        .maybeSingle();
+
+      const truck = driver?.assigned_truck as { truck_code: string } | null;
+      if (truck?.truck_code) return truck.truck_code;
+    }
+  } catch {
+    // DB unavailable — fall through to static roster
+  }
+
+  // Fallback: static roster lookup
   const idx = DRIVER_NAMES.findIndex((d) => d.phone === phone);
   if (idx < 0) return null;
-  return TRUCKS[idx]?.id ?? null;
+  return FALLBACK_TRUCKS[idx]?.id ?? null;
 }
 
 export async function admin() {
