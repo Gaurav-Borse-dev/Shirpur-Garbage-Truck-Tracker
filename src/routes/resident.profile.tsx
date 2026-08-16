@@ -1,10 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { serverSignOut } from "@/lib/auth.functions";
 import { useState } from "react";
+
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
 import { useBookings } from "@/store/bookings";
+
 import { useT } from "@/lib/i18n";
+import { useI18n } from "@/store/i18n";
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,
@@ -45,9 +48,8 @@ function ProfilePage() {
             <button
               key={o}
               onClick={() => setDraft(o)}
-              className={`h-10 rounded-full text-sm font-semibold transition-colors ${
-                draft === o ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
-              }`}
+              className={`h-10 rounded-full text-sm font-semibold transition-colors ${draft === o ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
+                }`}
             >
               {o >= 1000 ? `${o / 1000}km` : `${o}m`}
             </button>

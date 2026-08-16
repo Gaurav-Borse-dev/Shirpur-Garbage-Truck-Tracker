@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import banner from "@/assets/banner.png";
 import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
 import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
 import cleanTrackImg from "@/assets/clean-track.jpg";
+import smartImg from "@/assets/smart.jpg";
 
 interface Slide {
   id: string;
@@ -14,6 +16,15 @@ interface Slide {
 }
 
 const SLIDES: Slide[] = [
+  {
+    id: "banner",
+    src: banner,
+    title: "CleanTrack Shirpur",
+    subtitle: "Smart waste management for a clean city",
+    badge: "Clean Shirpur",
+  },
+
+
   {
     id: "clean-shirpur",
     src: cleanShirpurImg || "/clean-shirpur.jpg",
@@ -34,6 +45,13 @@ const SLIDES: Slide[] = [
     title: "CleanTrack Live Fleet",
     subtitle: "Real-time municipal waste truck monitoring",
     badge: "Smart Tracking",
+  },
+  {
+    id: "smart-shirpur",
+    src: smartImg || "/smart.jpg",
+    title: "Smart Sanitation Fleet",
+    subtitle: "Automated waste management & clean city drive",
+    badge: "Municipal Sanitation",
   },
 ];
 
@@ -60,10 +78,24 @@ export function ShirpurImageSlider() {
   };
 
   return (
-    <section className="w-full py-3 px-4 max-w-5xl mx-auto select-none">
+    <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/9] sm:aspect-[21/9] max-h-[260px] sm:max-h-[320px]"
+        className=" 
+    relative  
+    overflow-hidden  
+    rounded-2xl  
+    shadow-lg  
+    border  
+    border-neutral-100  
+    bg-neutral-900  
+    group  
+    aspect-[16/9]  
+    sm:aspect-[21/9]  
+    max-h-[420px]  
+    sm:max-h-[500px]  
+    md:max-h-[600px] 
+  "
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
@@ -82,11 +114,10 @@ export function ShirpurImageSlider() {
             <img
               src={SLIDES[currentIndex].src}
               alt={SLIDES[currentIndex].title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
-
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
 
             {/* Content Text Overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white z-10 flex flex-col justify-end">
@@ -130,9 +161,8 @@ export function ShirpurImageSlider() {
             <button
               key={slide.id}
               onClick={() => setCurrentIndex(index)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                index === currentIndex ? "w-5 bg-white" : "w-1.5 bg-white/40"
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex ? "w-5 bg-white" : "w-1.5 bg-white/40"
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -143,3 +173,4 @@ export function ShirpurImageSlider() {
 }
 
 export default ShirpurImageSlider;
+

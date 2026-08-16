@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -15,6 +16,7 @@ import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PerfOverlay } from "@/components/PerfOverlay";
 import { ClientOnly } from "@/components/ClientOnly";
+import { ChatBot } from "@/components/ChatBot/ChatBot";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
 
@@ -166,18 +168,25 @@ function PushRuntime() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
 
+  // Show language switcher only on these 2 pages
+ // Show language switcher only on role selection page
+  const showLanguageSwitcher =
+    location.pathname === "/role";
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppSplash>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <LanguageSwitcher />
-        <ClientOnly>
-          <PerfOverlay />
-          <PushRuntime />
-        </ClientOnly>
-      </AppSplash>
-    </QueryClientProvider>
-  );
+  <QueryClientProvider client={queryClient}>
+    <AppSplash>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+      {showLanguageSwitcher && <LanguageSwitcher />}
+      <ClientOnly>
+        <PerfOverlay />
+        <PushRuntime />
+        <ChatBot />
+        <ChatBot />
+      </ClientOnly>
+    </AppSplash>
+  </QueryClientProvider>
+);
 }
