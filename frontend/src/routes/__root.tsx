@@ -16,6 +16,7 @@ import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PerfOverlay } from "@/components/PerfOverlay";
 import { ClientOnly } from "@/components/ClientOnly";
+import { ChatBot } from "@/components/ChatBot/ChatBot";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
 
@@ -174,16 +175,18 @@ function RootComponent() {
   const showLanguageSwitcher =
     location.pathname === "/role";
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppSplash>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        {showLanguageSwitcher && <LanguageSwitcher />}
-        <ClientOnly>
-          <PerfOverlay />
-          <PushRuntime />
-        </ClientOnly>
-      </AppSplash>
-    </QueryClientProvider>
-  );
+  <QueryClientProvider client={queryClient}>
+    <AppSplash>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+      {showLanguageSwitcher && <LanguageSwitcher />}
+      <ClientOnly>
+        <PerfOverlay />
+        <PushRuntime />
+        <ChatBot />
+        <ChatBot />
+      </ClientOnly>
+    </AppSplash>
+  </QueryClientProvider>
+);
 }
