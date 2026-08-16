@@ -1,0 +1,8 @@
+{
+  "appId": "in.gov.shirpur.cleantrack",
+  "appName": "CleanTrack",
+  "webDir": ".output/public",
+  "server": {
+    "androidScheme": "https"
+  }
+}

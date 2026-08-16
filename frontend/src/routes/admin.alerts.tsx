@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { TRUCKS } from "@/lib/trucks";
+import { useTrucks, type LiveTruck } from "@/store/trucks";
 import { TruckIcon, BellIcon, UserIcon, CheckIcon } from "@/components/icons";
 import { sendTestPush } from "@/lib/push.functions";
 import { useT } from "@/lib/i18n";
@@ -13,23 +13,27 @@ export const Route = createFileRoute("/admin/alerts")({
 type EventType = "geofence" | "stop" | "login";
 type Event = { id: string; type: EventType; truckId: string; ts: string; truckLabel: string; wardLabel: string; stopNum: number; totalStops: number; driverName: string };
 
-function seedEvents(): Event[] {
+function seedEvents(truckList: LiveTruck[]): Event[] {
   const events: Event[] = [];
+  if (truckList.length === 0) return events;
   const now = Date.now();
   for (let i = 0; i < 80; i++) {
-    const truck = TRUCKS[i % TRUCKS.length];
+    const lt = truckList[i % truckList.length];
+    const truck = lt.truck;
     const t = (["geofence", "stop", "login"] as const)[i % 3];
     const minutesAgo = i * 9 + Math.floor(Math.random() * 5);
     const date = new Date(now - minutesAgo * 60_000);
     const ts = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    events.push({ id: String(i), type: t, truckId: truck.id, ts, truckLabel: truck.id, wardLabel: truck.wardName.split("—")[0].trim(), stopNum: (i % 12) + 1, totalStops: truck.totalStops, driverName: truck.driverName });
+    events.push({ id: String(i), type: t, truckId: truck.id, ts, truckLabel: truck.id, wardLabel: truck.wardName.split("\u2014")[0].trim(), stopNum: (i % 12) + 1, totalStops: truck.totalStops, driverName: truck.driverName });
   }
   return events;
 }
 
 function AlertsPage() {
   const tr = useT();
-  const events = useMemo(seedEvents, []);
+  const allTrucks = useTrucks((s) => s.trucks);
+  const truckList = useMemo(() => Object.values(allTrucks), [allTrucks]);
+  const events = useMemo(() => seedEvents(truckList), [truckList]);
   const [filter, setFilter] = useState<"all" | EventType>("all");
   const filtered = events.filter((e) => filter === "all" || e.type === filter);
 
@@ -81,9 +85,11 @@ function AlertsPage() {
 
 function TestPushPanel() {
   const tr = useT();
+  const allTrucks = useTrucks((s) => s.trucks);
+  const truckList = useMemo(() => Object.values(allTrucks).map((lt) => lt.truck), [allTrucks]);
   const [mode, setMode] = useState<"resident" | "truck">("resident");
   const [phone, setPhone] = useState("");
-  const [truckCode, setTruckCode] = useState(TRUCKS[0]?.id ?? "GBR-01");
+  const [truckCode, setTruckCode] = useState(truckList[0]?.id ?? "GBR-01");
   const [title, setTitle] = useState("CleanTrack test alert");
   const [body, setBody] = useState("This is a test notification from the municipal dashboard.");
   const [status, setStatus] = useState<string | null>(null);
@@ -157,7 +163,7 @@ function TestPushPanel() {
               onChange={(e) => setTruckCode(e.target.value)}
               className="mt-1 w-full h-10 px-3 rounded-lg border border-neutral-200 text-sm text-ink font-normal"
             >
-              {TRUCKS.map((t) => (
+              {truckList.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.id} · {t.wardName}
                 </option>

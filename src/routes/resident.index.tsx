@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ClientOnly } from "@/components/ClientOnly";
 import { TruckMap } from "@/components/TruckMap";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -55,6 +55,28 @@ function useResidentLocation(): { location: LatLng; gpsAvailable: boolean } {
   return { location, gpsAvailable };
 }
 
+/* ── zone config ── */
+const ZONE_STYLE: Record<ZoneState, {
+  bg: string; text: string; icon: string; pillBg: string; pillText: string; pulse: boolean;
+}> = {
+  Arriving: {
+    bg: "bg-emerald-600", text: "text-white", icon: "🚛",
+    pillBg: "bg-[#DCFCE7]", pillText: "text-[#15803D]", pulse: true,
+  },
+  Nearby: {
+    bg: "bg-amber-500", text: "text-slate-900", icon: "🚚",
+    pillBg: "bg-[#FEF9C3]", pillText: "text-[#854D0E]", pulse: true,
+  },
+  Leaving: {
+    bg: "bg-red-500", text: "text-white", icon: "📍",
+    pillBg: "bg-[#FEE2E2]", pillText: "text-[#991B1B]", pulse: false,
+  },
+  EnRoute: {
+    bg: "bg-slate-800", text: "text-white", icon: "🗺️",
+    pillBg: "bg-neutral-100", pillText: "text-neutral-600", pulse: false,
+  },
+};
+
 function ResidentHome() {
   const navigate = useNavigate();
   const tr = useT();
@@ -87,9 +109,15 @@ function ResidentHome() {
   const insideArriving = distance < radius * 0.3;
   const insideNearby = distance < radius;
 
+  // Speed in km/h from the nearest truck
+  const speedKmh = nearest ? Math.round((nearest.speedMps ?? 0) * 3.6) : 0;
+  // Stop progress
+  const stopProgress = nearest ? (nearest.completedStops / nearest.truck.totalStops) * 100 : 0;
+
   // Zone & notification machine
   const prevZone = useRef<ZoneState>("EnRoute");
   const lastNotifAt = useRef<Record<string, number>>({});
+  const [currentZone, setCurrentZone] = useState<ZoneState>("EnRoute");
 
   useEffect(() => {
     if (!nearest) return;
@@ -117,10 +145,11 @@ function ResidentHome() {
         push({ title: tr("Truck has passed"), subtitle: tr("Check schedule for next pickup") });
       }
       prevZone.current = zone;
+      setCurrentZone(zone);
     }
   }, [distance, insideArriving, insideNearby, nearest, push, notifEnabled]);
 
-  const status = useMemo(() => statusFromDistance(distance, radius, prevZone.current), [distance, radius]);
+  const zs = ZONE_STYLE[currentZone];
 
   return (
     <div className="absolute inset-0">
@@ -132,53 +161,117 @@ function ResidentHome() {
         </ClientOnly>
       </div>
 
-      {/* Top controls */}
-      <div className="absolute top-3 left-3 right-3 z-[500] flex items-start justify-between gap-3 pointer-events-none">
-        <button
-          onClick={() => navigate({ to: "/role" })}
-          className="pointer-events-auto w-11 h-11 rounded-full bg-white shadow-md grid place-items-center shrink-0"
-          aria-label={tr("Back")}
-        >
-          <ChevronLeft />
-        </button>
-        <ConnectionPill connection={connection} />
+      {/* ── Top Navigation Bar ── */}
+      <div className="absolute top-0 left-0 right-0 z-[500] pointer-events-none">
+        <div className="flex flex-col gap-2 p-3">
+          {/* Row 1: Back + Connection + GPS */}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => navigate({ to: "/role" })}
+              className="pointer-events-auto w-11 h-11 rounded-full bg-white/95 backdrop-blur-sm shadow-lg grid place-items-center shrink-0"
+              aria-label={tr("Back")}
+            >
+              <ChevronLeft />
+            </button>
+            <div className="pointer-events-auto flex items-center gap-2">
+              {!gpsAvailable && (
+                <div className="ct-pill bg-red-50 text-red-700 border border-red-200 shadow-md text-[11px]">
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                  {tr("GPS Off")}
+                </div>
+              )}
+              <ConnectionPill connection={connection} />
+            </div>
+          </div>
+
+          {/* Row 2: Zone Status Banner */}
+          {nearest && (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentZone}
+                initial={{ opacity: 0, y: -12, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className={`pointer-events-auto ${zs.bg} rounded-2xl shadow-2xl p-3.5 flex items-center justify-between`}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 grid place-items-center text-xl shrink-0">
+                    {zs.pulse ? (
+                      <span className="animate-pulse">{zs.icon}</span>
+                    ) : (
+                      <span>{zs.icon}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className={`text-[10px] uppercase tracking-wider font-bold ${zs.text} opacity-80 flex items-center gap-1.5`}>
+                      {zs.pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
+                      {currentZone === "EnRoute" && tr("Truck En Route")}
+                      {currentZone === "Nearby" && tr("Truck Nearby")}
+                      {currentZone === "Arriving" && tr("Truck Arriving!")}
+                      {currentZone === "Leaving" && tr("Truck Passed")}
+                    </div>
+                    <div className={`text-sm font-bold ${zs.text} truncate mt-0.5`}>
+                      {currentZone === "Arriving" ? tr("Go outside now!") : `${distanceLabel} ${tr("away")} · ${etaLabel}`}
+                    </div>
+                  </div>
+                </div>
+                {/* Speed badge on banner */}
+                {speedKmh > 0 && nearest.status !== "offline" && (
+                  <div className="shrink-0 ml-2 bg-white/20 rounded-xl px-2.5 py-1.5 text-center">
+                    <div className={`text-base font-bold ${zs.text} leading-none`}>{speedKmh}</div>
+                    <div className={`text-[9px] ${zs.text} opacity-70 font-semibold`}>km/h</div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </div>
       </div>
 
-      {/* Floating "Arriving in" card (top-left, below back button) */}
+      {/* ── Floating Navigation ETA Card (bottom-right, above bottom sheet) ── */}
       {nearest && (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="absolute top-16 left-3 z-[500] pointer-events-none"
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 25 }}
+          className="absolute bottom-32 right-3 z-[500] pointer-events-none"
         >
-          <div className="bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.10)] p-3 pr-4 flex items-center gap-3 min-w-[190px]">
-            <div className="w-12 h-12 rounded-xl bg-brand-soft grid place-items-center text-brand shrink-0">
-              <TruckIcon className="w-6 h-6" />
+          <div className="bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl p-3 w-[140px]">
+            <div className="text-[9px] uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {tr("ETA")}
             </div>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
-                {tr("Arriving in")}
-              </div>
-              <div className="text-lg font-bold text-ink leading-tight">
-                {etaLabel}
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-0.5">
-                {distanceLabel} {tr("away")}
-              </div>
+            <div className="text-xl font-bold text-white leading-tight mt-0.5">
+              {etaLabel}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{distanceLabel}</div>
+            {/* Mini progress bar */}
+            <div className="mt-2 h-1 rounded-full bg-slate-700 overflow-hidden">
+              <motion.div
+                className="h-full bg-emerald-500 rounded-full"
+                animate={{ width: `${Math.min(stopProgress, 100)}%` }}
+                transition={{ type: "spring", stiffness: 120 }}
+              />
+            </div>
+            <div className="text-[9px] text-slate-500 mt-0.5">
+              {nearest.completedStops}/{nearest.truck.totalStops} {tr("stops")}
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* Bottom sheet */}
+      {/* ── Bottom Sheet ── */}
       {nearest && (
-        <BottomSheet springKey={status.label} peekHeight={112}>
+        <BottomSheet springKey={currentZone} peekHeight={120}>
           <div className="px-5 pb-5 pt-1">
-            {/* Row 1: truck image + name/route + status pill */}
+            {/* Row 1: truck + name/route + zone pill */}
             <div className="flex items-center gap-3">
-              <div className="w-[68px] h-[52px] rounded-2xl bg-brand-soft text-brand grid place-items-center shrink-0">
-                <TruckIcon className="w-7 h-7" />
+              <div className="relative w-[60px] h-[48px] rounded-2xl bg-brand-soft text-brand grid place-items-center shrink-0">
+                <TruckIcon className="w-6 h-6" />
+                {nearest.status !== "offline" && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-ink text-[17px] truncate">
@@ -188,25 +281,49 @@ function ResidentHome() {
                   {tr("Route")} {nearest.truck.id} · {nearest.truck.wardName.split("—")[0].trim()}
                 </div>
               </div>
-              <div className={`ct-pill ${status.tone} shrink-0`}>{tr(status.label)}</div>
+              <div className={`ct-pill ${zs.pillBg} ${zs.pillText} shrink-0`}>
+                {zs.pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse mr-1" />}
+                {tr(currentZone === "EnRoute" ? "En Route" : currentZone)}
+              </div>
             </div>
 
-            {/* Row 2: distance / ETA */}
-            <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-2 overflow-hidden">
-              <div className="p-3.5">
+            {/* Row 2: Distance / ETA / Speed cards */}
+            <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-3 overflow-hidden">
+              <div className="p-3">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Distance")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{distanceLabel}</div>
+                <div className="text-lg font-bold text-ink mt-0.5">{distanceLabel}</div>
               </div>
-              <div className="p-3.5 border-l border-neutral-200/70">
+              <div className="p-3 border-l border-neutral-200/70">
                 <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("ETA")}</div>
-                <div className="text-xl font-bold text-ink mt-0.5">{etaLabel}</div>
+                <div className="text-lg font-bold text-ink mt-0.5">{etaLabel}</div>
+              </div>
+              <div className="p-3 border-l border-neutral-200/70">
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Speed")}</div>
+                <div className="text-lg font-bold text-ink mt-0.5">
+                  {speedKmh > 0 ? `${speedKmh}` : "—"}<span className="text-xs text-neutral-400 ml-0.5">km/h</span>
+                </div>
               </div>
             </div>
 
-            {/* Subtitle */}
+            {/* Route progress bar */}
+            <div className="mt-3 p-3 rounded-xl bg-neutral-50">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-neutral-500 font-medium">{tr("Route Progress")}</span>
+                <span className="text-ink font-bold">{nearest.completedStops}/{nearest.truck.totalStops} {tr("stops")}</span>
+              </div>
+              <div className="mt-1.5 h-2 rounded-full bg-neutral-200 overflow-hidden">
+                <motion.div
+                  className="h-full bg-brand rounded-full"
+                  animate={{ width: `${Math.min(stopProgress, 100)}%` }}
+                  transition={{ type: "spring", stiffness: 120 }}
+                />
+              </div>
+            </div>
+
+            {/* Ward / service info */}
             <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
               <ClockIcon className="w-4 h-4 shrink-0" />
-              <span className="truncate">{tr("Municipal waste collection service")}</span>
+              <span className="truncate">{tr("Municipal waste collection service")} · {nearest.truck.wardName.split("—")[0].trim()}</span>
             </div>
 
             {/* Notification toggle row */}
@@ -227,11 +344,19 @@ function ResidentHome() {
             {/* CTA */}
             <button
               disabled={!insideNearby}
-              className={`w-full h-14 rounded-2xl font-semibold text-[15px] transition-colors ${
-                insideNearby ? "bg-ink text-white shadow-lg shadow-black/20" : "bg-neutral-100 text-neutral-400"
+              className={`w-full h-14 rounded-2xl font-semibold text-[15px] transition-all duration-300 ${
+                insideArriving
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 animate-pulse"
+                  : insideNearby
+                  ? "bg-ink text-white shadow-lg shadow-black/20"
+                  : "bg-neutral-100 text-neutral-400"
               }`}
             >
-              {insideNearby ? tr("I'm Coming") : `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`}
+              {insideArriving
+                ? `🚛 ${tr("Truck is here! Go outside")}`
+                : insideNearby
+                ? tr("I'm Coming")
+                : `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`}
             </button>
           </div>
         </BottomSheet>
@@ -246,7 +371,7 @@ function ConnectionPill({ connection }: { connection: "live" | "reconnecting" })
   return (
     <div
       className={`pointer-events-auto ct-pill shadow-md ${
-        live ? "bg-white text-ink" : "bg-[#FEF3C7] text-[#92400E]"
+        live ? "bg-white/95 backdrop-blur-sm text-ink" : "bg-[#FEF3C7] text-[#92400E]"
       }`}
     >
       <span
@@ -271,13 +396,6 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
       />
     </button>
   );
-}
-
-function statusFromDistance(distance: number, radius: number, last: ZoneState) {
-  if (distance < radius * 0.3) return { label: "Arriving", tone: "bg-[#DCFCE7] text-[#15803D]" };
-  if (distance < radius) return { label: "Nearby", tone: "bg-[#FEF9C3] text-[#854D0E]" };
-  if (last === "Nearby" || last === "Arriving") return { label: "Leaving", tone: "bg-[#FEE2E2] text-[#991B1B]" };
-  return { label: "En Route", tone: "bg-neutral-100 text-neutral-600" };
 }
 
 function fireBrowserNotif(enabled: boolean, title: string, body: string) {

@@ -1,48 +1,81 @@
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
 import L from "leaflet";
-import { memo, useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
 import type { LatLng } from "@/lib/geo";
 import { haversine } from "@/lib/geo";
 import { bumpRender } from "@/store/perf";
-import { formatEta } from "@/lib/format";
+import { formatEta, formatDistance } from "@/lib/format";
 import { useI18n } from "@/store/i18n";
 import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
-const CARTO_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+// Navigation-grade basemap: CartoDB Voyager provides crisp road hierarchy & light modern tones
+const CARTO_VOYAGER_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const CARTO_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-/** Top-down garbage-tipper SVG. Default orientation = NORTH (points up).
- *  Rotate the wrapper by the compass bearing. */
-function truckSvgHTML(): string {
+/**
+ * Top-down navigation garbage-tipper truck SVG with direction cone & headlights.
+ * Orientation: NORTH (0°) -> rotated by vehicle compass bearing.
+ */
+function navigationTruckSvgHTML(active = false, offline = false): string {
+  const bodyColor = offline ? "#64748B" : "#22C55E";
+  const bodyDark = offline ? "#475569" : "#16A34A";
+  const cabColor = "#FFFFFF";
+  const accentColor = active ? "#3B82F6" : bodyColor;
+
   return `
-<svg viewBox="0 0 40 56" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible">
-  <!-- wheels back -->
-  <rect x="2"  y="34" width="6" height="11" rx="1.8" fill="#0f172a"/>
-  <rect x="32" y="34" width="6" height="11" rx="1.8" fill="#0f172a"/>
-  <!-- wheels front -->
-  <rect x="2"  y="12" width="6" height="9"  rx="1.8" fill="#0f172a"/>
-  <rect x="32" y="12" width="6" height="9"  rx="1.8" fill="#0f172a"/>
-  <!-- tipper body (green) -->
-  <rect x="6" y="20" width="28" height="30" rx="3.5"
-        fill="#22C55E" stroke="#0f172a" stroke-width="1.2"/>
-  <rect x="9" y="24" width="22" height="22" rx="1.5" fill="#16a34a" opacity="0.35"/>
-  <line x1="10" y1="33" x2="30" y2="33" stroke="#0f172a" stroke-width="0.6" opacity="0.35"/>
-  <line x1="10" y1="40" x2="30" y2="40" stroke="#0f172a" stroke-width="0.6" opacity="0.35"/>
-  <!-- cab (white) -->
-  <rect x="7" y="6" width="26" height="17" rx="3.5"
-        fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
-  <!-- windshield tint -->
-  <rect x="10" y="9" width="20" height="6" rx="1.5" fill="#334155" opacity="0.55"/>
-  <!-- headlights -->
-  <circle cx="11" cy="8"  r="1.1" fill="#fde68a"/>
-  <circle cx="29" cy="8"  r="1.1" fill="#fde68a"/>
-</svg>`;
+<div class="ct-nav-truck-container" style="position:relative;width:100%;height:100%;">
+  <!-- Headlight beam / direction cone -->
+  ${
+    active && !offline
+      ? `<div class="ct-headlight-beam"></div>`
+      : ""
+  }
+  <svg viewBox="0 0 44 64" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible">
+    <!-- Outer glow / drop shadow -->
+    <filter id="truck-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.3"/>
+    </filter>
+
+    <g filter="url(#truck-shadow)">
+      <!-- Rear & Front Heavy Duty Tires -->
+      <rect x="1"  y="40" width="7" height="13" rx="2.5" fill="#0F172A"/>
+      <rect x="36" y="40" width="7" height="13" rx="2.5" fill="#0F172A"/>
+      <rect x="1"  y="14" width="7" height="11" rx="2.5" fill="#0F172A"/>
+      <rect x="36" y="14" width="7" height="11" rx="2.5" fill="#0F172A"/>
+
+      <!-- Tipper Cargo Body (CleanTrack Green) -->
+      <rect x="6" y="22" width="32" height="36" rx="4" fill="${bodyColor}" stroke="#0F172A" stroke-width="1.4"/>
+      <rect x="9" y="26" width="26" height="28" rx="2" fill="${bodyDark}" opacity="0.3"/>
+      
+      <!-- Reinforcement Ribs -->
+      <line x1="10" y1="34" x2="34" y2="34" stroke="#0F172A" stroke-width="0.8" opacity="0.4"/>
+      <line x1="10" y1="42" x2="34" y2="42" stroke="#0F172A" stroke-width="0.8" opacity="0.4"/>
+      <line x1="10" y1="50" x2="34" y2="50" stroke="#0F172A" stroke-width="0.8" opacity="0.4"/>
+
+      <!-- Cab (White Top) -->
+      <rect x="7" y="6" width="30" height="19" rx="4" fill="${cabColor}" stroke="#0F172A" stroke-width="1.4"/>
+
+      <!-- Windshield -->
+      <rect x="10" y="9" width="24" height="7" rx="2" fill="#1E293B" opacity="0.75"/>
+
+      <!-- Side Mirrors -->
+      <rect x="3" y="10" width="4" height="3" rx="1" fill="#0F172A"/>
+      <rect x="37" y="10" width="4" height="3" rx="1" fill="#0F172A"/>
+
+      <!-- Dual Headlights (Vibrant Warm Yellow) -->
+      <circle cx="12" cy="7" r="1.5" fill="#FDE047"/>
+      <circle cx="32" cy="7" r="1.5" fill="#FDE047"/>
+
+      <!-- CleanTrack Identity Crest / Beacon -->
+      <circle cx="22" cy="18" r="2" fill="${accentColor}"/>
+    </g>
+  </svg>
+</div>`;
 }
 
-/** Quantize bearing to 5-degree buckets so we reuse the same L.divIcon
- *  across frames — creating icons on every RAF tick killed FPS. */
+/** Quantized icon cache for smooth RAF updates without re-instantiating L.DivIcon */
 const ICON_CACHE = new Map<string, L.DivIcon>();
 function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {}) {
   const size = opts.size ?? "sm";
@@ -50,19 +83,19 @@ function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boo
   const key = `${size}|${opts.offline ? 1 : 0}|${opts.active ? 1 : 0}|${bucket}`;
   const cached = ICON_CACHE.get(key);
   if (cached) return cached;
-  const cls = `ct-truck ${size === "sm" ? "small" : ""} ${opts.offline ? "offline" : ""}`;
-  const dim = size === "sm" ? { w: 26, h: 36 } : { w: 40, h: 56 };
+
+  const dim = size === "sm" ? { w: 30, h: 44 } : { w: 44, h: 64 };
   const html = `
     <div style="position:relative;width:${dim.w}px;height:${dim.h}px;">
-      ${opts.active ? '<div class="ct-truck-active-ring"></div>' : ""}
-      <div class="${cls}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bucket}deg);">
-        ${truckSvgHTML()}
+      ${opts.active && !opts.offline ? '<div class="ct-truck-active-pulse"></div>' : ""}
+      <div class="ct-truck-wrapper ${opts.offline ? "offline" : ""}" style="width:${dim.w}px;height:${dim.h}px;transform:rotate(${bucket}deg);">
+        ${navigationTruckSvgHTML(opts.active, opts.offline)}
       </div>
       ${opts.active && !opts.offline ? '<div class="ct-truck-green-dot"></div>' : ""}
     </div>`;
   const icon = L.divIcon({
     html,
-    className: "",
+    className: "ct-truck-leaflet-marker",
     iconSize: [dim.w, dim.h],
     iconAnchor: [dim.w / 2, dim.h / 2],
   });
@@ -71,24 +104,34 @@ function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boo
 }
 
 const RESIDENT_ICON = L.divIcon({
-  html: `<div class="ct-resident-dot"></div>`,
-  className: "",
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
+  html: `
+    <div class="ct-resident-marker-container">
+      <div class="ct-resident-accuracy-pulse"></div>
+      <div class="ct-resident-dot"></div>
+    </div>`,
+  className: "ct-resident-leaflet-marker",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 function residentIcon() { return RESIDENT_ICON; }
 
 const ETA_ICON_CACHE = new Map<string, L.DivIcon>();
-function etaIcon(text: string) {
-  const c = ETA_ICON_CACHE.get(text);
-  if (c) return c;
+function etaBadgeIcon(text: string, distanceStr?: string) {
+  const key = `${text}|${distanceStr ?? ""}`;
+  const cached = ETA_ICON_CACHE.get(key);
+  if (cached) return cached;
+  const html = `
+    <div class="ct-navigation-eta-badge">
+      <span class="ct-eta-time">${text}</span>
+      ${distanceStr ? `<span class="ct-eta-dist">${distanceStr}</span>` : ""}
+    </div>`;
   const icon = L.divIcon({
-    html: `<div class="ct-eta-badge">${text}</div>`,
-    className: "",
-    iconSize: [70, 28],
-    iconAnchor: [35, 32],
+    html,
+    className: "ct-eta-leaflet-badge",
+    iconSize: [90, 32],
+    iconAnchor: [45, 42],
   });
-  ETA_ICON_CACHE.set(text, icon);
+  ETA_ICON_CACHE.set(key, icon);
   if (ETA_ICON_CACHE.size > 64) {
     const first = ETA_ICON_CACHE.keys().next().value;
     if (first) ETA_ICON_CACHE.delete(first);
@@ -99,18 +142,18 @@ function etaIcon(text: string) {
 const LANDMARK_CACHE = new Map<string, L.DivIcon>();
 function landmarkIcon(name: string, color = "#3B82F6") {
   const key = `${name}|${color}`;
-  const c = LANDMARK_CACHE.get(key);
-  if (c) return c;
+  const cached = LANDMARK_CACHE.get(key);
+  if (cached) return cached;
   const html = `
-    <div class="ct-landmark">
+    <div class="ct-navigation-landmark">
       <div class="ct-landmark-pin" style="background:${color}"></div>
       <span>${name}</span>
     </div>`;
   const icon = L.divIcon({
     html,
     className: "",
-    iconSize: [10, 10],
-    iconAnchor: [12, 24],
+    iconSize: [12, 12],
+    iconAnchor: [14, 28],
   });
   LANDMARK_CACHE.set(key, icon);
   return icon;
@@ -123,8 +166,8 @@ function homeIcon(lang: "en" | "hi" | "mr") {
   const icon = L.divIcon({
     html: `<div class="ct-home-pin">${translate("Home", lang)}</div>`,
     className: "",
-    iconSize: [10, 10],
-    iconAnchor: [-12, 30],
+    iconSize: [12, 12],
+    iconAnchor: [-10, 32],
   });
   HOME_ICON_CACHE.set(lang, icon);
   return icon;
@@ -135,37 +178,138 @@ function cityBadge(name: string) {
   const c = CITY_BADGE_CACHE.get(name);
   if (c) return c;
   const icon = L.divIcon({
-    html: `<div style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;color:#111;box-shadow:0 2px 8px rgba(0,0,0,0.06)">${name}</div>`,
-    className: "", iconSize: [70, 22], iconAnchor: [35, 11],
+    html: `<div class="ct-city-badge">${name}</div>`,
+    className: "",
+    iconSize: [90, 26],
+    iconAnchor: [45, 13],
   });
   CITY_BADGE_CACHE.set(name, icon);
   return icon;
 }
 
-/** Landmark points around Shirpur for map POIs. */
+/** Landmark points around Shirpur for navigation map POIs */
 const SHIRPUR_LANDMARKS: { name: string; pos: LatLng; color: string }[] = [
-  { name: "Shirpur Park", pos: { lat: SHIRPUR.lat + 0.006, lng: SHIRPUR.lng - 0.005 }, color: "#22c55e" },
+  { name: "Shirpur Park", pos: { lat: SHIRPUR.lat + 0.006, lng: SHIRPUR.lng - 0.005 }, color: "#22C55E" },
   { name: "Old Cotton Market", pos: { lat: SHIRPUR.lat + 0.010, lng: SHIRPUR.lng + 0.002 }, color: "#3B82F6" },
-  { name: "Municipal Office", pos: { lat: SHIRPUR.lat - 0.004, lng: SHIRPUR.lng + 0.001 }, color: "#3B82F6" },
-  { name: "Gandhi Chowk", pos: { lat: SHIRPUR.lat - 0.002, lng: SHIRPUR.lng - 0.006 }, color: "#3B82F6" },
+  { name: "Municipal Office", pos: { lat: SHIRPUR.lat - 0.004, lng: SHIRPUR.lng + 0.001 }, color: "#0EA5E9" },
+  { name: "Gandhi Chowk", pos: { lat: SHIRPUR.lat - 0.002, lng: SHIRPUR.lng - 0.006 }, color: "#F97316" },
 ];
 
-function FlyTo({ center, zoom }: { center: LatLng; zoom?: number }) {
+/**
+ * Controller component for Driver Mode navigation camera.
+ * Places the vehicle in the lower-middle section of the screen so the road ahead is visible.
+ */
+function DriverNavigationCameraController({
+  position,
+  bearing,
+  active,
+}: {
+  position: LatLng;
+  bearing: number;
+  active: boolean;
+}) {
   const map = useMap();
+  const lastPos = useRef<LatLng | null>(null);
+
   useEffect(() => {
-    map.setView([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true });
-  }, [center.lat, center.lng]); // eslint-disable-line
+    if (!active) return;
+    if (
+      lastPos.current &&
+      Math.abs(lastPos.current.lat - position.lat) < 0.00005 &&
+      Math.abs(lastPos.current.lng - position.lng) < 0.00005
+    ) {
+      return;
+    }
+    lastPos.current = position;
+
+    // Offset camera slightly forward in direction of bearing so road ahead is visible
+    const rad = (bearing * Math.PI) / 180;
+    const offsetLat = Math.cos(rad) * 0.0012;
+    const offsetLng = Math.sin(rad) * 0.0012;
+
+    const targetCenter: [number, number] = [position.lat + offsetLat, position.lng + offsetLng];
+    map.panTo(targetCenter, { animate: true, duration: 0.8, easeLinearity: 0.25 });
+  }, [position.lat, position.lng, bearing, active, map]);
+
   return null;
 }
 
-/** Recenter only when the trigger key changes (e.g. active truck id), never on every tick. */
+/** Recenter camera on target key change */
 function RecenterOnKey({ center, zoom, triggerKey }: { center: LatLng; zoom?: number; triggerKey: string }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true, duration: 0.6 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerKey]);
+    map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true, duration: 0.7 });
+  }, [triggerKey]); // eslint-disable-line
   return null;
+}
+
+/** Floating Navigation Map Controls (+, -, compass, recenter, speed limit) */
+function NavigationControls({
+  onRecenter,
+  speedKmh,
+  signalFresh = true,
+  lastFixSec,
+}: {
+  onRecenter?: () => void;
+  speedKmh?: number;
+  signalFresh?: boolean;
+  lastFixSec?: number;
+}) {
+  const map = useMap();
+
+  const handleZoomIn = useCallback(() => map.zoomIn(), [map]);
+  const handleZoomOut = useCallback(() => map.zoomOut(), [map]);
+
+  return (
+    <div className="absolute right-3 bottom-24 z-[500] flex flex-col items-center gap-2 pointer-events-auto">
+      {/* Speed badge if vehicle is moving */}
+      {typeof speedKmh === "number" && speedKmh > 1 && (
+        <div className="ct-speed-badge shadow-md">
+          <span className="ct-speed-val">{Math.round(speedKmh)}</span>
+          <span className="ct-speed-unit">km/h</span>
+        </div>
+      )}
+
+      {/* GPS Stale Warning Badge */}
+      {!signalFresh && (
+        <div className="ct-gps-stale-badge shadow-md animate-pulse">
+          <span>⚠️ {lastFixSec ? `GPS Stale (${lastFixSec}s)` : "Weak Signal"}</span>
+        </div>
+      )}
+
+      {/* Recenter / Target Lock Button */}
+      {onRecenter && (
+        <button
+          onClick={onRecenter}
+          className="ct-nav-btn ct-nav-btn-accent shadow-lg"
+          title="Recenter Camera"
+          aria-label="Recenter camera"
+        >
+          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm0-13a5 5 0 100 10 5 5 0 000-10zm0 8a3 3 0 110-6 3 3 0 010 6z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Zoom In & Out Controls */}
+      <div className="flex flex-col bg-white rounded-2xl shadow-lg border border-neutral-200/80 overflow-hidden">
+        <button
+          onClick={handleZoomIn}
+          className="ct-nav-btn border-b border-neutral-100 hover:bg-neutral-50"
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="ct-nav-btn hover:bg-neutral-50"
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+      </div>
+    </div>
+  );
 }
 
 type ResidentMapProps = {
@@ -191,10 +335,9 @@ export function TruckMap(props: Props) {
   const lang = useI18n((s) => s.lang);
   useEffect(() => { startSimulation(); }, []);
   const trucks = useTrucks((s) => s.trucks);
-  // trucks reference changes every step (immutable object replacement), so we
-  // already re-render on every tick. No need for a separate `.tick` subscribe.
   const list = useMemo(() => Object.values(trucks), [trucks]);
 
+  // RESIDENT MODE
   if (props.mode === "resident") {
     const onlineTrucks = list.filter((t) => t.status !== "offline");
     const nearest =
@@ -204,6 +347,15 @@ export function TruckMap(props: Props) {
             haversine(cur.position, props.resident) < haversine(best.position, props.resident) ? cur : best,
           );
     const active = props.activeTruckId ? trucks[props.activeTruckId] : nearest;
+    const distanceM = active ? haversine(active.position, props.resident) : 0;
+    const etaText = formatEta(distanceM, lang).toUpperCase();
+    const distText = formatDistance(distanceM, lang);
+
+    // Calculate GPS fix freshness (fresh if updated within 20s)
+    const now = Date.now();
+    const fixAgeSec = active?.lastUpdate ? Math.round((now - active.lastUpdate) / 1000) : 0;
+    const signalFresh = fixAgeSec < 20;
+
     return (
       <MapContainer
         center={[props.resident.lat, props.resident.lng]}
@@ -216,59 +368,57 @@ export function TruckMap(props: Props) {
         boxZoom={true}
         keyboard={true}
         attributionControl={false}
-        style={{ height: "100%", width: "100%" }}
+        className="w-full h-full"
       >
-        <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
-        <ZoomControl position="bottomright" />
+        <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+
         <RecenterOnKey
           center={props.resident}
           zoom={15}
           triggerKey={active?.id ?? "none"}
         />
 
-        {/* Geofence (soft blue disk, matches reference) */}
+        {/* Soft Geofence Halo Ring */}
         <Circle
           center={[props.resident.lat, props.resident.lng]}
           radius={props.radius}
-          pathOptions={{ color: "#3b82f6", weight: 1.2, opacity: 0.35, fillColor: "#3b82f6", fillOpacity: 0.12 }}
+          pathOptions={{
+            color: "#22C55E",
+            weight: 1.5,
+            opacity: 0.45,
+            fillColor: "#22C55E",
+            fillOpacity: 0.08,
+            dashArray: "6 8",
+          }}
         />
 
-        {/* Landmark pins */}
+        {/* Landmark POIs */}
         {SHIRPUR_LANDMARKS.map((lm) => (
           <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
         ))}
 
-        {/* Active truck's route as thick blue navigation line */}
-        {active && (
-          <>
-            <Polyline
-              positions={active.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
-              pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
-            />
-            <Polyline
-              positions={active.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
-              pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
-            />
-          </>
+        {/* OSRM Navigation Route Line with Dual-Casing Outline */}
+        {active && active.truck.route.length >= 2 && (
+          <NavigationPolyline positions={active.truck.route} active={true} />
         )}
 
-        {/* Resident location + Home label */}
+        {/* Resident Location Marker & Home Label */}
         <Marker position={[props.resident.lat, props.resident.lng]} icon={residentIcon()} />
         <Marker position={[props.resident.lat, props.resident.lng]} icon={homeIcon(lang)} interactive={false} />
 
-        {/* Idle scattered trucks — bearing matches their current road segment */}
+        {/* Idle Trucks Roster */}
         {list
           .filter((t) => t.id !== active?.id)
           .map((t) => (
             <IdleTruckMarker key={t.id} truck={t} />
           ))}
 
-        {/* Active truck (top) + ETA badge riding on it */}
+        {/* Active Truck + Navigation ETA Badge */}
         {active && (
           <>
             <Marker
               position={[active.position.lat, active.position.lng]}
-              icon={etaIcon(formatEta(haversine(active.position, props.resident), lang).toUpperCase())}
+              icon={etaBadgeIcon(etaText, distText)}
               interactive={false}
             />
             <Marker
@@ -277,61 +427,95 @@ export function TruckMap(props: Props) {
             />
           </>
         )}
+
+        <NavigationControls
+          onRecenter={() => {}}
+          speedKmh={active ? active.speedMps * 3.6 : 0}
+          signalFresh={signalFresh}
+          lastFixSec={fixAgeSec}
+        />
       </MapContainer>
     );
   }
 
+  // DRIVER MODE
   if (props.mode === "driver") {
     const truck = trucks[props.truckId];
     if (!truck) return null;
+
+    const speedKmh = truck.speedMps * 3.6;
+    const now = Date.now();
+    const fixAgeSec = Math.round((now - truck.lastUpdate) / 1000);
+    const signalFresh = fixAgeSec < 20;
+
     return (
       <MapContainer
         center={[truck.position.lat, truck.position.lng]}
-        zoom={15}
+        zoom={16}
         zoomControl={false}
         attributionControl={false}
-        style={{ height: "100%", width: "100%" }}
+        className="w-full h-full"
       >
-        <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
-        <ZoomControl position="bottomright" />
-        <FlyTo center={truck.position} zoom={15} />
-        <Polyline
-          positions={truck.truck.route.map((p) => [p.lat, p.lng] as [number, number])}
-          pathOptions={{ color: "#3B82F6", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }}
+        <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+
+        {/* Navigation Camera Controller (Keeps road ahead visible) */}
+        <DriverNavigationCameraController
+          position={truck.position}
+          bearing={truck.bearing}
+          active={truck.status !== "offline"}
         />
+
+        {/* OSRM Route with Casing Outline */}
+        {truck.truck.route.length >= 2 && (
+          <NavigationPolyline positions={truck.truck.route} active={true} />
+        )}
+
+        {/* Driver Vehicle Marker */}
         <Marker
           position={[truck.position.lat, truck.position.lng]}
           icon={truckDivIcon(truck.bearing, { size: "lg", active: true, offline: truck.status === "offline" })}
         />
+
+        <NavigationControls
+          speedKmh={speedKmh}
+          signalFresh={signalFresh}
+          lastFixSec={fixAgeSec}
+        />
       </MapContainer>
     );
   }
 
-  // admin
+  // ADMIN FLEET OVERVIEW MODE
   const bounds: L.LatLngBoundsExpression = [
-    [SHIRPUR.lat - 0.03, SHIRPUR.lng - 0.03],
-    [SHIRPUR.lat + 0.03, SHIRPUR.lng + 0.03],
+    [SHIRPUR.lat - 0.035, SHIRPUR.lng - 0.035],
+    [SHIRPUR.lat + 0.035, SHIRPUR.lng + 0.035],
   ];
   const highlighted = props.highlightId ? trucks[props.highlightId] : undefined;
+
   return (
     <MapContainer
       bounds={bounds}
       zoomControl={false}
       attributionControl={false}
-      style={{ height: "100%", width: "100%" }}
+      className="w-full h-full"
     >
-      <TileLayer url={CARTO_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
-      <ZoomControl position="bottomright" />
+      <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+
       <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
       {SHIRPUR_LANDMARKS.map((lm) => (
         <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
       ))}
+
       {highlighted && (
         <RecenterOnKey center={highlighted.position} zoom={16} triggerKey={highlighted.id} />
       )}
+
+      {/* Fleet Routes */}
       {list.map((t) => (
         <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
       ))}
+
+      {/* Fleet Markers */}
       {list.map((t) => (
         <AdminTruckMarker
           key={t.id}
@@ -340,14 +524,46 @@ export function TruckMap(props: Props) {
           onClick={props.onTruckClick}
         />
       ))}
+
+      <NavigationControls />
     </MapContainer>
   );
 }
 
-/**
- * Memoized marker for idle/scattered trucks on the resident map.
- * Only re-renders when position (~5m), bearing (~5°), or status actually change.
- */
+/** Dual-cased navigation polyline (Dark Casing + Vibrant CleanTrack Green Core) */
+function NavigationPolyline({ positions, active }: { positions: LatLng[]; active?: boolean }) {
+  const coords = useMemo(() => positions.map((p) => [p.lat, p.lng] as [number, number]), [positions]);
+  if (coords.length < 2) return null;
+
+  return (
+    <>
+      {/* Outer Road Casing */}
+      <Polyline
+        positions={coords}
+        pathOptions={{
+          color: "#0F172A",
+          weight: active ? 10 : 6,
+          opacity: 0.35,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
+      {/* Inner Navigation Line */}
+      <Polyline
+        positions={coords}
+        pathOptions={{
+          color: active ? "#22C55E" : "#3B82F6",
+          weight: active ? 6 : 3.5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
+    </>
+  );
+}
+
+/** Memoized Idle Truck Marker */
 const IdleTruckMarker = memo(
   function IdleTruckMarker({ truck }: { truck: LiveTruck }) {
     bumpRender();
@@ -366,9 +582,7 @@ const IdleTruckMarker = memo(
     Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
 );
 
-/**
- * Memoized admin marker: skips re-render if the visible attributes are unchanged.
- */
+/** Memoized Admin Fleet Truck Marker */
 const AdminTruckMarker = memo(
   function AdminTruckMarker({
     truck,
@@ -391,18 +605,20 @@ const AdminTruckMarker = memo(
         })}
         eventHandlers={{ click: () => onClick?.(truck.id) }}
       >
-        <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={highlighted}>
+        <Tooltip direction="top" offset={[0, -12]} opacity={1} permanent={highlighted}>
           <span style={{ fontWeight: 700, fontSize: 11 }}>{truck.id}</span>
         </Tooltip>
         <Popup>
-          <div style={{ minWidth: 180 }}>
-            <div style={{ fontWeight: 700 }}>{truck.truck.id} · {truck.truck.name}</div>
-            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.driverName}</div>
-            <div style={{ color: "#666", fontSize: 12 }}>{truck.truck.wardName}</div>
-            <div style={{ marginTop: 6, fontSize: 12 }}>
+          <div style={{ minWidth: 190, padding: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{truck.truck.id} · {truck.truck.name}</div>
+            <div style={{ color: "#64748B", fontSize: 12, marginTop: 2 }}>{truck.truck.driverName}</div>
+            <div style={{ color: "#64748B", fontSize: 12 }}>{truck.truck.wardName}</div>
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600 }}>
               {translate("Stops", lang)}: {truck.completedStops}/{truck.truck.totalStops}
             </div>
-            <div style={{ fontSize: 12 }}>{translate("Status", lang)}: {truck.status}</div>
+            <div style={{ fontSize: 12, textTransform: "capitalize", color: truck.status === "offline" ? "#EF4444" : "#22C55E" }}>
+              {translate("Status", lang)}: {truck.status}
+            </div>
           </div>
         </Popup>
       </Marker>
@@ -419,39 +635,12 @@ const AdminTruckMarker = memo(
 );
 
 const PolyRoute = memo(function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
-  // Use the spline-smoothed drive path so the drawn route follows the same
-  // curve the truck actually travels (no straight-line waypoint hops).
   const positions = useMemo(
-    () => (truck.path ?? truck.truck.route).map((p) => [p.lat, p.lng] as [number, number]),
+    () => (truck.path ?? truck.truck.route),
     [truck.path, truck.truck.route],
   );
   if (!showRoute && !highlight) return null;
-  const offline = truck.status === "offline";
-  if (highlight) {
-    return (
-      <>
-        <Polyline
-          positions={positions}
-          pathOptions={{ color: "#ffffff", weight: 10, opacity: 0.9 }}
-        />
-        <Polyline
-          positions={positions}
-          pathOptions={{ color: "#3B82F6", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }}
-        />
-      </>
-    );
-  }
-  return (
-    <Polyline
-      positions={positions}
-      pathOptions={{
-        color: offline ? "#cbd5e1" : "#94a3b8",
-        weight: 2,
-        opacity: offline ? 0.35 : 0.5,
-        dashArray: offline ? "4 6" : undefined,
-      }}
-    />
-  );
+  return <NavigationPolyline positions={positions} active={highlight} />;
 }, (prev, next) =>
   prev.showRoute === next.showRoute &&
   prev.highlight === next.highlight &&

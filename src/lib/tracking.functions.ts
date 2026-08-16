@@ -1,46 +1,132 @@
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { etaInput, gpsInput, nearbyInput } from "./tracking-schemas";
 
+const completeStopInput = z.object({
+  stopId: z.string().uuid(),
+  notes: z.string().optional(),
+});
+
 /**
- * Driver GPS ingest. The truck is resolved from the encrypted session cookie's
- * driver roster entry, so a driver can only report for their own truck.
+ * Driver GPS ingest. Strictly verifies the authenticated driver from the server
+ * session and database `drivers` table, binding submissions to auth.uid()/user_id.
  */
 export const ingestDriverGps = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => gpsInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
-    const { truckCodeForPhone, truckIdForCode, admin } = await import("./tracking.server");
+    const { admin } = await import("./tracking.server");
 
     const user = await getUser();
-    if (!user || user.role !== "driver" || !user.phone) {
+    if (!user || user.role !== "driver") {
       return { accepted: false as const, reason: "unauthorized" };
     }
-    const ownCode = await truckCodeForPhone(user.phone);
-    if (!ownCode || ownCode !== data.truckCode) {
-      return { accepted: false as const, reason: "no_assigned_truck" };
-    }
-    const truckId = await truckIdForCode(ownCode);
-    if (!truckId) return { accepted: false as const, reason: "unknown_truck" };
 
     const db = await admin();
-    const { data: result, error } = await db.rpc("ingest_truck_location_for", {
-      _truck_id: truckId,
-      // no Supabase-auth driver row is linked to the cookie session yet
-      _driver_id: null as unknown as string,
+
+    let driverRow: { id: string; user_id: string; assigned_truck_id: string | null } | null = null;
+    let assignedTruckCode: string | null = null;
+
+    if (user.phone) {
+      const { data: profile } = await db
+        .from("profiles")
+        .select("user_id")
+        .eq("phone", user.phone)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        const { data: driver } = await db
+          .from("drivers")
+          .select("id, user_id, assigned_truck_id, assigned_truck:trucks!drivers_assigned_truck_id_fkey(truck_code)")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+
+        if (driver) {
+          driverRow = {
+            id: driver.id,
+            user_id: driver.user_id,
+            assigned_truck_id: driver.assigned_truck_id,
+          };
+          const truckObj = driver.assigned_truck as { truck_code: string } | null;
+          assignedTruckCode = truckObj?.truck_code ?? null;
+        }
+      }
+    }
+
+    if (!driverRow) {
+      return { accepted: false as const, reason: "not_a_driver" };
+    }
+
+    if (!driverRow.assigned_truck_id) {
+      return { accepted: false as const, reason: "no_assigned_truck" };
+    }
+
+    // Verify driver is reporting for their assigned truck, preventing cross-truck submissions
+    if (data.truckCode && assignedTruckCode && data.truckCode !== assignedTruckCode) {
+      return { accepted: false as const, reason: "truck_mismatch" };
+    }
+
+    const { data: result, error } = await (db.rpc as Function)("ingest_truck_location_for", {
+      _truck_id: driverRow.assigned_truck_id,
+      _driver_id: driverRow.id,
       _lat: data.lat,
       _lng: data.lng,
       _heading: data.heading ?? 0,
       _speed_kmh: data.speedKmh ?? 0,
       ...(data.accuracyM === undefined ? {} : { _accuracy_m: data.accuracyM }),
+      _fixed_at: new Date().toISOString(),
     });
+
     if (error) {
       console.error("[gps] ingest failed", error.message);
       return { accepted: false as const, reason: "ingest_error" };
     }
+
     return (result ?? { accepted: false, reason: "unknown" }) as {
       accepted: boolean;
       reason?: string;
       notified?: number;
+    };
+  });
+
+/** Atomic Route Stop completion server function. */
+export const completeRouteStop = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => completeStopInput.parse(data))
+  .handler(async ({ data }) => {
+    const { getUser } = await import("./session.server");
+    const { admin } = await import("./tracking.server");
+
+    const user = await getUser();
+    if (!user || user.role !== "driver") {
+      return { success: false as const, reason: "unauthorized" };
+    }
+
+    const db = await admin();
+    let driverId: string | null = null;
+    if (user.phone) {
+      const { data: profile } = await db.from("profiles").select("user_id").eq("phone", user.phone).maybeSingle();
+      if (profile?.user_id) {
+        const { data: driver } = await db.from("drivers").select("id").eq("user_id", profile.user_id).maybeSingle();
+        if (driver) driverId = driver.id;
+      }
+    }
+
+    const { data: result, error } = await (db.rpc as Function)("complete_route_stop_atomic", {
+      _stop_id: data.stopId,
+      _driver_id: driverId,
+      _notes: data.notes ?? null,
+    });
+
+    if (error) {
+      console.error("[stop] atomic completion failed", error.message);
+      return { success: false as const, reason: "database_error" };
+    }
+
+    return (result ?? { success: false, reason: "unknown" }) as {
+      success: boolean;
+      reason?: string;
+      stop_id?: string;
+      completed_at?: string;
     };
   });
 
@@ -50,7 +136,7 @@ export const getNearbyTrucks = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { admin } = await import("./tracking.server");
     const db = await admin();
-    const { data: rows, error } = await db.rpc("nearest_trucks", {
+    const { data: rows, error } = await (db.rpc as Function)("nearest_trucks", {
       _lat: data.lat,
       _lng: data.lng,
       _radius_m: data.radiusM,
@@ -61,7 +147,7 @@ export const getNearbyTrucks = createServerFn({ method: "POST" })
       return { trucks: [] as never[], error: "unavailable" as const };
     }
     return {
-      trucks: (rows ?? []).map((r) => ({
+      trucks: (rows ?? []).map((r: any) => ({
         truckId: r.truck_id,
         truckCode: r.truck_code,
         status: r.status,
@@ -85,10 +171,9 @@ export const getTruckEta = createServerFn({ method: "POST" })
     if (!truckId) return { available: false as const };
 
     const db = await admin();
-    const { data: fix } = await db
-      .rpc("nearest_trucks", { _lat: data.lat, _lng: data.lng, _radius_m: 100000, _limit: 50 })
-      .then((res) => ({
-        data: (res.data ?? []).find((r) => r.truck_id === truckId) ?? null,
+    const { data: fix } = await (db.rpc as Function)("nearest_trucks", { _lat: data.lat, _lng: data.lng, _radius_m: 100000, _limit: 50 })
+      .then((res: any) => ({
+        data: (res.data ?? []).find((r: any) => r.truck_id === truckId) ?? null,
       }));
     if (!fix) return { available: false as const };
 

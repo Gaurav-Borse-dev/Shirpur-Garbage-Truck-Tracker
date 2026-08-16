@@ -20,7 +20,6 @@ export type LiveTruck = {
   segmentT: number; // 0..1 progress within segment
   completedStops: number;
   trail: LatLng[];
-  history: { at: number; pos: LatLng }[]; // ring buffer for replay
   lastUpdate: number;
   /** Latest GPS fix received from the backend (live mode only). */
   fix?: { pos: LatLng; bearing: number; speedMps: number; at: number };
@@ -78,7 +77,6 @@ function initLive(truck: Truck): LiveTruck {
     segmentT: 0,
     completedStops: 0,
     trail: [],
-    history: [],
     lastUpdate: Date.now(),
   };
 }
@@ -88,8 +86,6 @@ const initial: Record<string, LiveTruck> = Object.fromEntries(
   FALLBACK_TRUCKS.map((t) => [t.id, initLive(t)]),
 );
 
-const HISTORY_CAP = 600; // ~5 min @ 2Hz capture
-const HISTORY_INTERVAL_MS = 500;
 
 export const useTrucks = create<TrucksState>((set, get) => ({
   trucks: initial,
@@ -216,15 +212,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
       const pos = lerpLatLng(lt.position, lt.fix.pos, k);
       const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
       const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-      trail.push(pos);
-      let history = lt.history;
-      let lastUpdate = lt.lastUpdate;
-      if (now - lt.lastUpdate >= HISTORY_INTERVAL_MS) {
-        history = lt.history.length >= HISTORY_CAP ? lt.history.slice(-HISTORY_CAP + 1) : lt.history.slice();
-        history.push({ at: now, pos });
-        lastUpdate = now;
-      }
-      next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, history, lastUpdate };
+      next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
       changed = true;
     }
     if (changed) set({ trucks: next, tick: state.tick + 1 });

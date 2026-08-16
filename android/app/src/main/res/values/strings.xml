@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CleanTrack</string>
+    <string name="title_activity_main">CleanTrack</string>
+    <string name="package_name">in.gov.shirpur.cleantrack</string>
+    <string name="custom_url_scheme">in.gov.shirpur.cleantrack</string>
+</resources>

@@ -105,23 +105,56 @@ function DriverHome() {
           </ClientOnly>
         </div>
 
-        {/* Top bar */}
-        <div className="absolute top-3 left-3 right-3 z-[500] flex items-center justify-between pointer-events-none">
-          <div className="pointer-events-auto bg-white rounded-2xl shadow-md px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Driver")}</div>
-            <div className="text-sm font-bold text-ink">{session.driverName} · {truckId}</div>
-          </div>
-          <div className="pointer-events-auto flex items-center gap-2">
-            {connection === "reconnecting" && (
-              <div className="ct-pill bg-[#FEF3C7] text-[#92400E] shadow-md">
-                <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                {tr("Reconnecting")}
+        {/* Navigation Top Panel */}
+        <div className="absolute top-3 left-3 right-3 z-[500] pointer-events-none flex flex-col gap-2">
+          {/* Status & Driver Header Bar */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="pointer-events-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl shadow-xl px-4 py-2 flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 grid place-items-center font-bold text-xs">
+                {stopNum}
               </div>
-            )}
-            <div className={`ct-pill ${online ? "bg-brand text-white" : "bg-neutral-300 text-white"} shadow-md`}>
-              <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-white/60"}`} /> {online ? tr("Online") : tr("Offline")}
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{tr("Driver Navigation")}</div>
+                <div className="text-xs font-bold text-white truncate max-w-[140px]">{session.driverName} · {truckId}</div>
+              </div>
+            </div>
+            <div className="pointer-events-auto flex items-center gap-2">
+              {connection === "reconnecting" && (
+                <div className="ct-pill bg-amber-100 text-amber-900 border border-amber-300 shadow-md">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  {tr("Reconnecting")}
+                </div>
+              )}
+              <div className={`ct-pill ${online ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300"} shadow-md`}>
+                <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-slate-400"}`} /> {online ? tr("Online") : tr("Offline")}
+              </div>
             </div>
           </div>
+
+          {/* Next Stop Navigation Banner */}
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="pointer-events-auto bg-slate-900 text-white rounded-2xl p-3.5 shadow-2xl border border-slate-800 flex items-center justify-between"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                {tr("Next Collection Stop")}
+              </div>
+              <div className="text-sm font-bold text-white truncate mt-0.5">{live.truck.wardName}</div>
+              <div className="text-xs text-slate-400 truncate mt-0.5">
+                {tr("Collection Point")} #{stopNum} · {tr("Shirpur Ward")}
+              </div>
+            </div>
+            <button
+              onClick={advance}
+              className="ml-3 shrink-0 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-colors flex items-center gap-1"
+            >
+              <span>{tr("Complete")}</span>
+              <CheckIcon className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
         </div>
 
         <ToastHost />

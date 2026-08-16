@@ -170,10 +170,9 @@ function RootComponent() {
   const location = useLocation();
 
   // Show language switcher only on these 2 pages
+ // Show language switcher only on role selection page
   const showLanguageSwitcher =
-    location.pathname === "/role" ||
-    location.pathname === "/resident/profile";
-
+    location.pathname === "/role";
   return (
     <QueryClientProvider client={queryClient}>
       <AppSplash>
