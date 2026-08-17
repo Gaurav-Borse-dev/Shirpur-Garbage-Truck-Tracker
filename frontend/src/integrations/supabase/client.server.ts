@@ -32,8 +32,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 // Function to create regular Supabase client with publishable key
 function createSupabaseClient() {
   // Use environment variables from .env file
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://etbzfntzjivjjltnmefl.supabase.co";
-  const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_tc78bNYEkJIs4gHDnh5AxA_22fWJJ0z";
+  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://bqmqnzkmhmuuszwsonds.supabase.co";
+  const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_yCoBVoWQeRfeHc3czMPLZg_5BPoQDhH";
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     const missing = [
@@ -58,8 +58,8 @@ function createSupabaseClient() {
 
 // Function to create admin Supabase client with service role key
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://etbzfntzjivjjltnmefl.supabase.co";
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0YnpmbnR6aml2ampsdG5tZWZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjQ1MzY2OSwiZXhwIjoyMTAyMDI5NjY5fQ.-ifSOI46zdsKor5rIpFXV7bCWtyRw_pdzgF1KY1ydZg";
+  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://bqmqnzkmhmuuszwsonds.supabase.co";
+  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
