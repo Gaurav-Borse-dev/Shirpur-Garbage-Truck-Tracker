@@ -8,7 +8,7 @@ export function ChatBotButton() {
   return (
     <button
       onClick={open}
-      className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-125 transition-all duration-300 flex items-center justify-center group"
+      className="fixed bottom-20 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 text-white shadow-2xl hover:shadow-3xl transform hover:scale-125 transition-all duration-300 flex items-center justify-center group"
       aria-label="Open AI ChatBot"
       title="CleanTrack AI Assistant"
     >
