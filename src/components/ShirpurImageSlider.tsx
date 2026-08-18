@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
 import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
 import cleanTrackImg from "@/assets/clean-track.jpg";
+import smartImg from "@/assets/smart.jpg";
 
 interface Slide {
   id: string;
@@ -35,6 +36,13 @@ const SLIDES: Slide[] = [
     subtitle: "Real-time municipal waste truck monitoring",
     badge: "Smart Tracking",
   },
+  {
+    id: "smart-shirpur",
+    src: smartImg || "/smart.jpg",
+    title: "Smart Sanitation Fleet",
+    subtitle: "Automated waste management & clean city drive",
+    badge: "Municipal Sanitation",
+  },
 ];
 
 export function ShirpurImageSlider() {
@@ -60,10 +68,10 @@ export function ShirpurImageSlider() {
   };
 
   return (
-    <section className="w-full py-3 px-4 max-w-5xl mx-auto select-none">
+    <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/9] sm:aspect-[21/9] max-h-[260px] sm:max-h-[320px]"
+        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/9] sm:aspect-[21/9] max-h-[300px] sm:max-h-[360px] md:max-h-[400px]"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
@@ -82,7 +90,7 @@ export function ShirpurImageSlider() {
             <img
               src={SLIDES[currentIndex].src}
               alt={SLIDES[currentIndex].title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
 
             {/* Gradient Overlay */}

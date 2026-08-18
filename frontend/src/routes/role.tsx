@@ -45,7 +45,6 @@ function RolePage() {
         <Card to="/login/admin" Icon={LockIcon} title={t("Municipal Admin")} subtitle={t("Monitor the entire fleet")} />
       </div>
       <div className="mt-auto pb-8 text-center text-xs text-neutral-400">
-        {t("Powered by CleanTrack · v1.0")}
       </div>
     </MobileFrame>
   );

@@ -1,114 +1,436 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { serverSignOut } from "@/lib/auth.functions";
 import { useState } from "react";
+
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
 import { useBookings } from "@/store/bookings";
+import { useI18n } from "@/store/i18n";
 import { useT } from "@/lib/i18n";
+
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,
 });
 
+
 function ProfilePage() {
-  const tr = useT();
+
   const navigate = useNavigate();
-  const session = useAuth((s) => s.session)!;
+  const tr = useT();
+
+  const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
+
   const radius = useSettings((s) => s.alertRadius);
   const setRadius = useSettings((s) => s.setAlertRadius);
-  const [draft, setDraft] = useState(radius);
-  const dirty = draft !== radius;
 
-  const phone = session.role === "resident" ? session.phone : "—";
+  const lang = useI18n((s) => s.lang);
+  const setLang = useI18n((s) => s.setLang);
+
+
+  const [draft, setDraft] = useState(radius);
+
+
+  if (!session) {
+    return (
+      <div className="p-6 text-center">
+        Loading profile...
+      </div>
+    );
+  }
+
+
+  const phone =
+    session.role === "resident"
+      ? session.phone
+      : "0000000000";
+
+
   const initials = phone.slice(-2);
-  const options = [100, 250, 500, 1000];
-  const allBookings = useBookings((s) => s.bookings);
-  const myBookings = allBookings.filter((b) => b.residentPhone === phone);
-  const pendingCount = myBookings.filter((b) => b.status === "pending").length;
+
+
+  const options = [
+    100,
+    250,
+    500,
+    1000
+  ];
+
+
+  const bookings = useBookings(
+    (s) => s.bookings
+  );
+
+
+  const myBookings =
+    bookings.filter(
+      (b) => b.residentPhone === phone
+    );
+
+
+  const pending =
+    myBookings.filter(
+      (b) => b.status === "pending"
+    ).length;
+
+
 
   return (
-    <div className="absolute inset-0 overflow-y-auto bg-white">
-      <div className="px-6 pt-8 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-ink text-white grid place-items-center font-bold text-xl">{initials}</div>
+
+    <div className="
+      min-h-screen
+      bg-white
+      overflow-y-auto
+      px-6
+      py-8
+    ">
+
+
+      {/* Profile Header */}
+
+      <div className="
+        flex
+        items-center
+        gap-4
+      ">
+
+        <div className="
+          w-16
+          h-16
+          rounded-full
+          bg-black
+          text-white
+          flex
+          items-center
+          justify-center
+          font-bold
+          text-xl
+        ">
+          {initials}
+        </div>
+
+
         <div>
-          <div className="font-bold text-ink">+91 {phone}</div>
-          <div className="text-xs text-neutral-500">{tr("Resident")} · {session.role === "resident" ? session.city : ""}</div>
+
+          <h2 className="font-bold">
+            +91 {phone}
+          </h2>
+
+          <p className="text-sm text-gray-500">
+            {tr("Resident")}
+          </p>
+
         </div>
+
       </div>
 
-      <div className="px-6 mt-8">
-        <h2 className="text-sm font-bold text-ink">{tr("Alert distance")}</h2>
-        <p className="text-xs text-neutral-500 mt-1">{tr("You'll be alerted when truck is within")} {draft >= 1000 ? `${draft / 1000} km` : `${draft} m`}.</p>
-        <div className="mt-3 grid grid-cols-4 gap-2">
-          {options.map((o) => (
-            <button
-              key={o}
-              onClick={() => setDraft(o)}
-              className={`h-10 rounded-full text-sm font-semibold transition-colors ${
-                draft === o ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
-              }`}
-            >
-              {o >= 1000 ? `${o / 1000}km` : `${o}m`}
-            </button>
-          ))}
+
+
+      {/* Alert Distance */}
+
+      <div className="mt-8">
+
+        <h3 className="font-bold">
+          {tr("Alert distance")}
+        </h3>
+
+
+        <p className="
+          text-sm
+          text-gray-500
+          mt-1
+        ">
+          {tr("You will get alert when truck is nearby.")}
+        </p>
+
+
+
+        <div className="
+          grid
+          grid-cols-4
+          gap-2
+          mt-4
+        ">
+
+
+          {
+            options.map((item) => (
+
+              <button
+
+                key={item}
+
+                onClick={() =>
+                  setDraft(item)
+                }
+
+                className={`
+                  rounded-full
+                  py-2
+                  text-sm
+                  ${draft === item
+                    ?
+                    "bg-black text-white"
+                    :
+                    "bg-gray-100"
+                  }
+                `}
+
+              >
+
+                {
+                  item >= 1000
+                    ?
+                    "1km"
+                    :
+                    item + "m"
+                }
+
+              </button>
+
+
+            ))
+          }
+
+
         </div>
-        {dirty && (
+
+
+        {
+          draft !== radius &&
+
           <button
-            onClick={() => setRadius(draft)}
-            className="mt-4 w-full h-12 rounded-xl bg-brand text-white font-semibold"
+
+            onClick={() =>
+              setRadius(draft)
+            }
+
+            className="
+              mt-4
+              w-full
+              bg-green-600
+              text-white
+              rounded-xl
+              py-3
+            "
+
           >
-            {tr("Save preferences")}
+            {tr("Save Preferences")}
+
           </button>
-        )}
+        }
+
+
       </div>
 
-      <div className="px-6 mt-8">
+
+
+
+      {/* Booking */}
+
+      <div className="mt-8">
+
+
         <button
-          onClick={() => navigate({ to: "/resident/booking" })}
-          className="w-full rounded-2xl border border-neutral-200 p-4 flex items-center justify-between hover:bg-neutral-50"
+
+          onClick={() =>
+            navigate({
+              to: "/resident/booking"
+            })
+          }
+
+          className="
+            w-full
+            border
+            rounded-xl
+            p-4
+            text-left
+          "
+
         >
-          <div className="text-left">
-            <div className="text-sm font-bold text-ink">{tr("Book a Big Dustbin")}</div>
-            <div className="text-xs text-neutral-500 mt-0.5">{tr("For weddings, parties & functions")}</div>
-            {myBookings.length > 0 && (
-              <div className="text-[11px] text-neutral-400 mt-1">{myBookings.length} {myBookings.length === 1 ? tr("request") : tr("requests")}{pendingCount ? ` · ${pendingCount} ${tr("pending")}` : ""}</div>
-            )}
-          </div>
-          <span className="text-neutral-400">›</span>
+
+          <h3 className="font-bold">
+            {tr("Book a Big Dustbin")}
+          </h3>
+
+
+          <p className="text-sm text-gray-500">
+            {tr("Weddings, parties & functions")}
+          </p>
+
+
+          {
+            myBookings.length > 0 &&
+
+            <p className="text-xs mt-2">
+
+              {myBookings.length} requests
+              {
+                pending > 0 &&
+                ` • ${pending} pending`
+              }
+
+            </p>
+          }
+
+
         </button>
+
+
       </div>
 
-      <div className="px-6 mt-8 space-y-1">
-        <button
-          onClick={() => navigate({ to: "/resident/notifications" })}
-          className="w-full flex items-center justify-between py-3 border-b border-neutral-100 text-left"
-        >
-          <div className="text-sm text-ink">{tr("Notifications")}</div>
-          <div className="text-sm text-neutral-500">{tr("Manage")} ›</div>
-        </button>
-        <Row label={tr("Language")} value={tr("English")} />
-        <Row label={tr("Help & Support")} value="›" />
-        <Row label={tr("About CleanTrack")} value="v1.0" />
+
+
+
+
+      {/* Settings */}
+
+      <div className="mt-8">
+
+
+        <div className="
+          flex
+          justify-between
+          border-b
+          py-3
+        ">
+
+          <span>
+            {tr("Language")}
+          </span>
+
+
+          <select
+
+            value={lang}
+
+            onChange={(e) =>
+              setLang(
+                e.target.value as
+                "en" | "hi" | "mr"
+              )
+            }
+
+          >
+
+            <option value="en">
+              English
+            </option>
+
+            <option value="hi">
+              हिंदी
+            </option>
+
+
+            <option value="mr">
+              मराठी
+            </option>
+
+
+          </select>
+
+
+        </div>
+
+
+
+        <Row
+          label={tr("Help & Support")}
+          value=">"
+        />
+
+
+        <Row
+          label={tr("About CleanTrack")}
+          value="v1.0"
+        />
+
+
       </div>
 
-      <div className="px-6 mt-8 pb-10">
-        <button
-          onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
-          className="w-full h-12 rounded-xl border border-red-200 text-red-600 font-semibold"
-        >
-          {tr("Logout")}
-        </button>
-      </div>
+
+
+
+
+      {/* Logout */}
+
+      <button
+
+        onClick={async () => {
+
+          await serverSignOut();
+
+          logout();
+
+          navigate({
+            to: "/role"
+          });
+
+        }}
+
+        className="
+          mt-10
+          w-full
+          border
+          border-red-300
+          text-red-600
+          rounded-xl
+          py-3
+        "
+
+      >
+
+        {tr("Logout")}
+
+      </button>
+
+
+
     </div>
+
   );
+
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+
+
+
+function Row(
+  {
+    label,
+    value
+  }
+    :
+    {
+      label: string;
+      value: string;
+    }
+
+) {
+
+
   return (
-    <div className="flex items-center justify-between py-3 border-b border-neutral-100">
-      <div className="text-sm text-ink">{label}</div>
-      <div className="text-sm text-neutral-500">{value}</div>
+
+    <div className="
+flex
+justify-between
+border-b
+py-3
+">
+
+      <span>
+        {label}
+      </span>
+
+      <span className="text-gray-500">
+        {value}
+      </span>
+
+
     </div>
+
   );
+
+
 }
