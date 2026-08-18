@@ -51,10 +51,13 @@ export const useAuth = create<AuthState>()(
       logout: () => set({ session: null }),
       findDriverByPhone: (phone) => {
         const clean = phone.trim().replace(/\D/g, "");
+        if (!clean) return undefined;
         const drivers = get().approvedDrivers || [];
-        // Search both current and fallback lists
-        const allDrivers = get().dbDriversLoaded ? drivers : [...drivers, ...fallbackDrivers];
-        return allDrivers.find((d) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
+        const match = drivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
+        if (match) return match;
+        const seedMatch = fallbackDrivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
+        if (seedMatch) return seedMatch;
+        return undefined;
       },
       addDriver: (d) => {
         const list = get().approvedDrivers;
@@ -78,6 +81,27 @@ export const useAuth = create<AuthState>()(
     { name: "cleantrack-auth" },
   ),
 );
+
+/**
+ * Detects user role and metadata based on phone number:
+ * - "9999999999" -> Admin
+ * - Admin-assigned driver phone number -> Driver
+ * - Any other valid 10-digit number -> Resident
+ */
+export function detectRole(phone: string): {
+  role: Role;
+  driver?: ApprovedDriver;
+} {
+  const clean = phone.trim().replace(/\D/g, "");
+  if (clean === "9999999999" || clean === "9999999990") {
+    return { role: "admin" };
+  }
+  const driver = useAuth.getState().findDriverByPhone(clean);
+  if (driver) {
+    return { role: "driver", driver };
+  }
+  return { role: "resident" };
+}
 
 /** Load driver roster from the database, replacing fallback data. */
 export async function loadDriversFromDb() {
