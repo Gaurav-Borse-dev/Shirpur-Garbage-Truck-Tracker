@@ -6,6 +6,7 @@ import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
 import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
 import cleanTrackImg from "@/assets/clean-track.jpg";
 import smartImg from "@/assets/smart.jpg";
+import greenShirpurImg from "../assets/greenshirpur.jpg";
 
 interface Slide {
   id: string;
@@ -27,7 +28,7 @@ const SLIDES: Slide[] = [
 
   {
     id: "clean-shirpur",
-    src: cleanShirpurImg || "/clean-shirpur.jpg",
+    src: cleanShirpurImg ,
     title: "Clean Shirpur Campaign",
     subtitle: "Keeping our city streets green & spotless",
     badge: "Shirpur Nagarparishad",
@@ -39,6 +40,13 @@ const SLIDES: Slide[] = [
     subtitle: "Segregated waste collection across all wards",
     badge: "Swachh Abhiyan",
   },
+ {
+  id: "green-shirpur",
+  src: greenShirpurImg,
+  title: "Green Shirpur",
+  subtitle: "Smart garbage management",
+  badge: "Clean City",
+},
   {
     id: "clean-track",
     src: cleanTrackImg || "/clean-track.jpg",
@@ -81,26 +89,29 @@ export function ShirpurImageSlider() {
     <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-        className=" 
-    relative  
-    overflow-hidden  
-    rounded-2xl  
-    shadow-lg  
-    border  
-    border-neutral-100  
-    bg-neutral-900  
-    group  
-    aspect-[16/9]  
-    sm:aspect-[21/9]  
-    max-h-[420px]  
-    sm:max-h-[500px]  
-    md:max-h-[600px] 
-  "
+  
+  className="
+    relative
+    overflow-hidden
+    rounded-2xl
+    shadow-lg
+    border
+    border-neutral-100
+    bg-neutral-900
+    group
+    aspect-[16/9]
+    sm:aspect-[21/9]
+    max-h-[420px]
+    sm:max-h-[500px]
+    md:max-h-[600px]
+"
+
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
-      >
+
+>
         <AnimatePresence initial={false} mode="wait">
           <motion.div
             key={SLIDES[currentIndex].id}
@@ -111,26 +122,34 @@ export function ShirpurImageSlider() {
             className="absolute inset-0 w-full h-full"
           >
             {/* Background Image */}
-            <img
-              src={SLIDES[currentIndex].src}
-              alt={SLIDES[currentIndex].title}
-              className="w-full h-full object-cover object-center"
-            />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
-
+          {/* Background Image */}
+<motion.img
+  src={SLIDES[currentIndex].src}
+  alt={SLIDES[currentIndex].title}
+  className="absolute inset-0 w-full h-full object-cover object-center will-change-transform"
+  initial={{ scale: 1 }}
+  animate={{ scale: 1.05 }}
+  transition={{
+    duration: 3.5,
+    ease: "easeOut"
+  }}
+/>
             {/* Content Text Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white z-10 flex flex-col justify-end">
-              <span className="inline-block self-start px-2.5 py-0.5 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-emerald-600/90 text-white rounded-full backdrop-blur-md">
-                {SLIDES[currentIndex].badge}
-              </span>
-              <h3 className="text-base sm:text-xl font-bold tracking-tight text-white drop-shadow-sm">
-                {SLIDES[currentIndex].title}
-              </h3>
-              <p className="text-xs sm:text-sm text-neutral-200 mt-0.5 line-clamp-1 opacity-90">
-                {SLIDES[currentIndex].subtitle}
-              </p>
-            </div>
+<div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white z-10 flex flex-col justify-end">
+
+  <span className="inline-block self-start px-2.5 py-0.5 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-emerald-600/90 text-white rounded-full backdrop-blur-md">
+    {SLIDES[currentIndex].badge}
+  </span>
+
+  <h3 className="text-xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
+    {SLIDES[currentIndex].title}
+  </h3>
+
+  <p className="text-sm sm:text-lg text-neutral-200 mt-1 line-clamp-2 opacity-90">
+    {SLIDES[currentIndex].subtitle}
+  </p>
+
+</div>
           </motion.div>
         </AnimatePresence>
 
