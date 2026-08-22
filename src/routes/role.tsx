@@ -13,6 +13,7 @@ import {
   OtpPhoneIllustration,
   SuccessShieldIllustration,
 } from "@/components/AuthIllustrations";
+import { ShirpurImageSlider } from "@/components/ShirpurImageSlider";
 
 export const Route = createFileRoute("/role")({
   head: () => ({
@@ -230,9 +231,7 @@ function UnifiedLoginPage() {
 
   return (
     <MobileFrame>
-
-
-      <div className="flex-1 flex flex-col justify-between p-5">
+      <div className="flex-1 flex flex-col p-4 sm:p-5">
         <AnimatePresence mode="wait">
           {/* ================= STEP 1: ENTER MOBILE NUMBER ================= */}
           {step === "phone" && (
@@ -242,33 +241,62 @@ function UnifiedLoginPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col items-center justify-between"
+              className="flex-1 flex flex-col gap-3.5"
             >
-              {/* Header Branding */}
-              <div className="text-center pt-2">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 mb-2 shadow-sm">
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2zm6 8h-2v-4h2v4zm0-6h-2V7h2v4z" opacity="0.1" />
-                    <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A9.49 9.49 0 0 0 17 8zm-4.5 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                  </svg>
+              {/* ── 1. UPPER SIDE: Increased Size Municipal Logo & Name Box ── */}
+              <div className="w-full bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/40 rounded-3xl border border-emerald-200/90 p-4 sm:p-4.5 shadow-sm flex items-center gap-4">
+                <img
+                  src="/shirpur-logo.jpg"
+                  alt="Shirpur Municipal Logo"
+                  className="w-16 h-16 rounded-2xl border-2 border-emerald-300 object-cover shadow-sm shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+                <div className="flex flex-col gap-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-800 text-xs sm:text-sm font-extrabold w-fit border border-emerald-300/80 shadow-2xs">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0" />
+                    <span className="tracking-wide">SHIRPUR-WARWADE</span>
+                  </div>
+                  <span className="text-xs font-bold text-neutral-500 tracking-wider uppercase pl-1">
+                    SHIRPUR MUNICIPAL CORP
+                  </span>
                 </div>
-                <h1 className="text-xl font-extrabold text-neutral-900 tracking-tight">
-                  {t("Shirpur Garbage Truck Tracker")}
-                </h1>
-                <p className="mt-1 text-xs text-neutral-500 max-w-[280px] mx-auto leading-relaxed">
-                  {t("Smart Waste Collection System for Clean & Green Shirpur")}
-                </p>
               </div>
 
-              {/* Center Garbage Truck Hero Illustration */}
-              <div className="my-3 w-full flex justify-center">
-                <GarbageTruckIllustration className="w-full max-w-[270px] h-auto drop-shadow-sm" />
+              {/* ── 2. BELOW: Sliding Photo Carousel ── */}
+              <div className="w-full">
+                <ShirpurImageSlider />
               </div>
 
-              {/* Elevated Login Card */}
-              <div className="w-full bg-white rounded-3xl border border-neutral-200/90 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
+              {/* ── 3. BELOW: Feature Badges (Live Tracking / Segregated Waste / Timely Pickup) ── */}
+              <div className="grid grid-cols-3 gap-2.5 w-full">
+                <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100/80 shadow-sm text-center">
+                  <span className="text-2xl mb-1 select-none">🚛</span>
+                  <span className="text-[11px] font-bold text-emerald-800 leading-tight">
+                    {t("Live Tracking")}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100/80 shadow-sm text-center">
+                  <span className="text-2xl mb-1 select-none">♻️</span>
+                  <span className="text-[11px] font-bold text-emerald-800 leading-tight">
+                    {t("Segregated Waste")}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100/80 shadow-sm text-center">
+                  <span className="text-2xl mb-1 select-none">🗑️</span>
+                  <span className="text-[11px] font-bold text-emerald-800 leading-tight">
+                    {t("Timely Pickup")}
+                  </span>
+                </div>
+              </div>
+
+              {/* ── 4. BELOW: Mobile Number Enter Card (Moved up directly under feature badges) ── */}
+              <div className="w-full bg-white rounded-3xl border border-neutral-200/90 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-3.5">
                 <div className="text-center">
-                  <h2 className="text-xl font-bold text-neutral-900">{t("Welcome!")}</h2>
+                  <h2 className="text-xl font-extrabold text-emerald-600 tracking-tight">
+                    {t("Welcome!")}
+                  </h2>
                   <p className="text-xs text-neutral-500 mt-0.5">
                     {t("Enter your mobile number to continue")}
                   </p>
@@ -324,8 +352,6 @@ function UnifiedLoginPage() {
                     <span>{t("Send OTP")}</span>
                   )}
                 </motion.button>
-
-
               </div>
             </motion.div>
           )}
@@ -392,6 +418,22 @@ function UnifiedLoginPage() {
                       }`}
                     />
                   ))}
+                </div>
+
+                {/* Default OTP 123456 Quick Pill */}
+                <div className="mt-3 flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const def = ["1", "2", "3", "4", "5", "6"];
+                      setDigits(def);
+                      void handleVerifyOtp("123456");
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100/80 transition-colors cursor-pointer"
+                  >
+                    <span>{t("Default OTP")}: <strong className="font-bold font-mono text-emerald-900">123456</strong></span>
+                    <span className="text-[10px] font-semibold bg-emerald-600 text-white rounded px-1.5 py-0.5">{t("Auto Fill")}</span>
+                  </button>
                 </div>
 
                 {error && (

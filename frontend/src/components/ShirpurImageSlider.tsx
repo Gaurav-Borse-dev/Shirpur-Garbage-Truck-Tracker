@@ -99,8 +99,8 @@ export function ShirpurImageSlider() {
     border-neutral-100
     bg-neutral-900
     group
-    aspect-[16/9]
-    sm:aspect-[21/9]
+    aspect-[16/11]
+    min-h-[220px]
     max-h-[420px]
     sm:max-h-[500px]
     md:max-h-[600px]

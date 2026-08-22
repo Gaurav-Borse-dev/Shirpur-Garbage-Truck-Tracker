@@ -71,7 +71,7 @@ export function ShirpurImageSlider() {
     <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/9] sm:aspect-[21/9] max-h-[300px] sm:max-h-[360px] md:max-h-[400px]"
+        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/11] min-h-[220px] max-h-[360px]"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}

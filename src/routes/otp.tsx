@@ -152,6 +152,20 @@ function Otp() {
         ))}
       </div>
 
+      {/* Default OTP 123456 Quick Pill */}
+      <div className="mt-3 flex items-center justify-center gap-1.5 px-6">
+        <button
+          type="button"
+          onClick={() => {
+            setDigits(["1", "2", "3", "4", "5", "6"]);
+          }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100/80 transition-colors cursor-pointer"
+        >
+          <span>{tr("Default OTP")}: <strong className="font-bold font-mono text-emerald-900">123456</strong></span>
+          <span className="text-[10px] font-semibold bg-emerald-600 text-white rounded px-1.5 py-0.5">{tr("Auto Fill")}</span>
+        </button>
+      </div>
+
       {error && <div className="px-6 mt-4 text-xs font-semibold text-red-600 text-center">{error}</div>}
 
       <div className="px-6 mt-6 text-center text-xs text-neutral-400">
