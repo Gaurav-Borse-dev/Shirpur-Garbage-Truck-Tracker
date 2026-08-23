@@ -30,15 +30,56 @@ const sendOtpInput = z.object({
   phone: z.string().regex(/^\d{10}$/),
 });
 
-/** Sends a real SMS OTP via Supabase Auth (which triggers the send-sms Edge Function Auth Hook). */
+// In-memory OTP storage for direct OTP verification (10 minutes validity)
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+const FAST2SMS_KEY = process.env["FAST2SMS_API_KEY"] || "6wQGN541KWlJ8XmPMOs2kdxqbBzrtLA3p9DTHyinUu7Co0IEShfwhBOMbEIoXSFYHzTmUk1RlKZCrgPi";
+
+/** Sends a real SMS OTP via Fast2SMS & Supabase Auth. */
 export const sendOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+    const formattedPhone = `+91${clean}`;
+    let sent = false;
+
+    // 1. Generate 6-digit OTP and store for verification
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(clean, {
+      code: generatedOtp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    // 2. Attempt delivery via Fast2SMS API
+    if (FAST2SMS_KEY) {
+      try {
+        const smsRes = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+          method: "POST",
+          headers: {
+            "authorization": FAST2SMS_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            route: "otp",
+            variables_values: generatedOtp,
+            numbers: clean,
+          }),
+        });
+        const json = await smsRes.json().catch(() => ({}));
+        if (json?.return === true || json?.status_code === 200) {
+          console.log(`[otp] Fast2SMS OTP successfully sent to ******${clean.slice(-4)}`);
+          sent = true;
+        } else {
+          console.warn("[otp] Fast2SMS response:", json);
+        }
+      } catch (err) {
+        console.warn("[otp] Fast2SMS dispatch exception:", err);
+      }
+    }
+
+    // 3. Also trigger Supabase Auth (if Auth Hook is active)
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-      const formattedPhone = `+91${clean}`;
-
       const { error } = await supabaseAdmin.auth.signInWithOtp({
         phone: formattedPhone,
         options: {
@@ -46,22 +87,17 @@ export const sendOtp = createServerFn({ method: "POST" })
         },
       });
 
-      if (error) {
-        console.warn("[otp] Supabase Auth SMS send warning:", error.message);
+      if (!error) {
+        sent = true;
       }
-
-      // Always return ok: true so user can use default OTP 123456
-      return { ok: true as const, sent: !error };
     } catch (err: any) {
-      console.warn("[otp] SMS send exception, proceeding with default OTP support:", err);
-      return {
-        ok: true as const,
-        sent: false,
-      };
+      console.warn("[otp] Supabase signInWithOtp note:", err?.message || err);
     }
+
+    return { ok: true as const, sent };
   });
 
-/** Verifies the one-time code strictly via Supabase Auth or default fixed OTP (123456) and establishes the secure session. */
+/** Verifies the one-time code strictly via Fast2SMS store, Supabase Auth, or default fixed OTP (123456) and establishes the secure session. */
 export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
@@ -69,8 +105,15 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
 
-    // Support fixed default OTP "123456"
-    if (code === "123456") {
+    const entry = otpStore.get(clean);
+    const isDirectMatch = entry && entry.code === code && entry.expiresAt > Date.now();
+    const isDefaultMatch = code === "123456";
+
+    // Allow direct match or fallback default match
+    if (isDirectMatch || isDefaultMatch) {
+      if (isDirectMatch) {
+        otpStore.delete(clean);
+      }
       if (data.role === "admin") {
         await setUser({ role: "admin", username: "admin", phone: clean });
       } else if (data.role === "driver") {
@@ -81,6 +124,7 @@ export const verifyOtp = createServerFn({ method: "POST" })
       return { ok: true as const };
     }
 
+    // Try verifying with Supabase Auth
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const formattedPhone = `+91${clean}`;
@@ -92,21 +136,13 @@ export const verifyOtp = createServerFn({ method: "POST" })
       });
 
       if (error || (!res?.session && !res?.user)) {
-        console.warn("[otp] Supabase verification failed:", error?.message);
-        const msg = (error?.message || "").toLowerCase();
-        if (msg.includes("expired")) {
-          return {
-            ok: false as const,
-            error: "This OTP has expired. Please enter default OTP 123456 or request a new one.",
-          };
-        }
+        console.warn("[otp] Verification check:", error?.message || "invalid code");
         return {
           ok: false as const,
           error: error?.message || "Incorrect verification code. (Hint: Use default OTP 123456)",
         };
       }
 
-      // Establish session based on detected / resolved role
       if (data.role === "admin") {
         await setUser({ role: "admin", username: "admin", phone: clean });
       } else if (data.role === "driver") {
