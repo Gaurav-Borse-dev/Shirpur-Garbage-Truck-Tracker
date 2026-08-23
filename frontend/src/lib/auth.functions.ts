@@ -30,167 +30,77 @@ const sendOtpInput = z.object({
   phone: z.string().regex(/^\d{10}$/),
 });
 
-// In-memory OTP storage for direct OTP verification (10 minutes validity)
-const otpStore = new Map<string, { code: string; expiresAt: number }>();
-
-// Twilio Verify Credentials
-const TWILIO_ACCOUNT_SID = process.env["TWILIO_ACCOUNT_SID"] || "AC6ac22d5b7e9601e9ac27cd4a96c5471f";
-const TWILIO_AUTH_TOKEN = process.env["TWILIO_AUTH_TOKEN"] || "4161d6044e40a52998c326a6612bd724";
-const TWILIO_VERIFY_SERVICE_SID = process.env["TWILIO_VERIFY_SERVICE_SID"] || "VA2e2921239ad93656ef667153e8beb91a";
-
-/** Sends a real SMS OTP via Twilio Verify & Supabase Auth. */
+/**
+ * sendOtp — Only handles Master Admin bypass (9999999999).
+ * For all other numbers, Firebase Phone Auth sends the OTP client-side.
+ */
 export const sendOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-    const formattedPhone = `+91${clean}`;
-    let sent = false;
 
-    // Master Admin Phone (9999999999) bypass for local/admin access
+    // Master Admin Phone (9999999999) bypass — skip Firebase, use fixed OTP
     if (clean === "9999999999" || clean === "9999999990") {
-      return { ok: true as const, sent: true };
+      console.log(`[otp] Admin master bypass for ******${clean.slice(-4)}`);
+      return { ok: true as const, sent: true, useFirebase: false };
     }
 
-    // 1. Dispatch real SMS OTP via Twilio Verify API
-    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
-      try {
-        const authHeader = "Basic " + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
-        const bodyParams = new URLSearchParams({
-          To: formattedPhone,
-          Channel: "sms",
-        });
-
-        const twilioRes = await fetch(
-          `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/Verifications`,
-          {
-            method: "POST",
-            headers: {
-              "Authorization": authHeader,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: bodyParams.toString(),
-          }
-        );
-
-        const twilioJson = await twilioRes.json().catch(() => ({}));
-        if (twilioRes.ok && (twilioJson?.status === "pending" || twilioJson?.sid)) {
-          console.log(`[otp] Real Twilio SMS OTP successfully sent to ******${clean.slice(-4)}`);
-          sent = true;
-        } else {
-          console.warn("[otp] Twilio Verify notice:", twilioJson?.message || twilioJson);
-        }
-      } catch (err) {
-        console.warn("[otp] Twilio Verify dispatch exception:", err);
-      }
-    }
-
-    // 2. Also trigger Supabase Auth (if Auth Hook is active)
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
-        phone: formattedPhone,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-
-      if (!error) {
-        sent = true;
-      }
-    } catch (err: any) {
-      console.warn("[otp] Supabase signInWithOtp note:", err?.message || err);
-    }
-
-    return { ok: true as const, sent };
+    // All other numbers: signal client to use Firebase Phone Auth
+    return { ok: true as const, sent: false, useFirebase: true };
   });
 
-/** Verifies the real one-time code strictly via Twilio Verify or Supabase Auth. */
+/**
+ * verifyOtp — Handles Master Admin (9999999999 + 123456) and Firebase-verified sessions.
+ * For non-admin numbers, the client verifies OTP via Firebase, then calls setFirebaseSession.
+ */
 export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
-    const formattedPhone = `+91${clean}`;
 
     // Master Admin Login ONLY: 9999999999 with OTP 123456
     if ((clean === "9999999999" || clean === "9999999990") && code === "123456") {
       await setUser({ role: "admin", username: "admin", phone: clean });
+      console.log(`[otp] Admin master login for ******${clean.slice(-4)}`);
       return { ok: true as const };
     }
 
-    // 1. Verify via Twilio Verify API
-    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
-      try {
-        const authHeader = "Basic " + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
-        const bodyParams = new URLSearchParams({
-          To: formattedPhone,
-          Code: code,
-        });
+    // For non-admin, reject — they should use Firebase + setFirebaseSession
+    return {
+      ok: false as const,
+      error: "Please verify via SMS OTP sent to your phone.",
+    };
+  });
 
-        const twilioCheckRes = await fetch(
-          `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`,
-          {
-            method: "POST",
-            headers: {
-              "Authorization": authHeader,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: bodyParams.toString(),
-          }
-        );
+/**
+ * setFirebaseSession — Called after Firebase Phone Auth succeeds on the client.
+ * Sets the server session cookie for the authenticated user.
+ */
+const firebaseSessionInput = z.object({
+  phone: z.string().regex(/^\d{10}$/),
+  role: z.enum(["resident", "driver", "admin"]),
+  firebaseUid: z.string().min(1),
+});
 
-        const twilioCheckJson = await twilioCheckRes.json().catch(() => ({}));
-        if (twilioCheckRes.ok && twilioCheckJson?.status === "approved") {
-          console.log(`[otp] Real Twilio OTP verified successfully for ******${clean.slice(-4)}`);
-          if (data.role === "admin") {
-            await setUser({ role: "admin", username: "admin", phone: clean });
-          } else if (data.role === "driver") {
-            await setUser({ role: "driver", phone: clean });
-          } else {
-            await setUser({ role: "resident", phone: clean });
-          }
-          return { ok: true as const };
-        }
-      } catch (err) {
-        console.warn("[otp] Twilio verification check exception:", err);
-      }
+export const setFirebaseSession = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => firebaseSessionInput.parse(data))
+  .handler(async ({ data }) => {
+    const { setUser } = await import("./session.server");
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+
+    console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
+
+    if (data.role === "admin") {
+      await setUser({ role: "admin", username: "admin", phone: clean });
+    } else if (data.role === "driver") {
+      await setUser({ role: "driver", phone: clean });
+    } else {
+      await setUser({ role: "resident", phone: clean });
     }
 
-    // 2. Try verifying with Supabase Auth
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const { data: res, error } = await supabaseAdmin.auth.verifyOtp({
-        phone: formattedPhone,
-        token: code,
-        type: "sms",
-      });
-
-      if (error || (!res?.session && !res?.user)) {
-        console.warn("[otp] Verification check:", error?.message || "invalid code");
-        return {
-          ok: false as const,
-          error: error?.message || "Incorrect verification code. Please check your SMS.",
-        };
-      }
-
-      if (data.role === "admin") {
-        await setUser({ role: "admin", username: "admin", phone: clean });
-      } else if (data.role === "driver") {
-        await setUser({ role: "driver", phone: clean });
-      } else {
-        await setUser({ role: "resident", phone: clean });
-      }
-
-      return { ok: true as const };
-    } catch (err: any) {
-      console.error("[otp] Verification exception:", err);
-      return {
-        ok: false as const,
-        error: err?.message || "Unable to verify code right now.",
-      };
-    }
+    return { ok: true as const };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */
@@ -203,4 +113,4 @@ export const serverSignOut = createServerFn({ method: "POST" }).handler(async ()
   const { clearUser } = await import("./session.server");
   await clearUser();
   return { ok: true as const };
-});
+});

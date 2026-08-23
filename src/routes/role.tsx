@@ -6,14 +6,15 @@ import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { ChevronLeft } from "@/components/icons";
 import { useAuth, detectRole, type Role } from "@/store/auth";
-import { sendOtp, verifyOtp } from "@/lib/auth.functions";
+import { sendOtp, verifyOtp, setFirebaseSession } from "@/lib/auth.functions";
 import { useT } from "@/lib/i18n";
 import {
   GarbageTruckIllustration,
   OtpPhoneIllustration,
   SuccessShieldIllustration,
 } from "@/components/AuthIllustrations";
-import { ShirpurImageSlider } from "@/components/ShirpurImageSlider";
+import { LoginImageSlider } from "@/components/LoginImageSlider";
+import type { ConfirmationResult } from "firebase/auth";
 
 export const Route = createFileRoute("/role")({
   head: () => ({
@@ -56,6 +57,11 @@ function UnifiedLoginPage() {
   const [timer, setTimer] = useState(45);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Firebase confirmation result (stored after sendOtp for non-admin phones)
+  const firebaseConfirmRef = useRef<ConfirmationResult | null>(null);
+  // Whether current OTP flow uses Firebase (true) or admin bypass (false)
+  const [useFirebase, setUseFirebase] = useState(false);
+
   // Detected role info
   const [detectedRoleInfo, setDetectedRoleInfo] = useState<{
     role: Role;
@@ -91,18 +97,38 @@ function UnifiedLoginPage() {
     setSending(true);
     setError("");
     try {
+      // 1. Ask server if this is an admin bypass or Firebase flow
       const res = await sendOtp({ data: { phone } });
       if (!res.ok) {
         setError((res as any).error || t("Failed to send OTP. Please check your mobile number."));
         setSending(false);
         return;
       }
+
+      if (res.useFirebase) {
+        // 2. Non-admin: Send OTP via Firebase Phone Auth (free for any Indian number)
+        const { firebaseSendOtp, resetRecaptcha } = await import("@/lib/firebase");
+        resetRecaptcha(); // Clear any previous reCAPTCHA
+        const confirmation = await firebaseSendOtp(phone);
+        firebaseConfirmRef.current = confirmation;
+        setUseFirebase(true);
+      } else {
+        // 3. Admin bypass: no real SMS needed
+        firebaseConfirmRef.current = null;
+        setUseFirebase(false);
+      }
+
       setSending(false);
       setTimer(45);
       setDigits(["", "", "", "", "", ""]);
       setStep("otp");
     } catch (err: any) {
-      setError(err?.message || t("Failed to send OTP. Please check your mobile number."));
+      const msg = err?.code === "auth/too-many-requests"
+        ? t("Too many attempts. Please try again later.")
+        : err?.code === "auth/invalid-phone-number"
+        ? t("Invalid phone number. Please check and try again.")
+        : err?.message || t("Failed to send OTP. Please check your mobile number.");
+      setError(msg);
       setSending(false);
     }
   }
@@ -168,24 +194,46 @@ function UnifiedLoginPage() {
     });
 
     try {
-      const res = await verifyOtp({
-        data: {
-          phone: cleanPhone,
-          role: detected.role,
-          code,
-        },
-      });
+      if (useFirebase && firebaseConfirmRef.current) {
+        // ── Firebase OTP Verification (for residents & drivers) ──
+        const { firebaseVerifyOtp } = await import("@/lib/firebase");
+        const firebaseUser = await firebaseVerifyOtp(firebaseConfirmRef.current, code);
 
-      if (!res.ok) {
-        setError((res as any).error || t("Incorrect code. Please try again."));
-        setShake(true);
-        setTimeout(() => setShake(false), 450);
-        setTimeout(() => {
-          setDigits(["", "", "", "", "", ""]);
-          otpRefs.current[0]?.focus();
-        }, 600);
-        setVerifying(false);
-        return;
+        // Set server session after Firebase verification
+        const sessionRes = await setFirebaseSession({
+          data: {
+            phone: cleanPhone,
+            role: detected.role,
+            firebaseUid: firebaseUser.uid,
+          },
+        });
+
+        if (!sessionRes.ok) {
+          setError(t("Failed to create session. Please try again."));
+          setVerifying(false);
+          return;
+        }
+      } else {
+        // ── Admin Master OTP Verification (9999999999 + 123456) ──
+        const res = await verifyOtp({
+          data: {
+            phone: cleanPhone,
+            role: detected.role,
+            code,
+          },
+        });
+
+        if (!res.ok) {
+          setError((res as any).error || t("Incorrect code. Please try again."));
+          setShake(true);
+          setTimeout(() => setShake(false), 450);
+          setTimeout(() => {
+            setDigits(["", "", "", "", "", ""]);
+            otpRefs.current[0]?.focus();
+          }, 600);
+          setVerifying(false);
+          return;
+        }
       }
 
       // Save user session in local store
@@ -215,8 +263,19 @@ function UnifiedLoginPage() {
       setTimeout(() => {
         navigate({ to: targetRoute as any });
       }, 1200);
-    } catch {
-      setError(t("Unable to verify the code right now."));
+    } catch (err: any) {
+      const msg = err?.code === "auth/invalid-verification-code"
+        ? t("Incorrect code. Please check and try again.")
+        : err?.code === "auth/code-expired"
+        ? t("OTP expired. Please resend.")
+        : err?.message || t("Unable to verify the code right now.");
+      setError(msg);
+      setShake(true);
+      setTimeout(() => setShake(false), 450);
+      setTimeout(() => {
+        setDigits(["", "", "", "", "", ""]);
+        otpRefs.current[0]?.focus();
+      }, 600);
       setVerifying(false);
     }
   }
@@ -231,6 +290,8 @@ function UnifiedLoginPage() {
 
   return (
     <MobileFrame>
+
+
       <div className="flex-1 flex flex-col p-4 sm:p-5">
         <AnimatePresence mode="wait">
           {/* ================= STEP 1: ENTER MOBILE NUMBER ================= */}
@@ -266,7 +327,7 @@ function UnifiedLoginPage() {
 
               {/* ── 2. BELOW: Sliding Photo Carousel ── */}
               <div className="w-full">
-                <ShirpurImageSlider />
+                <LoginImageSlider />
               </div>
 
               {/* ── 3. BELOW: Feature Badges (Live Tracking / Segregated Waste / Timely Pickup) ── */}
@@ -370,9 +431,12 @@ function UnifiedLoginPage() {
                 {/* Back to Phone Button */}
                 <div className="flex items-center mb-2">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setStep("phone");
                       setError("");
+                      firebaseConfirmRef.current = null;
+                      const { resetRecaptcha } = await import("@/lib/firebase");
+                      resetRecaptcha();
                     }}
                     className="w-10 h-10 rounded-full hover:bg-neutral-100 grid place-items-center text-neutral-600 transition-colors cursor-pointer"
                     aria-label={t("Back")}
@@ -545,6 +609,9 @@ function UnifiedLoginPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Invisible reCAPTCHA container for Firebase Phone Auth */}
+      <div id="recaptcha-container" />
     </MobileFrame>
   );
 }
