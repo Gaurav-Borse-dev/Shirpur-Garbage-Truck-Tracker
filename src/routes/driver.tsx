@@ -8,7 +8,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { ChevronDown, CheckIcon, LogoutIcon } from "@/components/icons";
 import { useAuth } from "@/store/auth";
 import { useTrucks } from "@/store/trucks";
-import { useToast, ToastHost } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
 import { useRealtime } from "@/hooks/useRealtime";
 import { LIVE_BACKEND } from "@/lib/backend";
@@ -92,7 +92,12 @@ function DriverHome() {
 
   function advance() {
     complete(truckId);
-    push({ title: tr("Stop") + " " + tr("Completed"), subtitle: `${tr("Stop")} ${stopNum + 1}` });
+    push({
+      title: `${tr("Stop")} ${stopNum} ${tr("Completed")}`,
+      subtitle: `${tr("Next Stop")}: ${live?.truck.wardName ?? tr("Shirpur")}`,
+      tone: "route_completed",
+      sender: `Truck ${truckId} · Crew`,
+    });
     setStopStatus("enroute");
   }
 
@@ -157,8 +162,6 @@ function DriverHome() {
           </motion.div>
         </div>
 
-        <ToastHost />
-
         <BottomSheet>
           <div className="px-5 pb-5 pt-2 max-h-[68vh] overflow-y-auto">
             {/* Online toggle */}
@@ -195,8 +198,19 @@ function DriverHome() {
                   <button
                     key={s}
                     onClick={() => {
-                      if (s === "completed") advance();
-                      else setStopStatus(s);
+                      if (s === "completed") {
+                        advance();
+                      } else {
+                        setStopStatus(s);
+                        if (s === "arrived") {
+                          push({
+                            title: `${tr("Arrived at Stop")} #${stopNum}`,
+                            subtitle: `${live.truck.wardName} · ${tr("3 residents notified nearby")}`,
+                            tone: "truck_arrived",
+                            sender: `Truck ${truckId} · Crew`,
+                          });
+                        }
+                      }
                     }}
                     className={`h-10 rounded-lg text-xs font-semibold transition-colors ${
                       stopStatus === s ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"

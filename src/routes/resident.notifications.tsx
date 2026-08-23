@@ -237,6 +237,19 @@ function NotificationSettingsPage() {
 
       <div className="px-6 mt-6 space-y-3">
         <button
+          onClick={() => {
+            push({
+              title: "🔔 CleanTrack Garbage Truck Alert",
+              subtitle: "Truck GBR-04 is 350m away from your street · Go outside soon!",
+              tone: "truck_arrived",
+              sender: "CleanTrack · Shirpur Municipal Tracker",
+            });
+          }}
+          className="w-full h-12 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors shadow-sm"
+        >
+          <span>🎵</span> {tr("Preview Garbage Tracker Sound & Alert")}
+        </button>
+        <button
           onClick={() => selfTest.mutate()}
           disabled={selfTest.isPending}
           className="w-full h-12 rounded-xl border border-neutral-200 text-sm font-semibold text-ink disabled:opacity-50"

@@ -16,6 +16,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ClientOnly } from "@/components/ClientOnly";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
+import { ToastHost } from "@/components/Toast";
 
 function NotFoundComponent() {
   return (
@@ -172,6 +173,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <LanguageSwitcher />
+        <ToastHost />
         <ClientOnly>
           <PushRuntime />
         </ClientOnly>
