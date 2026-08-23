@@ -33,9 +33,12 @@ const sendOtpInput = z.object({
 // In-memory OTP storage for direct OTP verification (10 minutes validity)
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
-const FAST2SMS_KEY = process.env["FAST2SMS_API_KEY"] || "6wQGN541KWlJ8XmPMOs2kdxqbBzrtLA3p9DTHyinUu7Co0IEShfwhBOMbEIoXSFYHzTmUk1RlKZCrgPi";
+// Twilio Verify Credentials
+const TWILIO_ACCOUNT_SID = process.env["TWILIO_ACCOUNT_SID"] || "AC6ac22d5b7e9601e9ac27cd4a96c5471f";
+const TWILIO_AUTH_TOKEN = process.env["TWILIO_AUTH_TOKEN"] || "4161d6044e40a52998c326a6612bd724";
+const TWILIO_VERIFY_SERVICE_SID = process.env["TWILIO_VERIFY_SERVICE_SID"] || "VA2e2921239ad93656ef667153e8beb91a";
 
-/** Sends a real SMS OTP via Fast2SMS & Supabase Auth. */
+/** Sends a real SMS OTP via Twilio Verify & Supabase Auth. */
 export const sendOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
@@ -43,41 +46,40 @@ export const sendOtp = createServerFn({ method: "POST" })
     const formattedPhone = `+91${clean}`;
     let sent = false;
 
-    // 1. Generate 6-digit OTP and store for verification
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(clean, {
-      code: generatedOtp,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-    });
-
-    // 2. Attempt delivery via Fast2SMS API
-    if (FAST2SMS_KEY) {
+    // 1. Dispatch real SMS OTP via Twilio Verify API
+    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
       try {
-        const smsRes = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-          method: "POST",
-          headers: {
-            "authorization": FAST2SMS_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            route: "otp",
-            variables_values: generatedOtp,
-            numbers: clean,
-          }),
+        const authHeader = "Basic " + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+        const bodyParams = new URLSearchParams({
+          To: formattedPhone,
+          Channel: "sms",
         });
-        const json = await smsRes.json().catch(() => ({}));
-        if (json?.return === true || json?.status_code === 200) {
-          console.log(`[otp] Fast2SMS OTP successfully sent to ******${clean.slice(-4)}`);
+
+        const twilioRes = await fetch(
+          `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/Verifications`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": authHeader,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: bodyParams.toString(),
+          }
+        );
+
+        const twilioJson = await twilioRes.json().catch(() => ({}));
+        if (twilioRes.ok && (twilioJson?.status === "pending" || twilioJson?.sid)) {
+          console.log(`[otp] Real Twilio SMS OTP successfully sent to ******${clean.slice(-4)}`);
           sent = true;
         } else {
-          console.warn("[otp] Fast2SMS response:", json);
+          console.warn("[otp] Twilio Verify notice:", twilioJson?.message || twilioJson);
         }
       } catch (err) {
-        console.warn("[otp] Fast2SMS dispatch exception:", err);
+        console.warn("[otp] Twilio Verify dispatch exception:", err);
       }
     }
 
-    // 3. Also trigger Supabase Auth (if Auth Hook is active)
+    // 2. Also trigger Supabase Auth (if Auth Hook is active)
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin.auth.signInWithOtp({
@@ -97,23 +99,17 @@ export const sendOtp = createServerFn({ method: "POST" })
     return { ok: true as const, sent };
   });
 
-/** Verifies the one-time code strictly via Fast2SMS store, Supabase Auth, or default fixed OTP (123456) and establishes the secure session. */
+/** Verifies the real one-time code via Twilio Verify, Supabase Auth, or default fixed OTP (123456). */
 export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
+    const formattedPhone = `+91${clean}`;
 
-    const entry = otpStore.get(clean);
-    const isDirectMatch = entry && entry.code === code && entry.expiresAt > Date.now();
-    const isDefaultMatch = code === "123456";
-
-    // Allow direct match or fallback default match
-    if (isDirectMatch || isDefaultMatch) {
-      if (isDirectMatch) {
-        otpStore.delete(clean);
-      }
+    // Developer fallback code
+    if (code === "123456") {
       if (data.role === "admin") {
         await setUser({ role: "admin", username: "admin", phone: clean });
       } else if (data.role === "driver") {
@@ -124,10 +120,47 @@ export const verifyOtp = createServerFn({ method: "POST" })
       return { ok: true as const };
     }
 
-    // Try verifying with Supabase Auth
+    // 1. Verify via Twilio Verify API
+    if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
+      try {
+        const authHeader = "Basic " + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+        const bodyParams = new URLSearchParams({
+          To: formattedPhone,
+          Code: code,
+        });
+
+        const twilioCheckRes = await fetch(
+          `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": authHeader,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: bodyParams.toString(),
+          }
+        );
+
+        const twilioCheckJson = await twilioCheckRes.json().catch(() => ({}));
+        if (twilioCheckRes.ok && twilioCheckJson?.status === "approved") {
+          console.log(`[otp] Real Twilio OTP verified successfully for ******${clean.slice(-4)}`);
+          if (data.role === "admin") {
+            await setUser({ role: "admin", username: "admin", phone: clean });
+          } else if (data.role === "driver") {
+            await setUser({ role: "driver", phone: clean });
+          } else {
+            await setUser({ role: "resident", phone: clean });
+          }
+          return { ok: true as const };
+        }
+      } catch (err) {
+        console.warn("[otp] Twilio verification check exception:", err);
+      }
+    }
+
+    // 2. Try verifying with Supabase Auth
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const formattedPhone = `+91${clean}`;
 
       const { data: res, error } = await supabaseAdmin.auth.verifyOtp({
         phone: formattedPhone,
@@ -139,7 +172,7 @@ export const verifyOtp = createServerFn({ method: "POST" })
         console.warn("[otp] Verification check:", error?.message || "invalid code");
         return {
           ok: false as const,
-          error: error?.message || "Incorrect verification code. (Hint: Use default OTP 123456)",
+          error: error?.message || "Incorrect verification code. Please check your SMS.",
         };
       }
 
@@ -156,7 +189,7 @@ export const verifyOtp = createServerFn({ method: "POST" })
       console.error("[otp] Verification exception:", err);
       return {
         ok: false as const,
-        error: err?.message || "Unable to verify code right now. Use default OTP 123456.",
+        error: err?.message || "Unable to verify code right now.",
       };
     }
   });
