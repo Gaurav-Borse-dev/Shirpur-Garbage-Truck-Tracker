@@ -46,6 +46,11 @@ export const sendOtp = createServerFn({ method: "POST" })
     const formattedPhone = `+91${clean}`;
     let sent = false;
 
+    // Master Admin Phone (9999999999) bypass for local/admin access
+    if (clean === "9999999999" || clean === "9999999990") {
+      return { ok: true as const, sent: true };
+    }
+
     // 1. Dispatch real SMS OTP via Twilio Verify API
     if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
       try {
@@ -99,7 +104,7 @@ export const sendOtp = createServerFn({ method: "POST" })
     return { ok: true as const, sent };
   });
 
-/** Verifies the real one-time code via Twilio Verify, Supabase Auth, or default fixed OTP (123456). */
+/** Verifies the real one-time code strictly via Twilio Verify or Supabase Auth. */
 export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
@@ -108,15 +113,9 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const code = data.code.trim();
     const formattedPhone = `+91${clean}`;
 
-    // Developer fallback code
-    if (code === "123456") {
-      if (data.role === "admin") {
-        await setUser({ role: "admin", username: "admin", phone: clean });
-      } else if (data.role === "driver") {
-        await setUser({ role: "driver", phone: clean });
-      } else {
-        await setUser({ role: "resident", phone: clean });
-      }
+    // Master Admin Login ONLY: 9999999999 with OTP 123456
+    if ((clean === "9999999999" || clean === "9999999990") && code === "123456") {
+      await setUser({ role: "admin", username: "admin", phone: clean });
       return { ok: true as const };
     }
 

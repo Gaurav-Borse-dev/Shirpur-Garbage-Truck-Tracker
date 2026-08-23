@@ -422,22 +422,6 @@ function UnifiedLoginPage() {
                   ))}
                 </div>
 
-                {/* Default OTP 123456 Quick Pill */}
-                <div className="mt-3 flex items-center justify-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const def = ["1", "2", "3", "4", "5", "6"];
-                      setDigits(def);
-                      void handleVerifyOtp("123456");
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100/80 transition-colors cursor-pointer"
-                  >
-                    <span>{t("Default OTP")}: <strong className="font-bold font-mono text-emerald-900">123456</strong></span>
-                    <span className="text-[10px] font-semibold bg-emerald-600 text-white rounded px-1.5 py-0.5">{t("Auto Fill")}</span>
-                  </button>
-                </div>
-
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
