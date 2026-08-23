@@ -193,27 +193,74 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     let changed = false;
     const now = Date.now();
 
-    // LIVE MODE: no motion is generated locally. We only ease the marker
-    // toward the last GPS fix received from the backend (position, heading and
-    // speed all originate server-side).
     for (const id in state.trucks) {
       const lt = state.trucks[id];
-      if (!lt.fix) {
-        next[id] = lt;
+
+      // Case 1: Real-time Live GPS fix received from driver device
+      if (lt.fix) {
+        const gap = haversine(lt.position, lt.fix.pos);
+        if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
+          next[id] = lt;
+          continue;
+        }
+        // Ease over ~1 fix interval so 3-5s backend updates render continuously.
+        const k = Math.min(1, dtMs / 900);
+        const pos = lerpLatLng(lt.position, lt.fix.pos, k);
+        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
+        const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
+        next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
+        changed = true;
         continue;
       }
-      const gap = haversine(lt.position, lt.fix.pos);
-      if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
-        next[id] = lt;
+
+      // Case 2: Online collection along Shirpur ward route
+      if (lt.status !== "offline" && lt.path && lt.path.length >= 2) {
+        const path = lt.path;
+        const totalPoints = path.length;
+        // Average speed ~5.5 m/s (20 km/h)
+        const speedMps = lt.status === "collecting" ? 4.2 : 5.8;
+        const distToTravel = speedMps * (dtMs / 1000);
+
+        let seg = lt.segmentIndex % totalPoints;
+        let pA = path[seg] ?? lt.position;
+        let pB = path[(seg + 1) % totalPoints] ?? pA;
+        let segLen = Math.max(0.5, haversine(pA, pB));
+
+        let t = lt.segmentT + distToTravel / segLen;
+        while (t >= 1) {
+          t -= 1;
+          seg = (seg + 1) % totalPoints;
+          pA = path[seg] ?? lt.position;
+          pB = path[(seg + 1) % totalPoints] ?? pA;
+          segLen = Math.max(0.5, haversine(pA, pB));
+        }
+
+        const pos = lerpLatLng(pA, pB, t);
+        const targetBearing = bearing(pA, pB);
+        const bear = lerpAngle(lt.bearing, targetBearing, Math.min(1, dtMs / 200));
+
+        // Periodic stop progress advancement
+        const stopsFraction = seg / totalPoints;
+        const completedStops = Math.min(lt.truck.totalStops, Math.floor(stopsFraction * lt.truck.totalStops));
+
+        const trail = lt.trail.length > 20 ? [...lt.trail.slice(-20), pos] : [...lt.trail, pos];
+
+        next[id] = {
+          ...lt,
+          position: pos,
+          bearing: bear,
+          speedMps,
+          segmentIndex: seg,
+          segmentT: t,
+          completedStops,
+          trail,
+          lastUpdate: now,
+        };
+        changed = true;
         continue;
       }
-      // Ease over ~1 fix interval so 3-5s backend updates render continuously.
-      const k = Math.min(1, dtMs / 900);
-      const pos = lerpLatLng(lt.position, lt.fix.pos, k);
-      const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
-      const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-      next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
-      changed = true;
+
+      next[id] = lt;
     }
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
@@ -268,19 +315,22 @@ async function loadFleetFromDb() {
     const res = await getFleetTrucks();
     if (!res.trucks?.length) return; // DB unavailable — keep fallback
 
-    const trucks: Truck[] = res.trucks.map((r, i) => ({
-      id: r.truckCode,
-      dbId: r.dbId,
-      name: r.truckCode,
-      driverName: "", // Will be filled by driver data
-      driverPhone: "",
-      wardName: r.ward ?? SHIRPUR_WARDS[i % SHIRPUR_WARDS.length] ?? r.truckCode,
-      city: "Shirpur",
-      color: PALETTE[i % PALETTE.length],
-      route: [], // Positions come from live tracking, not static routes
-      totalStops: 12,
-      startOnline: r.status !== "offline" && r.status !== "decommissioned",
-    }));
+    const trucks: Truck[] = res.trucks.map((r, i) => {
+      const fallback = FALLBACK_TRUCKS.find((t) => t.id === r.truckCode) ?? FALLBACK_TRUCKS[i % FALLBACK_TRUCKS.length];
+      return {
+        id: r.truckCode,
+        dbId: r.dbId,
+        name: r.truckCode,
+        driverName: fallback?.driverName ?? "",
+        driverPhone: fallback?.driverPhone ?? "",
+        wardName: r.ward ?? fallback?.wardName ?? r.truckCode,
+        city: "Shirpur",
+        color: PALETTE[i % PALETTE.length],
+        route: fallback?.route ?? [],
+        totalStops: 12,
+        startOnline: r.status !== "offline" && r.status !== "decommissioned",
+      };
+    });
 
     useTrucks.getState().loadFleet(trucks);
     console.info(`[fleet] Loaded ${trucks.length} trucks from database`);
