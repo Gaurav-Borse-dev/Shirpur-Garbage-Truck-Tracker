@@ -33,7 +33,7 @@ export const getNotificationPrefs = createServerFn({ method: "GET" }).handler(as
 });
 
 export const saveNotificationPrefs = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => prefsInput.parse(data))
+  .validator((data: unknown) => prefsInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { savePrefs } = await import("./push.server");
@@ -46,7 +46,7 @@ export const saveNotificationPrefs = createServerFn({ method: "POST" })
 
 /** Stores an FCM registration token against the signed-in subject. */
 export const registerDeviceToken = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => registerTokenInput.parse(data))
+  .validator((data: unknown) => registerTokenInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { registerToken } = await import("./push.server");
@@ -59,7 +59,7 @@ export const registerDeviceToken = createServerFn({ method: "POST" })
 
 /** Revokes one device token, or every device of the caller when none is given. */
 export const revokeDeviceToken = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => revokeTokenInput.parse(data))
+  .validator((data: unknown) => revokeTokenInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { revokeToken, revokeAllTokens } = await import("./push.server");
@@ -72,7 +72,7 @@ export const revokeDeviceToken = createServerFn({ method: "POST" })
 
 /** Admin-only: fires a real push at one resident or at a truck's crew. */
 export const sendTestPush = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => testPushInput.parse(data))
+  .validator((data: unknown) => testPushInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { sendToSubject, driverPhoneForTruck } = await import("./push.server");
@@ -113,7 +113,7 @@ export const listMyDevices = createServerFn({ method: "GET" }).handler(async () 
 
 /** Removes one registered device from this account. */
 export const removeMyDevice = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => revokeTokenIdInput.parse(data))
+  .validator((data: unknown) => revokeTokenIdInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { revokeTokenById } = await import("./push.server");
@@ -128,7 +128,7 @@ export const removeMyDevice = createServerFn({ method: "POST" })
 
 /** Deliveries since a timestamp, replayed as in-app toasts while the app is open. */
 export const getRecentDeliveries = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => recentDeliveriesInput.parse(data))
+  .validator((data: unknown) => recentDeliveriesInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { recentDeliveries } = await import("./push.server");
@@ -143,7 +143,7 @@ export const getRecentDeliveries = createServerFn({ method: "POST" })
 
 /** Sends a real nearby-truck style push to the caller's own devices. */
 export const sendSelfTestPush = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => selfTestInput.parse(data))
+  .validator((data: unknown) => selfTestInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { sendToSubject } = await import("./push.server");

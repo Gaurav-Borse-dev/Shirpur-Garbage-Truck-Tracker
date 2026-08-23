@@ -39,8 +39,27 @@ function AssignmentsPage() {
     e.preventDefault();
     setError("");
     setJustSaved(false);
-    // TODO: Connect to backend API for ward/city reassignment
-    // For now, show confirmation toast
+
+    if (selectedId && ward.trim()) {
+      const currentTrucks = useTrucks.getState().trucks;
+      const target = currentTrucks[selectedId];
+      if (target) {
+        useTrucks.setState({
+          trucks: {
+            ...currentTrucks,
+            [selectedId]: {
+              ...target,
+              truck: {
+                ...target.truck,
+                wardName: ward.trim(),
+              },
+            },
+          },
+          tick: useTrucks.getState().tick + 1,
+        });
+      }
+    }
+
     push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 1800);
