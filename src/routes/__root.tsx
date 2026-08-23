@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportShirpurError } from "../lib/shirpur-error-reporting";
 import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { PerfOverlay } from "@/components/PerfOverlay";
 import { ClientOnly } from "@/components/ClientOnly";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
@@ -174,7 +173,6 @@ function RootComponent() {
         <Outlet />
         <LanguageSwitcher />
         <ClientOnly>
-          <PerfOverlay />
           <PushRuntime />
         </ClientOnly>
       </AppSplash>

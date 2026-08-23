@@ -1,4 +1,4 @@
-﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -14,9 +14,7 @@ import appCss from "../styles.css?url";
 import { reportShirpurError } from "../lib/shirpur-error-reporting";
 import { AppSplash } from "@/components/AppSplash";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { PerfOverlay } from "@/components/PerfOverlay";
 import { ClientOnly } from "@/components/ClientOnly";
-import { ChatBot } from "@/components/ChatBot/ChatBot";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
 
@@ -181,10 +179,7 @@ function RootComponent() {
       <Outlet />
       {showLanguageSwitcher && <LanguageSwitcher />}
       <ClientOnly>
-        <PerfOverlay />
         <PushRuntime />
-        <ChatBot />
-        <ChatBot />
       </ClientOnly>
     </AppSplash>
   </QueryClientProvider>
