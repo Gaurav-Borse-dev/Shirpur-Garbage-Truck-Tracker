@@ -76,12 +76,12 @@ function DriverHome() {
     if (!LIVE_BACKEND) return;
     if (onDuty) {
       emitDriverDuty(truckId, "start");
-      startDriverLocation(truckId);
+      void startDriverLocation(truckId);
     } else {
       emitDriverDuty(truckId, "stop");
-      stopDriverLocation();
+      void stopDriverLocation();
     }
-    return () => stopDriverLocation();
+    return () => { void stopDriverLocation(); };
   }, [onDuty, truckId]);
 
   if (!live) return null;

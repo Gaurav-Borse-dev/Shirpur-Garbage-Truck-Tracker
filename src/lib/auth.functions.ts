@@ -12,6 +12,9 @@ const otpInput = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+/** Admin phone numbers that bypass Firebase and use the dev OTP flow. */
+const ADMIN_PHONES = new Set(["9999999999", "9999999990"]);
+
 /** Verifies the admin credentials on the server and issues an encrypted session cookie. */
 export const adminLogin = createServerFn({ method: "POST" })
   .validator((data: unknown) => credentials.parse(data))
@@ -31,19 +34,38 @@ const sendOtpInput = z.object({
 });
 
 /**
- * sendOtp — Sends OTP for login.
- * Configured with OTP 123456 for instant login without SMS gateway delay.
+ * sendOtp — Determines the authentication flow for the given phone number.
+ *
+ * - Admin phones (9999999999, 9999999990): Returns `useFirebase: false`.
+ *   In non-production, the static OTP 123456 is accepted.
+ * - All other phones: Returns `useFirebase: true`.
+ *   The client must use Firebase Phone Auth to send and verify the real OTP,
+ *   then call `setFirebaseSession` to establish the server session.
  */
 export const sendOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-    console.log(`[otp] OTP 123456 issued for ******${clean.slice(-4)}`);
-    return { ok: true as const, sent: true, useFirebase: false };
+
+    if (ADMIN_PHONES.has(clean)) {
+      console.log(`[otp] Admin phone ******${clean.slice(-4)} — bypass mode`);
+      return { ok: true as const, sent: true, useFirebase: false };
+    }
+
+    // All non-admin phones use Firebase Phone Auth (free 10K SMS/month)
+    console.log(`[otp] Firebase Phone Auth requested for ******${clean.slice(-4)}`);
+    return { ok: true as const, sent: true, useFirebase: true };
   });
 
 /**
- * verifyOtp — Handles OTP verification (123456) for resident, driver, and admin.
+ * verifyOtp — Fallback OTP verification for admin bypass flow.
+ *
+ * In production, only admin phones can use this endpoint (static OTP is rejected
+ * for regular users). Non-admin users authenticate via Firebase Phone Auth on
+ * the client and call `setFirebaseSession` instead.
+ *
+ * In development (NODE_ENV !== 'production'), the static OTP 123456 is accepted
+ * for any phone to ease testing.
  */
 export const verifyOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => otpInput.parse(data))
@@ -51,8 +73,18 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
+    const isProduction = process.env.NODE_ENV === "production";
+    const isAdminPhone = ADMIN_PHONES.has(clean);
 
-    // Verify OTP 123456
+    // In production, only admin phones may use the static OTP bypass
+    if (isProduction && !isAdminPhone) {
+      return {
+        ok: false as const,
+        error: "Please use Firebase Phone Auth to verify your number.",
+      };
+    }
+
+    // Verify static OTP (admin bypass, or dev-mode testing)
     if (code === "123456") {
       if (data.role === "admin") {
         await setUser({ role: "admin", username: "admin", phone: clean });
@@ -61,13 +93,15 @@ export const verifyOtp = createServerFn({ method: "POST" })
       } else {
         await setUser({ role: "resident", phone: clean });
       }
-      console.log(`[otp] Login successful for ******${clean.slice(-4)} as ${data.role}`);
+      console.log(`[otp] Login successful for ******${clean.slice(-4)} as ${data.role}${!isProduction ? " (dev bypass)" : ""}`);
       return { ok: true as const };
     }
 
     return {
       ok: false as const,
-      error: "Incorrect OTP. Please enter 123456",
+      error: isProduction
+        ? "Incorrect OTP. Please try again."
+        : "Incorrect OTP. Use 123456 in development mode.",
     };
   });
 
