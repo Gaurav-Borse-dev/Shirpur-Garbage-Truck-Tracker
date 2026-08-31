@@ -10,9 +10,9 @@ import { useI18n } from "@/store/i18n";
 import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
-// Navigation-grade basemap: CartoDB Voyager provides crisp road hierarchy & light modern tones
-const CARTO_VOYAGER_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const CARTO_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Clean OpenStreetMap tiles (no watermarks, free & high accuracy for Shirpur routes)
+const MAP_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const MAP_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /**
  * Top-down navigation garbage-tipper truck SVG with direction cone & headlights.
@@ -370,7 +370,7 @@ export function TruckMap(props: Props) {
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
 
         <RecenterOnKey
           center={props.resident}
@@ -456,7 +456,7 @@ export function TruckMap(props: Props) {
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
 
         {/* Navigation Camera Controller (Keeps road ahead visible) */}
         <DriverNavigationCameraController
@@ -499,7 +499,7 @@ export function TruckMap(props: Props) {
       attributionControl={false}
       className="w-full h-full"
     >
-      <TileLayer url={CARTO_VOYAGER_URL} attribution={CARTO_ATTR} subdomains={["a", "b", "c", "d"]} />
+      <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
 
       <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
       {SHIRPUR_LANDMARKS.map((lm) => (
