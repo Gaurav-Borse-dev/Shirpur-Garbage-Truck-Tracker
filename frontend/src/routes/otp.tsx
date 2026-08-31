@@ -121,7 +121,7 @@ function Otp() {
 
       <div className="px-6 mt-2 text-center">
         <h1 className="text-2xl font-bold text-neutral-900">{tr("Verify OTP")}</h1>
-        <p className="mt-1 text-xs text-neutral-500">{tr("We have sent a 6 digit OTP to")}</p>
+        <p className="mt-1 text-xs text-neutral-500">{tr("Enter 6-digit OTP (123456) for")}</p>
         <p className="font-bold text-emerald-700 text-sm mt-0.5">
           +91 {phone.replace(/(\d{5})(\d{5})/, "$1 $2")}
         </p>
@@ -155,7 +155,7 @@ function Otp() {
       {error && <div className="px-6 mt-4 text-xs font-semibold text-red-600 text-center">{error}</div>}
 
       <div className="px-6 mt-6 text-center text-xs text-neutral-400">
-        {tr("Enter the 6-digit verification code sent to your mobile number.")}
+        {tr("Enter the 6-digit verification code (123456) to sign in.")}
       </div>
     </MobileFrame>
   );

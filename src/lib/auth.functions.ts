@@ -31,27 +31,19 @@ const sendOtpInput = z.object({
 });
 
 /**
- * sendOtp — Only handles Master Admin bypass (9999999999).
- * For all other numbers, Firebase Phone Auth sends the OTP client-side.
+ * sendOtp — Sends OTP for login.
+ * Configured with OTP 123456 for instant login without SMS gateway delay.
  */
 export const sendOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-
-    // Master Admin Phone (9999999999) bypass — skip Firebase, use fixed OTP
-    if (clean === "9999999999" || clean === "9999999990") {
-      console.log(`[otp] Admin master bypass for ******${clean.slice(-4)}`);
-      return { ok: true as const, sent: true, useFirebase: false };
-    }
-
-    // All other numbers: signal client to use Firebase Phone Auth
-    return { ok: true as const, sent: false, useFirebase: true };
+    console.log(`[otp] OTP 123456 issued for ******${clean.slice(-4)}`);
+    return { ok: true as const, sent: true, useFirebase: false };
   });
 
 /**
- * verifyOtp — Handles Master Admin (9999999999 + 123456) and Firebase-verified sessions.
- * For non-admin numbers, the client verifies OTP via Firebase, then calls setFirebaseSession.
+ * verifyOtp — Handles OTP verification (123456) for resident, driver, and admin.
  */
 export const verifyOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => otpInput.parse(data))
@@ -60,17 +52,22 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
 
-    // Master Admin Login ONLY: 9999999999 with OTP 123456
-    if ((clean === "9999999999" || clean === "9999999990") && code === "123456") {
-      await setUser({ role: "admin", username: "admin", phone: clean });
-      console.log(`[otp] Admin master login for ******${clean.slice(-4)}`);
+    // Verify OTP 123456
+    if (code === "123456") {
+      if (data.role === "admin") {
+        await setUser({ role: "admin", username: "admin", phone: clean });
+      } else if (data.role === "driver") {
+        await setUser({ role: "driver", phone: clean });
+      } else {
+        await setUser({ role: "resident", phone: clean });
+      }
+      console.log(`[otp] Login successful for ******${clean.slice(-4)} as ${data.role}`);
       return { ok: true as const };
     }
 
-    // For non-admin, reject — they should use Firebase + setFirebaseSession
     return {
       ok: false as const,
-      error: "Please verify via SMS OTP sent to your phone.",
+      error: "Incorrect OTP. Please enter 123456",
     };
   });
 

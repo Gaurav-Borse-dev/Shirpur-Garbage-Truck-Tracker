@@ -194,8 +194,29 @@ function UnifiedLoginPage() {
     });
 
     try {
-      if (useFirebase && firebaseConfirmRef.current) {
-        // ── Firebase OTP Verification (for residents & drivers) ──
+      if (code === "123456" || !useFirebase || !firebaseConfirmRef.current) {
+        // ── Direct OTP (123456) Verification ──
+        const res = await verifyOtp({
+          data: {
+            phone: cleanPhone,
+            role: detected.role,
+            code,
+          },
+        });
+
+        if (!res.ok) {
+          setError((res as any).error || t("Incorrect code. Please enter 123456."));
+          setShake(true);
+          setTimeout(() => setShake(false), 450);
+          setTimeout(() => {
+            setDigits(["", "", "", "", "", ""]);
+            otpRefs.current[0]?.focus();
+          }, 600);
+          setVerifying(false);
+          return;
+        }
+      } else {
+        // ── Firebase OTP Verification ──
         const { firebaseVerifyOtp } = await import("@/lib/firebase");
         const firebaseUser = await firebaseVerifyOtp(firebaseConfirmRef.current, code);
 
@@ -210,27 +231,6 @@ function UnifiedLoginPage() {
 
         if (!sessionRes.ok) {
           setError(t("Failed to create session. Please try again."));
-          setVerifying(false);
-          return;
-        }
-      } else {
-        // ── Admin Master OTP Verification (9999999999 + 123456) ──
-        const res = await verifyOtp({
-          data: {
-            phone: cleanPhone,
-            role: detected.role,
-            code,
-          },
-        });
-
-        if (!res.ok) {
-          setError((res as any).error || t("Incorrect code. Please try again."));
-          setShake(true);
-          setTimeout(() => setShake(false), 450);
-          setTimeout(() => {
-            setDigits(["", "", "", "", "", ""]);
-            otpRefs.current[0]?.focus();
-          }, 600);
           setVerifying(false);
           return;
         }
@@ -449,7 +449,7 @@ function UnifiedLoginPage() {
                 <div className="text-center">
                   <h1 className="text-2xl font-extrabold text-neutral-900">{t("Verify OTP")}</h1>
                   <p className="mt-1 text-xs text-neutral-500">
-                    {t("We have sent a 6 digit OTP to")}
+                    {t("Enter 6-digit OTP")} <span className="font-bold text-emerald-600">(123456)</span> {t("for")}
                   </p>
                   <p className="font-bold text-emerald-700 text-sm mt-0.5">
                     +91 {phone.replace(/(\d{5})(\d{5})/, "$1 $2")}
