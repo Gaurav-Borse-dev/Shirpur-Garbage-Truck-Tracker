@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useTrucks } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { CheckIcon } from "@/components/icons";
 import { useT } from "@/lib/i18n";
+import { updateTruckAssignment } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/admin/assignments")({
   component: AssignmentsPage,
@@ -35,15 +37,42 @@ function AssignmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
+  const assignMutation = useMutation({
+    mutationFn: (args: { truckCode: string; ward: string }) =>
+      updateTruckAssignment({ data: args }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setError(res.error ?? "Failed to update assignment");
+        return;
+      }
+      // Also update local store for immediate UI feedback
+      const currentTrucks = useTrucks.getState().trucks;
+      const target = currentTrucks[selectedId];
+      if (target) {
+        useTrucks.setState({
+          trucks: {
+            ...currentTrucks,
+            [selectedId]: {
+              ...target,
+              truck: { ...target.truck, wardName: ward.trim() },
+            },
+          },
+          tick: useTrucks.getState().tick + 1,
+        });
+      }
+      push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 1800);
+    },
+    onError: () => setError("Network error. Please try again."),
+  });
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setJustSaved(false);
-    // TODO: Connect to backend API for ward/city reassignment
-    // For now, show confirmation toast
-    push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1800);
+    if (!selectedId || !ward.trim()) return;
+    assignMutation.mutate({ truckCode: selectedId, ward: ward.trim() });
   }
 
   return (

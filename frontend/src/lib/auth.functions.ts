@@ -12,6 +12,9 @@ const otpInput = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+/** Admin phone numbers that bypass Firebase and use the dev OTP flow. */
+const ADMIN_PHONES = new Set(["9999999999", "9999999990"]);
+
 /** Verifies the admin credentials on the server and issues an encrypted session cookie. */
 export const adminLogin = createServerFn({ method: "POST" })
   .validator((data: unknown) => credentials.parse(data))
@@ -31,19 +34,29 @@ const sendOtpInput = z.object({
 });
 
 /**
- * sendOtp — Sends OTP for login.
- * Configured with OTP 123456 for instant login without SMS gateway delay.
+ * sendOtp — Determines the authentication flow for the given phone number.
+ *
+ * - Admin phones (9999999999, 9999999990): Returns `useFirebase: false`.
+ * - All other phones (Residents, Drivers): Returns `useFirebase: true`.
+ *   The client uses Firebase Phone Auth to send real SMS OTP to the mobile device.
  */
 export const sendOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-    console.log(`[otp] OTP 123456 issued for ******${clean.slice(-4)}`);
-    return { ok: true as const, sent: true, useFirebase: false };
+
+    if (ADMIN_PHONES.has(clean)) {
+      console.log(`[otp] Admin phone ******${clean.slice(-4)} — bypass mode`);
+      return { ok: true as const, sent: true, useFirebase: false };
+    }
+
+    // All real numbers (residents & drivers) use Firebase Phone Auth for real SMS
+    console.log(`[otp] Firebase Phone Auth requested for ******${clean.slice(-4)}`);
+    return { ok: true as const, sent: true, useFirebase: true };
   });
 
 /**
- * verifyOtp — Handles OTP verification (123456) for resident, driver, and admin.
+ * verifyOtp — Fallback OTP verification for admin bypass flow only.
  */
 export const verifyOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => otpInput.parse(data))
@@ -51,23 +64,24 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
+    const isAdminPhone = ADMIN_PHONES.has(clean);
 
-    // Verify OTP 123456
+    // Only admin bypass phones may use static code
+    if (!isAdminPhone) {
+      return {
+        ok: false as const,
+        error: "Please enter the real SMS OTP sent to your phone.",
+      };
+    }
+
     if (code === "123456") {
-      if (data.role === "admin") {
-        await setUser({ role: "admin", username: "admin", phone: clean });
-      } else if (data.role === "driver") {
-        await setUser({ role: "driver", phone: clean });
-      } else {
-        await setUser({ role: "resident", phone: clean });
-      }
-      console.log(`[otp] Login successful for ******${clean.slice(-4)} as ${data.role}`);
+      await setUser({ role: "admin", username: "admin", phone: clean });
       return { ok: true as const };
     }
 
     return {
       ok: false as const,
-      error: "Incorrect OTP. Please enter 123456",
+      error: "Incorrect code. Please try again.",
     };
   });
 

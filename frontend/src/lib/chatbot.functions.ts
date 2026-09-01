@@ -1,4 +1,4 @@
-﻿// NO TanStack Start dependencies - Pure Supabase calls
+// NO TanStack Start dependencies - Pure Supabase calls
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 export interface ChatbotResponse {
   text: string
@@ -74,7 +74,7 @@ const translations: Record<string, Record<string, string>> = {
 
 async function getUserLanguage(userId: string): Promise<string> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('profiles')
       .select('language')
       .eq('id', userId)
@@ -116,7 +116,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 export async function getTruckLocation(userId: string): Promise<ChatbotResponse> {
   try {
     // Get user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await (supabaseAdmin as any)
       .from('profiles')
       .select('area, language')
       .eq('id', userId)
@@ -130,7 +130,7 @@ export async function getTruckLocation(userId: string): Promise<ChatbotResponse>
     }
 
     // Get truck for this area
-    const { data: truck, error: truckError } = await supabaseAdmin
+    const { data: truck, error: truckError } = await (supabaseAdmin as any)
       .from('trucks')
       .select('truck_number, current_latitude, current_longitude, route_name, status')
       .eq('assigned_area', profile.area)
@@ -173,7 +173,7 @@ export async function getTruckLocation(userId: string): Promise<ChatbotResponse>
 export async function getTruckETA(userId: string): Promise<ChatbotResponse> {
   try {
     // Get user location
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await (supabaseAdmin as any)
       .from('profiles')
       .select('latitude, longitude, area, language')
       .eq('id', userId)
@@ -187,7 +187,7 @@ export async function getTruckETA(userId: string): Promise<ChatbotResponse> {
     }
 
     // Get truck location
-    const { data: truck, error: truckError } = await supabaseAdmin
+    const { data: truck, error: truckError } = await (supabaseAdmin as any)
       .from('trucks')
       .select('current_latitude, current_longitude, truck_number, status')
       .eq('assigned_area', profile.area)
@@ -242,7 +242,7 @@ export async function getTruckETA(userId: string): Promise<ChatbotResponse> {
 
 export async function getTruckStatus(userId: string): Promise<ChatbotResponse> {
   try {
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await (supabaseAdmin as any)
       .from('profiles')
       .select('area, language')
       .eq('id', userId)
@@ -255,7 +255,7 @@ export async function getTruckStatus(userId: string): Promise<ChatbotResponse> {
       }
     }
 
-    const { data: truck, error: truckError } = await supabaseAdmin
+    const { data: truck, error: truckError } = await (supabaseAdmin as any)
       .from('trucks')
       .select('truck_number, status, last_updated')
       .eq('assigned_area', profile.area)
@@ -293,7 +293,7 @@ export async function getTruckStatus(userId: string): Promise<ChatbotResponse> {
 
 export async function getTruckRoute(userId: string): Promise<ChatbotResponse> {
   try {
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await (supabaseAdmin as any)
       .from('profiles')
       .select('area, language')
       .eq('id', userId)
@@ -306,7 +306,7 @@ export async function getTruckRoute(userId: string): Promise<ChatbotResponse> {
       }
     }
 
-    const { data: truck, error: truckError } = await supabaseAdmin
+    const { data: truck, error: truckError } = await (supabaseAdmin as any)
       .from('trucks')
       .select('route_name, stops')
       .eq('assigned_area', profile.area)
