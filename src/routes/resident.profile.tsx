@@ -4,10 +4,10 @@ import { useState } from "react";
 
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
-import { useBookings } from "@/store/bookings";
-
+import { useQuery } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { useI18n } from "@/store/i18n";
+import { getMyBookings } from "@/lib/booking.functions";
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,
@@ -26,9 +26,14 @@ function ProfilePage() {
   const phone = session.role === "resident" ? session.phone : "—";
   const initials = phone.slice(-2);
   const options = [100, 250, 500, 1000];
-  const allBookings = useBookings((s) => s.bookings);
-  const myBookings = allBookings.filter((b) => b.residentPhone === phone);
-  const pendingCount = myBookings.filter((b) => b.status === "pending").length;
+
+  const { data: bookingResult } = useQuery({
+    queryKey: ["my-bookings"],
+    queryFn: () => getMyBookings(),
+    staleTime: 15_000,
+  });
+  const myBookings = bookingResult?.bookings ?? [];
+  const pendingCount = myBookings.filter((b: { status: string }) => b.status === "pending").length;
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-white">
