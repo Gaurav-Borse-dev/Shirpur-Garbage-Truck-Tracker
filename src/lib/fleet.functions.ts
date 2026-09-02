@@ -244,3 +244,97 @@ export const updateTruckAssignment = createServerFn({ method: "POST" })
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };
   });
+
+/* ── Ward management ─────────────────────────────────────────────────── */
+
+const addWardInput = z.object({
+  name: z.string().min(1).max(120).trim(),
+});
+
+const removeWardInput = z.object({
+  wardId: z.string().uuid(),
+});
+
+/**
+ * Fetch every ward from the `wards` table.
+ */
+export const getWards = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { admin } = await import("./tracking.server");
+    const sb = await admin();
+    const { data: rows, error } = await sb
+      .from("wards")
+      .select("id, name, created_at")
+      .order("name", { ascending: true });
+
+    if (error) return { wards: null, error: error.message };
+    return { wards: rows ?? [], error: null };
+  } catch (err) {
+    console.error("[wards] fetch failed", err);
+    return { wards: null, error: "unavailable" };
+  }
+});
+
+/**
+ * Add a new ward (admin-only).
+ */
+export const addWard = createServerFn({ method: "POST" })
+  .validator((data: unknown) => addWardInput.parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    const { data: row, error } = await sb
+      .from("wards")
+      .insert({ name: data.name })
+      .select("id")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return { ok: false as const, error: "A ward with this name already exists" };
+      }
+      return { ok: false as const, error: error.message };
+    }
+
+    return { ok: true as const, wardId: row.id };
+  });
+
+/**
+ * Remove a ward (admin-only).
+ * Blocks deletion if any truck is currently assigned to this ward.
+ */
+export const removeWard = createServerFn({ method: "POST" })
+  .validator((data: unknown) => removeWardInput.parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    // Look up ward name first
+    const { data: ward } = await sb
+      .from("wards")
+      .select("id, name")
+      .eq("id", data.wardId)
+      .single();
+
+    if (!ward) return { ok: false as const, error: "Ward not found" };
+
+    // Check if any truck is assigned to this ward
+    const { data: assignedTrucks } = await sb
+      .from("trucks")
+      .select("truck_code")
+      .eq("ward", ward.name);
+
+    if (assignedTrucks && assignedTrucks.length > 0) {
+      const codes = assignedTrucks.map((t) => t.truck_code).join(", ");
+      return {
+        ok: false as const,
+        error: `Cannot delete — ward is assigned to truck(s): ${codes}. Reassign them first.`,
+      };
+    }
+
+    const { error } = await sb.from("wards").delete().eq("id", data.wardId);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+

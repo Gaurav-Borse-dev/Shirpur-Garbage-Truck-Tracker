@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useTrucks } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { CheckIcon } from "@/components/icons";
 import { useT } from "@/lib/i18n";
-import { updateTruckAssignment } from "@/lib/fleet.functions";
+import { updateTruckAssignment, getWards } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/admin/assignments")({
   component: AssignmentsPage,
@@ -20,6 +20,14 @@ function AssignmentsPage() {
   const list = useMemo(() => Object.values(trucks), [trucks]);
   const [selectedId, setSelectedId] = useState<string>(list[0]?.id ?? "");
   const selected = trucks[selectedId];
+
+  // Fetch wards from database
+  const { data: wardsData } = useQuery({
+    queryKey: ["wards"],
+    queryFn: () => getWards(),
+    staleTime: 30_000,
+  });
+  const wardNames = useMemo(() => wardsData?.wards?.map((w) => w.name) ?? [], [wardsData]);
 
   const [ward, setWard] = useState(selected?.truck.wardName ?? "");
   const [city, setCity] = useState(selected?.truck.city ?? "Shirpur");
@@ -131,14 +139,21 @@ function AssignmentsPage() {
 
               <div className="mt-6 space-y-4">
                 <Field label={tr("Assigned ward")}>
-                  <input
+                  <select
                     value={ward}
                     onChange={(e) => setWard(e.target.value)}
-                    maxLength={80}
-                    placeholder={tr("e.g. Shirpur Ward 4 — Subhash Nagar")}
                     className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
-                  />
-                  <div className="text-[11px] text-neutral-400 mt-1">{tr("3–80 characters")}</div>
+                  >
+                    <option value="">{tr("Select a ward…")}</option>
+                    {wardNames.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                    {/* Keep current ward visible even if not in list */}
+                    {ward && !wardNames.includes(ward) && (
+                      <option value={ward}>{ward} ({tr("current")})</option>
+                    )}
+                  </select>
+                  <div className="text-[11px] text-neutral-400 mt-1">{tr("Select from configured wards")}</div>
                 </Field>
                 <Field label={tr("City")}>
                   <div className="h-11 px-3 rounded-lg bg-neutral-50 flex items-center text-sm font-semibold text-ink">

@@ -28,24 +28,9 @@ export type Truck = {
   dbId?: string;
 };
 
-export const SHIRPUR_WARDS = [
-  "Shirpur Ward 1 — Old City",
-  "Shirpur Ward 2 — Station Road",
-  "Shirpur Ward 3 — Tilak Nagar",
-  "Shirpur Ward 4 — Subhash Nagar",
-  "Shirpur Ward 5 — Gandhi Chowk",
-  "Shirpur Ward 6 — Bhadgaon Road",
-  "Shirpur Ward 7 — Shahada Road",
-  "Shirpur Ward 8 — Thakkar Bappa Nagar",
-  "Shirpur Ward 9 — Karwand Naka",
-  "Shirpur Ward 10 — Boradi Road",
-  "Shirpur Ward 11 — Sangvi",
-  "Shirpur Ward 12 — Thalner Road",
-  "Shirpur Ward 13 — Arthe",
-  "Shirpur Ward 14 — Mukti Dham",
-  "Shirpur Ward 15 — NMU Campus",
-  "Shirpur Ward 16 — Dondaicha Road",
-];
+/** @deprecated Wards are now stored in the `wards` database table. Use `getWards()` from fleet.functions.ts. */
+export const SHIRPUR_WARDS: string[] = [];
+
 
 export const FALLBACK_TRUCKS: Truck[] = [];
 
