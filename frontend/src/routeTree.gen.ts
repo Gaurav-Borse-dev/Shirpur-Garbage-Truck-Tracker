@@ -23,6 +23,7 @@ import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
 import { Route as AdminMapRouteImport } from './routes/admin.map'
+import { Route as AdminWardsRouteImport } from './routes/admin.wards'
 import { Route as LoginAdminRouteImport } from './routes/login.admin'
 import { Route as LoginDriverRouteImport } from './routes/login.driver'
 import { Route as LoginResidentRouteImport } from './routes/login.resident'
@@ -103,6 +104,11 @@ const AdminMapRoute = AdminMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminWardsRoute = AdminWardsRouteImport.update({
+  id: '/wards',
+  path: '/wards',
+  getParentRoute: () => AdminRoute,
+} as any)
 const LoginAdminRoute = LoginAdminRouteImport.update({
   id: '/login/admin',
   path: '/login/admin',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
   '/login/resident': typeof LoginResidentRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
     | '/login/resident'
@@ -413,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMapRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/wards': {
+      id: '/admin/wards'
+      path: '/wards'
+      fullPath: '/admin/wards'
+      preLoaderRoute: typeof AdminWardsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/login/admin': {
       id: '/login/admin'
       path: '/login/admin'
@@ -485,6 +504,7 @@ interface AdminRouteChildren {
   AdminBookingsRoute: typeof AdminBookingsRoute
   AdminDriversRoute: typeof AdminDriversRoute
   AdminMapRoute: typeof AdminMapRoute
+  AdminWardsRoute: typeof AdminWardsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -494,6 +514,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminBookingsRoute: AdminBookingsRoute,
   AdminDriversRoute: AdminDriversRoute,
   AdminMapRoute: AdminMapRoute,
+  AdminWardsRoute: AdminWardsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

@@ -43,6 +43,7 @@ function AdminLayout() {
     { to: "/admin/map", label: tr("Live Map"), Icon: TruckIcon },
     { to: "/admin/assignments", label: tr("Route Assignments"), Icon: MapIcon },
     { to: "/admin/drivers", label: tr("Driver Management"), Icon: UserIcon },
+    { to: "/admin/wards", label: tr("Ward Management"), Icon: MapIcon },
     { to: "/admin/bookings", label: tr("Dustbin Bookings"), Icon: CalendarIcon, badge: pendingBookings },
     { to: "/admin/alerts", label: tr("Alerts & Logs"), Icon: BellIcon },
   ];

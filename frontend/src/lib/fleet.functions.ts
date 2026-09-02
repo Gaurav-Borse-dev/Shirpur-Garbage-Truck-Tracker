@@ -64,7 +64,17 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       return { ok: false as const, error: `Truck ${data.truckCode} not found in database` };
     }
 
-    // 2. Check if a profile with this phone already exists
+    // 2. Check if truck is already assigned to another active driver
+    const { data: existingAssignment } = await sb
+      .from("drivers")
+      .select("id")
+      .eq("assigned_truck_id", truck.id)
+      .eq("on_duty", true)
+      .maybeSingle();
+
+    // Allow assignment even if exists — admin is reassigning intentionally
+
+    // 3. Check if a profile with this phone already exists
     const { data: existingProfile } = await sb
       .from("profiles")
       .select("user_id")
@@ -76,7 +86,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
     if (existingProfile) {
       userId = existingProfile.user_id;
     } else {
-      // 3. Create a Supabase Auth user for this phone
+      // 4. Create a Supabase Auth user for this phone
       const { data: authUser, error: authErr } = await sb.auth.admin.createUser({
         phone: `+91${data.phone}`,
         phone_confirm: true,
@@ -84,6 +94,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       });
 
       if (authErr || !authUser?.user) {
+        // If user already exists in auth but not in profiles, try to find them
         const { data: existingAuthUsers } = await sb.auth.admin.listUsers();
         const found = existingAuthUsers?.users?.find(
           (u: { phone?: string }) => u.phone === `+91${data.phone}`,
@@ -97,7 +108,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
         userId = authUser.user.id;
       }
 
-      // 4. Create profile
+      // 5. Create profile
       await sb.from("profiles").upsert(
         {
           user_id: userId,
@@ -108,7 +119,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       );
     }
 
-    // 5. Check if driver row already exists for this user
+    // 6. Check if driver row already exists for this user
     const { data: existingDriver } = await sb
       .from("drivers")
       .select("id")
@@ -116,6 +127,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existingDriver) {
+      // Update the existing driver row
       await sb
         .from("drivers")
         .update({
@@ -127,7 +139,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       return { ok: true as const, driverId: existingDriver.id, action: "updated" };
     }
 
-    // 6. Create driver row
+    // 7. Create driver row
     const { data: newDriver, error: driverErr } = await sb
       .from("drivers")
       .insert({
@@ -142,7 +154,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       return { ok: false as const, error: `Failed to create driver: ${driverErr?.message ?? "unknown"}` };
     }
 
-    // 7. Assign role
+    // 8. Assign role
     await sb.from("user_roles").upsert(
       { user_id: userId, role: "driver" as const },
       { onConflict: "user_id" },
@@ -215,6 +227,31 @@ export const removeFleetDriver = createServerFn({ method: "POST" })
   });
 
 /**
+ * Remove a driver by phone number — used when the client doesn't have the driver's dbId
+ * (e.g. seed/phantom drivers from localStorage).
+ */
+export const removeFleetDriverByPhone = createServerFn({ method: "POST" })
+  .validator((data: unknown) => z.object({ phone: z.string().regex(/^\d{10}$/) }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    // Find profile by phone
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("user_id")
+      .eq("phone", data.phone)
+      .maybeSingle();
+
+    if (!profile) return { ok: false as const, error: "No driver found with this phone" };
+
+    // Delete driver row linked to this user
+    const { error } = await sb.from("drivers").delete().eq("user_id", profile.user_id);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+/**
  * Update a truck's ward assignment in the database.
  * The change propagates to all users via the realtime subscription on the trucks table.
  */
@@ -232,3 +269,105 @@ export const updateTruckAssignment = createServerFn({ method: "POST" })
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };
   });
+
+/* ── Ward management ─────────────────────────────────────────────────── */
+
+const addWardInput = z.object({
+  name: z.string().min(1).max(120).trim(),
+});
+
+const removeWardInput = z.object({
+  wardId: z.string().uuid(),
+});
+
+/**
+ * Fetch every ward from the `wards` table.
+ */
+export const getWards = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { admin } = await import("./tracking.server");
+    const sb = await admin();
+    const { data: rows, error } = await sb
+      .from("wards")
+      .select("id, name, created_at")
+      .order("name", { ascending: true });
+
+    if (error) return { wards: null, error: error.message };
+    return { wards: rows ?? [], error: null };
+  } catch (err) {
+    console.error("[wards] fetch failed", err);
+    return { wards: null, error: "unavailable" };
+  }
+});
+
+/**
+ * Add a new ward (admin-only).
+ */
+export const addWard = createServerFn({ method: "POST" })
+  .validator((data: unknown) => addWardInput.parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    const { data: row, error } = await sb
+      .from("wards")
+      .insert({ name: data.name })
+      .select("id")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return { ok: false as const, error: "A ward with this name already exists" };
+      }
+      return { ok: false as const, error: error.message };
+    }
+
+    return { ok: true as const, wardId: row.id };
+  });
+
+/**
+ * Remove a ward (admin-only).
+ * If any trucks are assigned to this ward, they will be cleanly unassigned.
+ */
+export const removeWard = createServerFn({ method: "POST" })
+  .validator((data: unknown) => removeWardInput.parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    // Look up ward name first
+    const { data: ward } = await sb
+      .from("wards")
+      .select("id, name")
+      .eq("id", data.wardId)
+      .single();
+
+    if (!ward) return { ok: false as const, error: "Ward not found" };
+
+    // Unassign any trucks that were assigned to this ward
+    await sb
+      .from("trucks")
+      .update({ ward: null })
+      .eq("ward", ward.name);
+
+    // Delete the ward
+    const { error } = await sb.from("wards").delete().eq("id", data.wardId);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+/**
+ * Clear all drivers from the database (admin-only).
+ */
+export const clearAllDrivers = createServerFn({ method: "POST" }).handler(async () => {
+  await requireAdmin();
+  const sb = await db();
+
+  const { error } = await sb
+    .from("drivers")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const };
+});
