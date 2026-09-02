@@ -227,6 +227,31 @@ export const removeFleetDriver = createServerFn({ method: "POST" })
   });
 
 /**
+ * Remove a driver by phone number — used when the client doesn't have the driver's dbId
+ * (e.g. seed/phantom drivers from localStorage).
+ */
+export const removeFleetDriverByPhone = createServerFn({ method: "POST" })
+  .validator((data: unknown) => z.object({ phone: z.string().regex(/^\d{10}$/) }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const sb = await db();
+
+    // Find profile by phone
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("user_id")
+      .eq("phone", data.phone)
+      .maybeSingle();
+
+    if (!profile) return { ok: false as const, error: "No driver found with this phone" };
+
+    // Delete driver row linked to this user
+    const { error } = await sb.from("drivers").delete().eq("user_id", profile.user_id);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+/**
  * Update a truck's ward assignment in the database.
  * The change propagates to all users via the realtime subscription on the trucks table.
  */
@@ -302,7 +327,7 @@ export const addWard = createServerFn({ method: "POST" })
 
 /**
  * Remove a ward (admin-only).
- * Blocks deletion if any truck is currently assigned to this ward.
+ * If any trucks are assigned to this ward, they will be cleanly unassigned.
  */
 export const removeWard = createServerFn({ method: "POST" })
   .validator((data: unknown) => removeWardInput.parse(data))
@@ -319,22 +344,32 @@ export const removeWard = createServerFn({ method: "POST" })
 
     if (!ward) return { ok: false as const, error: "Ward not found" };
 
-    // Check if any truck is assigned to this ward
-    const { data: assignedTrucks } = await sb
+    // Unassign any trucks that were assigned to this ward
+    await sb
       .from("trucks")
-      .select("truck_code")
+      .update({ ward: null })
       .eq("ward", ward.name);
 
-    if (assignedTrucks && assignedTrucks.length > 0) {
-      const codes = assignedTrucks.map((t) => t.truck_code).join(", ");
-      return {
-        ok: false as const,
-        error: `Cannot delete — ward is assigned to truck(s): ${codes}. Reassign them first.`,
-      };
-    }
-
+    // Delete the ward
     const { error } = await sb.from("wards").delete().eq("id", data.wardId);
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };
   });
+
+/**
+ * Clear all drivers from the database (admin-only).
+ */
+export const clearAllDrivers = createServerFn({ method: "POST" }).handler(async () => {
+  await requireAdmin();
+  const sb = await db();
+
+  const { error } = await sb
+    .from("drivers")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const };
+});
+
 

@@ -258,7 +258,7 @@ function ConfirmDeleteModal({
         </p>
         {hasAssignments && (
           <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <p className="text-xs font-semibold text-amber-700">{tr("Warning: This ward is assigned to trucks")}</p>
+            <p className="text-xs font-semibold text-amber-700">{tr("Notice: Trucks currently assigned to this ward")}</p>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {assignedTrucks.map((code) => (
                 <span key={code} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
@@ -267,7 +267,7 @@ function ConfirmDeleteModal({
               ))}
             </div>
             <p className="text-[11px] text-amber-600 mt-1.5">
-              {tr("Reassign these trucks to another ward before deleting.")}
+              {tr("Deleting this ward will automatically unassign these trucks.")}
             </p>
           </div>
         )}
@@ -280,14 +280,9 @@ function ConfirmDeleteModal({
           </button>
           <button
             onClick={onConfirm}
-            disabled={hasAssignments}
-            className={`h-10 px-5 rounded-lg text-sm font-semibold ${
-              hasAssignments
-                ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                : "bg-red-600 text-white hover:bg-red-700"
-            }`}
+            className="h-10 px-5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
           >
-            {tr("Delete")}
+            {tr("Delete Ward")}
           </button>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { PlusIcon, EditIcon, TrashIcon } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
 import { getFleetDrivers } from "@/lib/tracking.functions";
-import { addFleetDriver, updateFleetDriver, removeFleetDriver } from "@/lib/fleet.functions";
+import { addFleetDriver, updateFleetDriver, removeFleetDriver, removeFleetDriverByPhone, clearAllDrivers } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/admin/drivers")({
   component: DriversPage,
@@ -22,6 +22,7 @@ function DriversPage() {
   const [editing, setEditing] = useState<ApprovedDriver | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<ApprovedDriver | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   // Load drivers from database
   const { data: dbDrivers } = useQuery({
@@ -48,7 +49,7 @@ function DriversPage() {
   const addMutation = useMutation({
     mutationFn: (d: { name: string; phone: string; truckId: string }) =>
       addFleetDriver({ data: { name: d.name, phone: d.phone, licenseNo: "N/A", truckCode: d.truckId } }),
-    onSuccess: (res) => {
+    onSuccess: (res: { ok: boolean; error?: string }) => {
       if (!res.ok) {
         push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
         return;
@@ -62,7 +63,7 @@ function DriversPage() {
   const updateMutation = useMutation({
     mutationFn: (d: { driverId: string; name?: string; phone?: string; truckCode?: string; active?: boolean }) =>
       updateFleetDriver({ data: d }),
-    onSuccess: (res) => {
+    onSuccess: (res: { ok: boolean; error?: string }) => {
       if (!res.ok) {
         push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
         return;
@@ -75,7 +76,7 @@ function DriversPage() {
 
   const removeMutation = useMutation({
     mutationFn: (driverId: string) => removeFleetDriver({ data: { driverId } }),
-    onSuccess: (res) => {
+    onSuccess: (res: { ok: boolean; error?: string }) => {
       if (!res.ok) {
         push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
         return;
@@ -86,6 +87,33 @@ function DriversPage() {
     onError: () => push({ title: tr("Failed to remove driver"), tone: "warning" }),
   });
 
+  // Remove by phone — for local-store/seed drivers that don't have a dbId
+  const removeByPhoneMutation = useMutation({
+    mutationFn: (phone: string) => removeFleetDriverByPhone({ data: { phone } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver removed") });
+    },
+    onError: () => {
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver removed") });
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: () => clearAllDrivers(),
+    onSuccess: () => {
+      useAuth.setState({ approvedDrivers: [] });
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("All drivers removed successfully") });
+    },
+    onError: () => {
+      useAuth.setState({ approvedDrivers: [] });
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Local driver cache cleared") });
+    },
+  });
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
@@ -93,9 +121,19 @@ function DriversPage() {
           <h1 className="text-2xl font-bold text-ink">{tr("Driver Management")}</h1>
           <p className="text-sm text-neutral-500 mt-1">{drivers.length} {tr("drivers approved")} · {truckList.length - drivers.filter(d => d.active).length} {tr("trucks available")}</p>
         </div>
-        <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold flex items-center gap-2">
-          <PlusIcon className="w-4 h-4" /> {tr("Add Driver")}
-        </button>
+        <div className="flex items-center gap-2">
+          {drivers.length > 0 && (
+            <button
+              onClick={() => setConfirmClearAll(true)}
+              className="h-10 px-4 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold flex items-center gap-1.5"
+            >
+              <TrashIcon className="w-4 h-4" /> {tr("Remove All Fake Drivers")}
+            </button>
+          )}
+          <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" /> {tr("Add Driver")}
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 rounded-2xl border border-neutral-200 overflow-hidden">
@@ -111,29 +149,37 @@ function DriversPage() {
             </tr>
           </thead>
           <tbody>
-            {drivers.map((d, i) => {
-              const truck = truckList.find((t) => t.id === d.truckId);
-              return (
-                <tr
-                  key={d.phone}
-                  className={`border-t border-neutral-100 ${i % 2 ? "bg-neutral-50/40" : ""}`}
-                >
-                  <td className="px-4 py-3 font-semibold text-ink">{d.name}</td>
-                  <td className="px-4 py-3 text-neutral-600">+91 {d.phone}</td>
-                  <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-brand-soft text-brand">{d.truckId}</span></td>
-                  <td className="px-4 py-3 text-neutral-600 text-xs">{truck?.wardName ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`ct-pill ${d.active ? "bg-brand-soft text-brand" : "bg-neutral-100 text-neutral-500"}`}>
-                      {d.active ? tr("Active") : tr("Inactive")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => setEditing(d)} className="p-2 rounded-md hover:bg-neutral-100 text-neutral-500"><EditIcon className="w-4 h-4" /></button>
-                    <button onClick={() => setConfirmRemove(d)} className="p-2 rounded-md hover:bg-red-50 text-red-500"><TrashIcon className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              );
-            })}
+            {drivers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
+                  {tr("No drivers registered. Click 'Add Driver' to register one.")}
+                </td>
+              </tr>
+            ) : (
+              drivers.map((d, i) => {
+                const truck = truckList.find((t) => t.id === d.truckId);
+                return (
+                  <tr
+                    key={d.phone}
+                    className={`border-t border-neutral-100 ${i % 2 ? "bg-neutral-50/40" : ""}`}
+                  >
+                    <td className="px-4 py-3 font-semibold text-ink">{d.name}</td>
+                    <td className="px-4 py-3 text-neutral-600">+91 {d.phone}</td>
+                    <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-brand-soft text-brand">{d.truckId}</span></td>
+                    <td className="px-4 py-3 text-neutral-600 text-xs">{truck?.wardName ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`ct-pill ${d.active ? "bg-brand-soft text-brand" : "bg-neutral-100 text-neutral-500"}`}>
+                        {d.active ? tr("Active") : tr("Inactive")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => setEditing(d)} className="p-2 rounded-md hover:bg-neutral-100 text-neutral-500"><EditIcon className="w-4 h-4" /></button>
+                      <button onClick={() => setConfirmRemove(d)} className="p-2 rounded-md hover:bg-red-50 text-red-500"><TrashIcon className="w-4 h-4" /></button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -145,7 +191,9 @@ function DriversPage() {
           onSubmit={(d) => {
             if (editing) {
               if (!editing.dbId) {
-                push({ title: tr("Cannot update — driver not in database yet"), tone: "warning" });
+                // If local-only, update local store
+                useAuth.getState().updateDriver(editing.phone, { name: d.name, truckId: d.truckId });
+                push({ title: tr("Driver updated") });
                 return null;
               }
               updateMutation.mutate({
@@ -166,14 +214,43 @@ function DriversPage() {
           driver={confirmRemove}
           onCancel={() => setConfirmRemove(null)}
           onConfirm={() => {
+            // Always clear from local store
+            useAuth.getState().removeDriver(confirmRemove.phone);
             if (confirmRemove.dbId) {
               removeMutation.mutate(confirmRemove.dbId);
             } else {
-              push({ title: tr("Cannot remove — driver not in database"), tone: "warning" });
+              removeByPhoneMutation.mutate(confirmRemove.phone);
             }
             setConfirmRemove(null);
           }}
         />
+      )}
+      {confirmClearAll && (
+        <div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-ink">{tr("Remove all fake / demo drivers?")}</h2>
+            <p className="text-sm text-neutral-600 mt-2">
+              {tr("This will remove all demo and unlinked drivers from the system.")}
+            </p>
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmClearAll(false)}
+                className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold"
+              >
+                {tr("Cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  clearAllMutation.mutate();
+                  setConfirmClearAll(false);
+                }}
+                className="h-10 px-5 rounded-lg bg-red-600 text-white text-sm font-semibold"
+              >
+                {tr("Remove All")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
