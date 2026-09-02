@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { DRIVER_NAMES, FALLBACK_TRUCKS } from "@/lib/trucks";
 
 export type Role = "resident" | "driver" | "admin";
 export type Session =
@@ -33,19 +32,11 @@ type AuthState = {
   loadDrivers: (drivers: ApprovedDriver[]) => void;
 };
 
-/** Fallback driver roster from static data — replaced when DB loads. */
-const fallbackDrivers: ApprovedDriver[] = DRIVER_NAMES.slice(0, 10).map((d, i) => ({
-  name: d.name,
-  phone: d.phone,
-  truckId: FALLBACK_TRUCKS[i]?.id ?? `GBR-${String(i + 1).padStart(2, "0")}`,
-  active: true,
-}));
-
 export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
       session: null,
-      approvedDrivers: fallbackDrivers,
+      approvedDrivers: [],
       dbDriversLoaded: false,
       setSession: (s) => set({ session: s }),
       logout: () => set({ session: null }),
@@ -53,11 +44,7 @@ export const useAuth = create<AuthState>()(
         const clean = phone.trim().replace(/\D/g, "");
         if (!clean) return undefined;
         const drivers = get().approvedDrivers || [];
-        const match = drivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
-        if (match) return match;
-        const seedMatch = fallbackDrivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
-        if (seedMatch) return seedMatch;
-        return undefined;
+        return drivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
       },
       addDriver: (d) => {
         const list = get().approvedDrivers;
@@ -93,7 +80,7 @@ export function detectRole(phone: string): {
   driver?: ApprovedDriver;
 } {
   const clean = phone.trim().replace(/\D/g, "");
-  if (clean === "9999999999" || clean === "9999999990") {
+  if (clean === "9999999999") {
     return { role: "admin" };
   }
   const driver = useAuth.getState().findDriverByPhone(clean);

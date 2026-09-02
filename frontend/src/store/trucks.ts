@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { FALLBACK_TRUCKS, SHIRPUR_WARDS, type Truck } from "@/lib/trucks";
+import { type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, type LatLng } from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
@@ -81,10 +81,8 @@ function initLive(truck: Truck): LiveTruck {
   };
 }
 
-// Start with fallback trucks — replaced when DB loads
-const initial: Record<string, LiveTruck> = Object.fromEntries(
-  FALLBACK_TRUCKS.map((t) => [t.id, initLive(t)]),
-);
+// Start with empty fleet — loaded from DB and realtime fixes
+const initial: Record<string, LiveTruck> = {};
 
 
 export const useTrucks = create<TrucksState>((set, get) => ({
@@ -124,7 +122,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
           name: f.truckId,
           driverName: "",
           driverPhone: "",
-          wardName: SHIRPUR_WARDS[idx % SHIRPUR_WARDS.length] ?? f.truckId,
+          wardName: f.truckId,
           city: "Shirpur",
           color: PALETTE[idx % PALETTE.length],
           route: [],
@@ -196,7 +194,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     for (const id in state.trucks) {
       const lt = state.trucks[id];
 
-      // Case 1: Real-time Live GPS fix received from driver device
+      // Live GPS fix received from driver device — interpolate smoothly
       if (lt.fix) {
         const gap = haversine(lt.position, lt.fix.pos);
         if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
@@ -209,53 +207,6 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
         const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
         next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
-        changed = true;
-        continue;
-      }
-
-      // Case 2: Online collection along Shirpur ward route
-      if (lt.status !== "offline" && lt.path && lt.path.length >= 2) {
-        const path = lt.path;
-        const totalPoints = path.length;
-        // Average speed ~5.5 m/s (20 km/h)
-        const speedMps = lt.status === "collecting" ? 4.2 : 5.8;
-        const distToTravel = speedMps * (dtMs / 1000);
-
-        let seg = lt.segmentIndex % totalPoints;
-        let pA = path[seg] ?? lt.position;
-        let pB = path[(seg + 1) % totalPoints] ?? pA;
-        let segLen = Math.max(0.5, haversine(pA, pB));
-
-        let t = lt.segmentT + distToTravel / segLen;
-        while (t >= 1) {
-          t -= 1;
-          seg = (seg + 1) % totalPoints;
-          pA = path[seg] ?? lt.position;
-          pB = path[(seg + 1) % totalPoints] ?? pA;
-          segLen = Math.max(0.5, haversine(pA, pB));
-        }
-
-        const pos = lerpLatLng(pA, pB, t);
-        const targetBearing = bearing(pA, pB);
-        const bear = lerpAngle(lt.bearing, targetBearing, Math.min(1, dtMs / 200));
-
-        // Periodic stop progress advancement
-        const stopsFraction = seg / totalPoints;
-        const completedStops = Math.min(lt.truck.totalStops, Math.floor(stopsFraction * lt.truck.totalStops));
-
-        const trail = lt.trail.length > 20 ? [...lt.trail.slice(-20), pos] : [...lt.trail, pos];
-
-        next[id] = {
-          ...lt,
-          position: pos,
-          bearing: bear,
-          speedMps,
-          segmentIndex: seg,
-          segmentT: t,
-          completedStops,
-          trail,
-          lastUpdate: now,
-        };
         changed = true;
         continue;
       }
@@ -313,20 +264,19 @@ async function loadFleetFromDb() {
   try {
     const { getFleetTrucks } = await import("@/lib/tracking.functions");
     const res = await getFleetTrucks();
-    if (!res.trucks?.length) return; // DB unavailable — keep fallback
+    if (!res.trucks?.length) return;
 
     const trucks: Truck[] = res.trucks.map((r, i) => {
-      const fallback = FALLBACK_TRUCKS.find((t) => t.id === r.truckCode) ?? FALLBACK_TRUCKS[i % FALLBACK_TRUCKS.length];
       return {
         id: r.truckCode,
         dbId: r.dbId,
         name: r.truckCode,
-        driverName: fallback?.driverName ?? "",
-        driverPhone: fallback?.driverPhone ?? "",
-        wardName: r.ward ?? fallback?.wardName ?? r.truckCode,
+        driverName: "",
+        driverPhone: "",
+        wardName: r.ward ?? r.truckCode,
         city: "Shirpur",
         color: PALETTE[i % PALETTE.length],
-        route: fallback?.route ?? [],
+        route: [],
         totalStops: 12,
         startOnline: r.status !== "offline" && r.status !== "decommissioned",
       };
@@ -335,7 +285,7 @@ async function loadFleetFromDb() {
     useTrucks.getState().loadFleet(trucks);
     console.info(`[fleet] Loaded ${trucks.length} trucks from database`);
   } catch (err) {
-    console.warn("[fleet] Could not load trucks from DB, using fallback", err);
+    console.warn("[fleet] Could not load trucks from DB", err);
   }
 }
 

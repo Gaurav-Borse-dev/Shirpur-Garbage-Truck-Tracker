@@ -10,22 +10,11 @@ export default eventHandler(async (event) => {
     const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
     if (!url || !key) {
-      // Fall back to hardcoded data when Supabase isn't configured
-      const { TRUCKS } = await import("../../../src/server/trucks");
       return {
         success: true,
-        count: TRUCKS.length,
-        source: "fallback",
-        data: TRUCKS.map((t) => ({
-          id: t.id,
-          name: t.name,
-          driverName: t.driverName,
-          wardName: t.wardName,
-          city: t.city,
-          color: t.color,
-          totalStops: t.totalStops,
-          startOnline: t.startOnline,
-        })),
+        count: 0,
+        source: "unconfigured",
+        data: [],
         timestamp: new Date().toISOString(),
       };
     }

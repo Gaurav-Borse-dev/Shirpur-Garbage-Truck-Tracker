@@ -88,7 +88,7 @@ function LiveMapPage() {
                   : statusLabel === "Complete"
                   ? "text-brand"
                   : "text-brand";
-              const eta = `${(3 + ((t.truck.totalStops - t.completedStops) % 8))} min away`;
+              const speedLabel = t.speedMps > 0 ? `${Math.round(t.speedMps * 3.6)} km/h` : tr("Active");
               return (
                 <button
                   key={t.id}
@@ -104,13 +104,13 @@ function LiveMapPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-ink truncate">
-                      {t.truck.id.replace("GBR-", "Truck ")}
+                      {t.truck.name || t.truck.id}
                     </div>
                     <div className={`text-xs font-semibold ${statusTone}`}>
                       {tr(statusLabel)} · {tr("Stop")} {stop}/{t.truck.totalStops}
                     </div>
                   </div>
-                  <div className="text-xs text-neutral-500 shrink-0">{t.status === "offline" ? "—" : eta}</div>
+                  <div className="text-xs text-neutral-500 shrink-0">{t.status === "offline" ? "—" : speedLabel}</div>
                 </button>
               );
             })}
