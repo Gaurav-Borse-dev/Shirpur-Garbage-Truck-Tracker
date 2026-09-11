@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useTrucks } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { CheckIcon } from "@/components/icons";
 import { useT } from "@/lib/i18n";
+import { updateTruckAssignment, getWards } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/admin/assignments")({
   component: AssignmentsPage,
@@ -18,6 +20,14 @@ function AssignmentsPage() {
   const list = useMemo(() => Object.values(trucks), [trucks]);
   const [selectedId, setSelectedId] = useState<string>(list[0]?.id ?? "");
   const selected = trucks[selectedId];
+
+  // Fetch wards from database
+  const { data: wardsData } = useQuery({
+    queryKey: ["wards"],
+    queryFn: () => getWards(),
+    staleTime: 30_000,
+  });
+  const wardNames = useMemo(() => wardsData?.wards?.map((w) => w.name) ?? [], [wardsData]);
 
   const [ward, setWard] = useState(selected?.truck.wardName ?? "");
   const [city, setCity] = useState(selected?.truck.city ?? "Shirpur");
@@ -35,15 +45,42 @@ function AssignmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
+  const assignMutation = useMutation({
+    mutationFn: (args: { truckCode: string; ward: string }) =>
+      updateTruckAssignment({ data: args }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setError(res.error ?? "Failed to update assignment");
+        return;
+      }
+      // Also update local store for immediate UI feedback
+      const currentTrucks = useTrucks.getState().trucks;
+      const target = currentTrucks[selectedId];
+      if (target) {
+        useTrucks.setState({
+          trucks: {
+            ...currentTrucks,
+            [selectedId]: {
+              ...target,
+              truck: { ...target.truck, wardName: ward.trim() },
+            },
+          },
+          tick: useTrucks.getState().tick + 1,
+        });
+      }
+      push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 1800);
+    },
+    onError: () => setError("Network error. Please try again."),
+  });
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setJustSaved(false);
-    // TODO: Connect to backend API for ward/city reassignment
-    // For now, show confirmation toast
-    push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1800);
+    if (!selectedId || !ward.trim()) return;
+    assignMutation.mutate({ truckCode: selectedId, ward: ward.trim() });
   }
 
   return (
@@ -102,14 +139,21 @@ function AssignmentsPage() {
 
               <div className="mt-6 space-y-4">
                 <Field label={tr("Assigned ward")}>
-                  <input
+                  <select
                     value={ward}
                     onChange={(e) => setWard(e.target.value)}
-                    maxLength={80}
-                    placeholder={tr("e.g. Shirpur Ward 4 — Subhash Nagar")}
                     className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10"
-                  />
-                  <div className="text-[11px] text-neutral-400 mt-1">{tr("3–80 characters")}</div>
+                  >
+                    <option value="">{tr("Select a ward…")}</option>
+                    {wardNames.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                    {/* Keep current ward visible even if not in list */}
+                    {ward && !wardNames.includes(ward) && (
+                      <option value={ward}>{ward} ({tr("current")})</option>
+                    )}
+                  </select>
+                  <div className="text-[11px] text-neutral-400 mt-1">{tr("Select from configured wards")}</div>
                 </Field>
                 <Field label={tr("City")}>
                   <div className="h-11 px-3 rounded-lg bg-neutral-50 flex items-center text-sm font-semibold text-ink">

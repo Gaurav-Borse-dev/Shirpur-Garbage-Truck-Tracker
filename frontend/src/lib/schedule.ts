@@ -32,16 +32,7 @@ export type AlertEvent = {
 };
 
 export function getAlertHistory(): AlertEvent[] {
-  return [
-    { id: "1", title: "Pickup completed", subtitle: "GBR-03 collected at 8:12 AM", tone: "success", ago: "Today, 8:12 AM" },
-    { id: "2", title: "Truck nearby", subtitle: "GBR-03 entered your alert zone", tone: "info", ago: "Today, 8:04 AM" },
-    { id: "3", title: "Missed pickup", subtitle: "You did not respond in time", tone: "warn", ago: "Yesterday, 8:30 AM" },
-    { id: "4", title: "Pickup completed", subtitle: "GBR-02 collected at 7:55 AM", tone: "success", ago: "2 days ago" },
-    { id: "5", title: "Schedule reminder", subtitle: "Pickup tomorrow at 8 AM", tone: "info", ago: "3 days ago" },
-    { id: "6", title: "Pickup completed", subtitle: "GBR-03 collected at 8:21 AM", tone: "success", ago: "4 days ago" },
-    { id: "7", title: "Truck nearby", subtitle: "GBR-03 entered your alert zone", tone: "info", ago: "4 days ago" },
-    { id: "8", title: "Pickup completed", subtitle: "GBR-03 collected at 8:18 AM", tone: "success", ago: "5 days ago" },
-    { id: "9", title: "Missed pickup", subtitle: "You did not respond in time", tone: "warn", ago: "6 days ago" },
-    { id: "10", title: "Pickup completed", subtitle: "GBR-03 collected at 8:05 AM", tone: "success", ago: "7 days ago" },
-  ];
+  // DEPRECATED: Alert history is now fetched from the database via alerts.functions.ts.
+  // This function is kept as a no-op for backward compatibility.
+  return [];
 }

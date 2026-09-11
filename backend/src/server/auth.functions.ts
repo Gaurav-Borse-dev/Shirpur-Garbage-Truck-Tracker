@@ -8,7 +8,7 @@ const credentials = z.object({
 
 const otpInput = z.object({
   phone: z.string().regex(/^\d{10}$/),
-  role: z.enum(["resident", "driver"]),
+  role: z.enum(["resident", "driver", "admin"]),
   code: z.string().regex(/^\d{6}$/),
 });
 
@@ -30,12 +30,16 @@ export const adminLogin = createServerFn({ method: "POST" })
 export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
-    const { setUser, secretMatches } = await import("./session.server");
-    const expectedOtp = process.env["LOGIN_OTP_CODE"] || "123456";
-    const ok = await secretMatches(data.code, expectedOtp);
-    if (!ok) return { ok: false as const };
-    await setUser({ role: data.role, phone: data.phone });
-    return { ok: true as const };
+    const { setUser } = await import("./session.server");
+    if (data.code === "123456") {
+      if (data.role === "admin") {
+        await setUser({ role: "admin", username: "admin", phone: data.phone });
+      } else {
+        await setUser({ role: data.role, phone: data.phone });
+      }
+      return { ok: true as const };
+    }
+    return { ok: false as const, error: "Incorrect OTP. Please enter 123456" };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */

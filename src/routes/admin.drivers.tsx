@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, type ApprovedDriver } from "@/store/auth";
 import { useTrucks } from "@/store/trucks";
 import { PlusIcon, EditIcon, TrashIcon } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
+import { getFleetDrivers } from "@/lib/tracking.functions";
+import { addFleetDriver, updateFleetDriver, removeFleetDriver, removeFleetDriverByPhone, clearAllDrivers } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/admin/drivers")({
   component: DriversPage,
@@ -13,16 +15,104 @@ export const Route = createFileRoute("/admin/drivers")({
 
 function DriversPage() {
   const tr = useT();
-  const drivers = useAuth((s) => s.approvedDrivers);
-  const add = useAuth((s) => s.addDriver);
-  const update = useAuth((s) => s.updateDriver);
-  const remove = useAuth((s) => s.removeDriver);
+  const qc = useQueryClient();
   const allTrucks = useTrucks((s) => s.trucks);
   const truckList = useMemo(() => Object.values(allTrucks).map((lt) => lt.truck), [allTrucks]);
   const push = useToast((s) => s.push);
   const [editing, setEditing] = useState<ApprovedDriver | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<ApprovedDriver | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+
+  // Load drivers from database
+  const { data: dbDrivers } = useQuery({
+    queryKey: ["fleet-drivers"],
+    queryFn: () => getFleetDrivers(),
+    staleTime: 15_000,
+  });
+
+  // Map DB drivers to the ApprovedDriver shape the UI expects
+  const drivers: ApprovedDriver[] = useMemo(() => {
+    if (!dbDrivers?.drivers?.length) {
+      // Fallback to local store if DB not loaded
+      return useAuth.getState().approvedDrivers;
+    }
+    return dbDrivers.drivers.map((d) => ({
+      name: d.name,
+      phone: d.phone,
+      truckId: d.assignedTruckCode ?? "",
+      active: d.onDuty,
+      dbId: d.dbId,
+    }));
+  }, [dbDrivers]);
+
+  const addMutation = useMutation({
+    mutationFn: (d: { name: string; phone: string; truckId: string }) =>
+      addFleetDriver({ data: { name: d.name, phone: d.phone, licenseNo: "N/A", truckCode: d.truckId } }),
+    onSuccess: (res: { ok: boolean; error?: string }) => {
+      if (!res.ok) {
+        push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver added successfully") });
+    },
+    onError: () => push({ title: tr("Failed to add driver"), tone: "warning" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (d: { driverId: string; name?: string; phone?: string; truckCode?: string; active?: boolean }) =>
+      updateFleetDriver({ data: d }),
+    onSuccess: (res: { ok: boolean; error?: string }) => {
+      if (!res.ok) {
+        push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver updated") });
+    },
+    onError: () => push({ title: tr("Failed to update driver"), tone: "warning" }),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (driverId: string) => removeFleetDriver({ data: { driverId } }),
+    onSuccess: (res: { ok: boolean; error?: string }) => {
+      if (!res.ok) {
+        push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver removed") });
+    },
+    onError: () => push({ title: tr("Failed to remove driver"), tone: "warning" }),
+  });
+
+  // Remove by phone — for local-store/seed drivers that don't have a dbId
+  const removeByPhoneMutation = useMutation({
+    mutationFn: (phone: string) => removeFleetDriverByPhone({ data: { phone } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver removed") });
+    },
+    onError: () => {
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Driver removed") });
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: () => clearAllDrivers(),
+    onSuccess: () => {
+      useAuth.setState({ approvedDrivers: [] });
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("All drivers removed successfully") });
+    },
+    onError: () => {
+      useAuth.setState({ approvedDrivers: [] });
+      void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
+      push({ title: tr("Local driver cache cleared") });
+    },
+  });
 
   return (
     <div className="p-8">
@@ -31,9 +121,19 @@ function DriversPage() {
           <h1 className="text-2xl font-bold text-ink">{tr("Driver Management")}</h1>
           <p className="text-sm text-neutral-500 mt-1">{drivers.length} {tr("drivers approved")} · {truckList.length - drivers.filter(d => d.active).length} {tr("trucks available")}</p>
         </div>
-        <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold flex items-center gap-2">
-          <PlusIcon className="w-4 h-4" /> {tr("Add Driver")}
-        </button>
+        <div className="flex items-center gap-2">
+          {drivers.length > 0 && (
+            <button
+              onClick={() => setConfirmClearAll(true)}
+              className="h-10 px-4 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold flex items-center gap-1.5"
+            >
+              <TrashIcon className="w-4 h-4" /> {tr("Remove All Fake Drivers")}
+            </button>
+          )}
+          <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" /> {tr("Add Driver")}
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 rounded-2xl border border-neutral-200 overflow-hidden">
@@ -49,13 +149,18 @@ function DriversPage() {
             </tr>
           </thead>
           <tbody>
-            <AnimatePresence>
-              {drivers.map((d, i) => {
+            {drivers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
+                  {tr("No drivers registered. Click 'Add Driver' to register one.")}
+                </td>
+              </tr>
+            ) : (
+              drivers.map((d, i) => {
                 const truck = truckList.find((t) => t.id === d.truckId);
                 return (
-                  <motion.tr
+                  <tr
                     key={d.phone}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }}
                     className={`border-t border-neutral-100 ${i % 2 ? "bg-neutral-50/40" : ""}`}
                   >
                     <td className="px-4 py-3 font-semibold text-ink">{d.name}</td>
@@ -71,45 +176,82 @@ function DriversPage() {
                       <button onClick={() => setEditing(d)} className="p-2 rounded-md hover:bg-neutral-100 text-neutral-500"><EditIcon className="w-4 h-4" /></button>
                       <button onClick={() => setConfirmRemove(d)} className="p-2 rounded-md hover:bg-red-50 text-red-500"><TrashIcon className="w-4 h-4" /></button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 );
-              })}
-            </AnimatePresence>
+              })
+            )}
           </tbody>
         </table>
       </div>
 
-      <AnimatePresence>
-        {(adding || editing) && (
-          <DriverModal
-            existing={editing ?? undefined}
-            onClose={() => { setAdding(false); setEditing(null); }}
-            onSubmit={(d) => {
-              if (editing) {
-                const err = update(editing.phone, d);
-                if (err) return err;
+      {(adding || editing) && (
+        <DriverModal
+          existing={editing ?? undefined}
+          onClose={() => { setAdding(false); setEditing(null); }}
+          onSubmit={(d) => {
+            if (editing) {
+              if (!editing.dbId) {
+                // If local-only, update local store
+                useAuth.getState().updateDriver(editing.phone, { name: d.name, truckId: d.truckId });
                 push({ title: tr("Driver updated") });
-              } else {
-                const err = add(d);
-                if (err) return err;
-                push({ title: tr("Driver added successfully") });
+                return null;
               }
-              return null;
-            }}
-          />
-        )}
-        {confirmRemove && (
-          <ConfirmModal
-            driver={confirmRemove}
-            onCancel={() => setConfirmRemove(null)}
-            onConfirm={() => {
-              remove(confirmRemove.phone);
-              push({ title: tr("Driver removed") });
-              setConfirmRemove(null);
-            }}
-          />
-        )}
-      </AnimatePresence>
+              updateMutation.mutate({
+                driverId: editing.dbId,
+                name: d.name,
+                phone: d.phone,
+                truckCode: d.truckId,
+              });
+            } else {
+              addMutation.mutate(d);
+            }
+            return null;
+          }}
+        />
+      )}
+      {confirmRemove && (
+        <ConfirmModal
+          driver={confirmRemove}
+          onCancel={() => setConfirmRemove(null)}
+          onConfirm={() => {
+            // Always clear from local store
+            useAuth.getState().removeDriver(confirmRemove.phone);
+            if (confirmRemove.dbId) {
+              removeMutation.mutate(confirmRemove.dbId);
+            } else {
+              removeByPhoneMutation.mutate(confirmRemove.phone);
+            }
+            setConfirmRemove(null);
+          }}
+        />
+      )}
+      {confirmClearAll && (
+        <div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-ink">{tr("Remove all fake / demo drivers?")}</h2>
+            <p className="text-sm text-neutral-600 mt-2">
+              {tr("This will remove all demo and unlinked drivers from the system.")}
+            </p>
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmClearAll(false)}
+                className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold"
+              >
+                {tr("Cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  clearAllMutation.mutate();
+                  setConfirmClearAll(false);
+                }}
+                className="h-10 px-5 rounded-lg bg-red-600 text-white text-sm font-semibold"
+              >
+                {tr("Remove All")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -120,7 +262,6 @@ function DriverModal({ existing, onClose, onSubmit }: {
   onSubmit: (d: Omit<ApprovedDriver, "active">) => string | null;
 }) {
   const tr = useT();
-  const drivers = useAuth((s) => s.approvedDrivers);
   const allTrucks = useTrucks((s) => s.trucks);
   const truckList = useMemo(() => Object.values(allTrucks).map((lt) => lt.truck), [allTrucks]);
   const [name, setName] = useState(existing?.name ?? "");
@@ -129,77 +270,75 @@ function DriverModal({ existing, onClose, onSubmit }: {
   const [error, setError] = useState("");
   const ward = truckList.find((t) => t.id === truckId)?.wardName ?? "—";
 
-  const availableTrucks = truckList.filter((t) => t.id === existing?.truckId || !drivers.some((d) => d.truckId === t.id && d.active));
-
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!name.trim()) { setError(tr("Name is required")); return; }
+    if (!/^\d{10}$/.test(phone)) { setError(tr("Phone must be 10 digits")); return; }
     const err = onSubmit({ name: name.trim(), phone: phone.trim(), truckId });
     if (err) setError(err);
     else onClose();
   }
 
   return (
-    <motion.div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.form onSubmit={submit}
-        initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
+    <div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4">
+      <form onSubmit={submit}
         className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
         <h2 className="text-xl font-bold text-ink">{existing ? tr("Edit Driver") : tr("Add New Driver")}</h2>
         <div className="mt-5 space-y-3">
           <Field label={tr("Driver name")}>
-            <input value={name} onChange={(e) => setName(e.target.value)} required className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10" />
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60}
+              className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10" placeholder={tr("Full name")} />
           </Field>
           <Field label={tr("Mobile number")}>
-            <div className="flex gap-2">
-              <div className="h-11 px-3 grid place-items-center rounded-lg bg-neutral-50 font-semibold text-sm">+91</div>
-              <input value={phone} maxLength={10} disabled={!!existing}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                className="flex-1 h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10 disabled:opacity-50" />
-            </div>
+            <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10" placeholder={tr("10-digit number")}
+              disabled={!!existing} />
           </Field>
-          <Field label={tr("Assign truck")}>
+          <Field label={tr("Assigned truck")}>
             <select value={truckId} onChange={(e) => setTruckId(e.target.value)}
               className="w-full h-11 px-3 rounded-lg bg-neutral-50 outline-none focus:ring-2 focus:ring-ink/10">
-              {availableTrucks.map((t) => (
-                <option key={t.id} value={t.id}>{t.id} · {t.wardName.split("—")[0].trim()}</option>
+              {truckList.map((t) => (
+                <option key={t.id} value={t.id}>{t.id} · {t.wardName}</option>
               ))}
             </select>
           </Field>
-          <div className="text-xs text-neutral-500">{tr("Ward")}: <span className="font-semibold text-ink">{ward}</span></div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          <div className="text-xs text-neutral-500">{tr("Ward")}: {ward}</div>
         </div>
-        <div className="mt-6 flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 h-11 rounded-lg bg-neutral-100 font-semibold text-neutral-600">{tr("Cancel")}</button>
-          <button type="submit" className="flex-1 h-11 rounded-lg bg-ink text-white font-semibold">{existing ? tr("Save changes") : tr("Add Driver")}</button>
+        {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+        <div className="mt-5 flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold">{tr("Cancel")}</button>
+          <button type="submit" className="h-10 px-5 rounded-lg bg-ink text-white text-sm font-semibold">{tr("Save")}</button>
         </div>
-      </motion.form>
-    </motion.div>
+      </form>
+    </div>
   );
 }
 
-function ConfirmModal({ driver, onCancel, onConfirm }: { driver: ApprovedDriver; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmModal({ driver, onCancel, onConfirm }: {
+  driver: ApprovedDriver;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   const tr = useT();
   return (
-    <motion.div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
-        className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+    <div className="fixed inset-0 z-[2000] bg-black/30 grid place-items-center px-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-ink">{tr("Remove driver?")}</h2>
-        <p className="text-sm text-neutral-500 mt-2">{tr("Are you sure you want to remove")} {driver.name}? {tr("Their truck will go offline.")}</p>
-        <div className="mt-5 flex gap-2">
-          <button onClick={onCancel} className="flex-1 h-11 rounded-lg bg-neutral-100 font-semibold text-neutral-600">{tr("Cancel")}</button>
-          <button onClick={onConfirm} className="flex-1 h-11 rounded-lg bg-red-500 text-white font-semibold">{tr("Remove Driver")}</button>
+        <p className="text-sm text-neutral-600 mt-2">{driver.name} (+91 {driver.phone}) {tr("will be removed from the fleet.")}</p>
+        <div className="mt-5 flex gap-2 justify-end">
+          <button onClick={onCancel} className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold">{tr("Cancel")}</button>
+          <button onClick={onConfirm} className="h-10 px-5 rounded-lg bg-red-600 text-white text-sm font-semibold">{tr("Remove")}</button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="text-xs font-semibold text-neutral-500 mb-1">{label}</div>
+      <div className="text-xs font-semibold text-neutral-500 mb-1.5">{label}</div>
       {children}
     </label>
   );

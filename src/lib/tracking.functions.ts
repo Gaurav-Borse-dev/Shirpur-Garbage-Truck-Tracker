@@ -12,7 +12,7 @@ const completeStopInput = z.object({
  * session and database `drivers` table, binding submissions to auth.uid()/user_id.
  */
 export const ingestDriverGps = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => gpsInput.parse(data))
+  .validator((data: unknown) => gpsInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { admin } = await import("./tracking.server");
@@ -91,7 +91,7 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
 
 /** Atomic Route Stop completion server function. */
 export const completeRouteStop = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => completeStopInput.parse(data))
+  .validator((data: unknown) => completeStopInput.parse(data))
   .handler(async ({ data }) => {
     const { getUser } = await import("./session.server");
     const { admin } = await import("./tracking.server");
@@ -132,7 +132,7 @@ export const completeRouteStop = createServerFn({ method: "POST" })
 
 /** Nearby live trucks via PostGIS `nearest_trucks`. Used by resident + admin maps. */
 export const getNearbyTrucks = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => nearbyInput.parse(data))
+  .validator((data: unknown) => nearbyInput.parse(data))
   .handler(async ({ data }) => {
     const { admin } = await import("./tracking.server");
     const db = await admin();
@@ -164,7 +164,7 @@ export const getNearbyTrucks = createServerFn({ method: "POST" })
 
 /** OSRM road-network ETA from a truck's latest fix to the given point. */
 export const getTruckEta = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => etaInput.parse(data))
+  .validator((data: unknown) => etaInput.parse(data))
   .handler(async ({ data }) => {
     const { admin, truckIdForCode, routeEta } = await import("./tracking.server");
     const truckId = await truckIdForCode(data.truckCode);

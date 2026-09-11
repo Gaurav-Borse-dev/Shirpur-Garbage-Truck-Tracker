@@ -7,6 +7,14 @@ export default eventHandler(async (event) => {
   const phone = String(body.phone ?? "");
   const role = String(body.role ?? "resident");
 
+  const clean = phone.trim().replace(/\D/g, "").slice(-10);
+  const isAdminPhone = clean === "9999999999" || clean === "9999999990";
+
+  if (!isAdminPhone) {
+    setResponseStatus(event, 400);
+    return { success: false, error: "Please enter the real SMS OTP sent to your phone." };
+  }
+
   const expectedOtp = process.env["LOGIN_OTP_CODE"] || "123456";
   const ok = await secretMatches(code, expectedOtp);
 
@@ -17,7 +25,7 @@ export default eventHandler(async (event) => {
 
   return {
     success: true,
-    user: { role, phone },
+    user: { role, phone: clean },
     timestamp: new Date().toISOString(),
   };
 });

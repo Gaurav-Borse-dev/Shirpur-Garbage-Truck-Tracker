@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { create } from "zustand";
 import { useEffect } from "react";
 
-type ToastItem = { id: number; title: string; subtitle?: string; tone?: "default" | "success" | "warning" };
+type ToastItem = { id: number; title: string; subtitle?: string; tone?: "default" | "success" | "warning" | string; sender?: string; link?: string };
 type ToastState = {
   items: ToastItem[];
   push: (t: Omit<ToastItem, "id">) => void;

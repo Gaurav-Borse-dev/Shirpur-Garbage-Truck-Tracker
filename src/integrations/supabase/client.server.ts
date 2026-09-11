@@ -29,6 +29,29 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = class WebSocket {
+    static readonly CONNECTING = 0;
+    static readonly OPEN = 1;
+    static readonly CLOSING = 2;
+    static readonly CLOSED = 3;
+    readonly CONNECTING = 0;
+    readonly OPEN = 1;
+    readonly CLOSING = 2;
+    readonly CLOSED = 3;
+    readyState = 3;
+    send() {}
+    close() {}
+    addEventListener() {}
+    removeEventListener() {}
+    dispatchEvent() { return false; }
+  };
+}
+
+const realtimeFallback = {
+  transport: typeof WebSocket !== 'undefined' ? WebSocket : (globalThis as any).WebSocket,
+};
+
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env['SUPABASE_URL'] || process.env['VITE_SUPABASE_URL'] || "https://bqmqnzkmhmuuszwsonds.supabase.co";
   const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'] || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
@@ -50,7 +73,8 @@ function createSupabaseAdminClient() {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
-    }
+    },
+    realtime: realtimeFallback,
   });
 }
 

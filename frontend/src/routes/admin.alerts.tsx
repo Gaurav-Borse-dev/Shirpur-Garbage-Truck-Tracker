@@ -1,41 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTrucks, type LiveTruck } from "@/store/trucks";
 import { TruckIcon, BellIcon, UserIcon, CheckIcon } from "@/components/icons";
 import { sendTestPush } from "@/lib/push.functions";
 import { useT } from "@/lib/i18n";
+import { getAdminAlerts, type AlertEvent } from "@/lib/alerts.functions";
 
 export const Route = createFileRoute("/admin/alerts")({
   component: AlertsPage,
 });
 
 type EventType = "geofence" | "stop" | "login";
-type Event = { id: string; type: EventType; truckId: string; ts: string; truckLabel: string; wardLabel: string; stopNum: number; totalStops: number; driverName: string };
-
-function seedEvents(truckList: LiveTruck[]): Event[] {
-  const events: Event[] = [];
-  if (truckList.length === 0) return events;
-  const now = Date.now();
-  for (let i = 0; i < 80; i++) {
-    const lt = truckList[i % truckList.length];
-    const truck = lt.truck;
-    const t = (["geofence", "stop", "login"] as const)[i % 3];
-    const minutesAgo = i * 9 + Math.floor(Math.random() * 5);
-    const date = new Date(now - minutesAgo * 60_000);
-    const ts = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    events.push({ id: String(i), type: t, truckId: truck.id, ts, truckLabel: truck.id, wardLabel: truck.wardName.split("\u2014")[0].trim(), stopNum: (i % 12) + 1, totalStops: truck.totalStops, driverName: truck.driverName });
-  }
-  return events;
-}
 
 function AlertsPage() {
   const tr = useT();
-  const allTrucks = useTrucks((s) => s.trucks);
-  const truckList = useMemo(() => Object.values(allTrucks), [allTrucks]);
-  const events = useMemo(() => seedEvents(truckList), [truckList]);
   const [filter, setFilter] = useState<"all" | EventType>("all");
-  const filtered = events.filter((e) => filter === "all" || e.type === filter);
+
+  // Fetch real events from the database
+  const { data: result } = useQuery({
+    queryKey: ["admin-alerts", filter],
+    queryFn: () => getAdminAlerts({ data: { type: filter, limit: 100 } }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const filtered: AlertEvent[] = useMemo(() => result?.events ?? [], [result]);
 
   return (
     <div className="p-8">

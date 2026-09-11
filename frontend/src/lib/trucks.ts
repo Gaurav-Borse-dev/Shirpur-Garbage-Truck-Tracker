@@ -28,65 +28,11 @@ export type Truck = {
   dbId?: string;
 };
 
-export const SHIRPUR_WARDS = [
-  "Shirpur Ward 1 — Old City",
-  "Shirpur Ward 2 — Station Road",
-  "Shirpur Ward 3 — Tilak Nagar",
-  "Shirpur Ward 4 — Subhash Nagar",
-  "Shirpur Ward 5 — Gandhi Chowk",
-  "Shirpur Ward 6 — Bhadgaon Road",
-  "Shirpur Ward 7 — Shahada Road",
-  "Shirpur Ward 8 — Thakkar Bappa Nagar",
-  "Shirpur Ward 9 — Karwand Naka",
-  "Shirpur Ward 10 — Boradi Road",
-  "Shirpur Ward 11 — Sangvi",
-  "Shirpur Ward 12 — Thalner Road",
-  "Shirpur Ward 13 — Arthe",
-  "Shirpur Ward 14 — Mukti Dham",
-  "Shirpur Ward 15 — NMU Campus",
-  "Shirpur Ward 16 — Dondaicha Road",
-];
+/** @deprecated Wards are now stored in the `wards` database table. Use `getWards()` from fleet.functions.ts. */
+export const SHIRPUR_WARDS: string[] = [];
 
-export const DRIVER_NAMES = [
-  { name: "Ramesh Patil", phone: "9822011001" },
-  { name: "Suresh Mahajan", phone: "9822011002" },
-  { name: "Vikas Sonawane", phone: "9822011003" },
-  { name: "Anil Bhoi", phone: "9822011004" },
-  { name: "Sanjay Wagh", phone: "9822011005" },
-  { name: "Prakash Pawar", phone: "9822011006" },
-  { name: "Dinesh Chavan", phone: "9822011007" },
-  { name: "Mahesh Jadhav", phone: "9822011008" },
-  { name: "Rajesh Kale", phone: "9822011009" },
-  { name: "Bharat Borse", phone: "9822011010" },
-];
 
-const PALETTE = ["#22C55E", "#06B6D4", "#F97316", "#A855F7", "#EAB308", "#EC4899", "#0EA5E9", "#14B8A6"];
+export const FALLBACK_TRUCKS: Truck[] = [];
 
-/**
- * Fallback seed trucks used when the database is unavailable.
- * Once the store loads data from `getFleetTrucks`, these are replaced.
- */
-export const FALLBACK_TRUCKS: Truck[] = Array.from({ length: 16 }).map((_, i) => {
-  const driver = DRIVER_NAMES[i] ?? { name: "Unassigned", phone: "" };
-  const wardName = SHIRPUR_WARDS[i];
-  return {
-    id: `GBR-${String(i + 1).padStart(2, "0")}`,
-    name: `Tipper Truck ${String(i + 1).padStart(2, "0")}`,
-    driverName: driver.name,
-    driverPhone: driver.phone,
-    wardName,
-    city: "Shirpur",
-    color: PALETTE[i % PALETTE.length],
-    route: [], // No fake routes — positions come from the backend
-    totalStops: 12,
-    startOnline: false, // Don't pretend trucks are online
-  };
-});
-
-/** @deprecated Use FALLBACK_TRUCKS. Alias kept for backward compatibility during migration. */
-export const TRUCKS = FALLBACK_TRUCKS;
-
-/** Resident demo location — only used as fallback when geolocation is unavailable. */
-export const RESIDENT_DEMO: Record<string, LatLng> = {
-  Shirpur: { lat: SHIRPUR.lat + 0.003, lng: SHIRPUR.lng + 0.004 },
-};
+/** @deprecated Use database fleet data. Kept as empty array for backward compatibility. */
+export const TRUCKS: Truck[] = [];

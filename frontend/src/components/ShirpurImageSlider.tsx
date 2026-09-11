@@ -87,9 +87,15 @@ export function ShirpurImageSlider() {
     border-emerald-400
     bg-neutral-900
     group
-   h-[260px]
-sm:h-[300px]
-md:h-[360px]
+    aspect-[16/11]
+    min-h-[220px]
+    max-h-[420px]
+    sm:max-h-[500px]
+    md:max-h-[600px]
+    h-[260px]
+    sm:h-[300px]
+    md:h-[360px]
+
 "
 
         onMouseEnter={() => setIsPaused(true)}

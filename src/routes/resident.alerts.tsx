@@ -1,12 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getAlertHistory } from "@/lib/schedule";
+import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, BellIcon, ClockIcon } from "@/components/icons";
 import { useT } from "@/lib/i18n";
+import { getResidentAlerts } from "@/lib/alerts.functions";
 
 export const Route = createFileRoute("/resident/alerts")({
   component: () => {
     const tr = useT();
-    const items = getAlertHistory();
+
+    // Fetch real alert history from the database
+    const { data: result } = useQuery({
+      queryKey: ["resident-alerts"],
+      queryFn: () => getResidentAlerts(),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+    });
+
+    const items = result?.alerts ?? [];
+
     return (
       <div className="absolute inset-0 overflow-y-auto bg-white">
         <div className="px-6 pt-8 pb-4">
@@ -14,6 +25,11 @@ export const Route = createFileRoute("/resident/alerts")({
           <h1 className="text-2xl font-bold text-ink mt-1">{tr("Alerts")}</h1>
         </div>
         <div className="px-4 pb-8 space-y-2">
+          {items.length === 0 && (
+            <div className="text-center py-12 text-sm text-neutral-400">
+              {tr("No alerts yet. You'll see notifications here when a garbage truck is near your area.")}
+            </div>
+          )}
           {items.map((it) => {
             const tone =
               it.tone === "success" ? "bg-brand-soft text-brand" :

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { FALLBACK_TRUCKS, SHIRPUR_WARDS, type Truck } from "@/lib/trucks";
+import { type Truck } from "@/lib/trucks";
 import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, type LatLng } from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
@@ -81,10 +81,8 @@ function initLive(truck: Truck): LiveTruck {
   };
 }
 
-// Start with fallback trucks — replaced when DB loads
-const initial: Record<string, LiveTruck> = Object.fromEntries(
-  FALLBACK_TRUCKS.map((t) => [t.id, initLive(t)]),
-);
+// Start with empty fleet — loaded from DB and realtime fixes
+const initial: Record<string, LiveTruck> = {};
 
 
 export const useTrucks = create<TrucksState>((set, get) => ({
@@ -124,7 +122,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
           name: f.truckId,
           driverName: "",
           driverPhone: "",
-          wardName: SHIRPUR_WARDS[idx % SHIRPUR_WARDS.length] ?? f.truckId,
+          wardName: f.truckId,
           city: "Shirpur",
           color: PALETTE[idx % PALETTE.length],
           route: [],
@@ -193,27 +191,27 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     let changed = false;
     const now = Date.now();
 
-    // LIVE MODE: no motion is generated locally. We only ease the marker
-    // toward the last GPS fix received from the backend (position, heading and
-    // speed all originate server-side).
     for (const id in state.trucks) {
       const lt = state.trucks[id];
-      if (!lt.fix) {
-        next[id] = lt;
+
+      // Live GPS fix received from driver device — interpolate smoothly
+      if (lt.fix) {
+        const gap = haversine(lt.position, lt.fix.pos);
+        if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
+          next[id] = lt;
+          continue;
+        }
+        // Ease over ~1 fix interval so 3-5s backend updates render continuously.
+        const k = Math.min(1, dtMs / 900);
+        const pos = lerpLatLng(lt.position, lt.fix.pos, k);
+        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
+        const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
+        next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
+        changed = true;
         continue;
       }
-      const gap = haversine(lt.position, lt.fix.pos);
-      if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
-        next[id] = lt;
-        continue;
-      }
-      // Ease over ~1 fix interval so 3-5s backend updates render continuously.
-      const k = Math.min(1, dtMs / 900);
-      const pos = lerpLatLng(lt.position, lt.fix.pos, k);
-      const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
-      const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-      next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
-      changed = true;
+
+      next[id] = lt;
     }
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
@@ -266,26 +264,28 @@ async function loadFleetFromDb() {
   try {
     const { getFleetTrucks } = await import("@/lib/tracking.functions");
     const res = await getFleetTrucks();
-    if (!res.trucks?.length) return; // DB unavailable — keep fallback
+    if (!res.trucks?.length) return;
 
-    const trucks: Truck[] = res.trucks.map((r, i) => ({
-      id: r.truckCode,
-      dbId: r.dbId,
-      name: r.truckCode,
-      driverName: "", // Will be filled by driver data
-      driverPhone: "",
-      wardName: r.ward ?? SHIRPUR_WARDS[i % SHIRPUR_WARDS.length] ?? r.truckCode,
-      city: "Shirpur",
-      color: PALETTE[i % PALETTE.length],
-      route: [], // Positions come from live tracking, not static routes
-      totalStops: 12,
-      startOnline: r.status !== "offline" && r.status !== "decommissioned",
-    }));
+    const trucks: Truck[] = res.trucks.map((r, i) => {
+      return {
+        id: r.truckCode,
+        dbId: r.dbId,
+        name: r.truckCode,
+        driverName: "",
+        driverPhone: "",
+        wardName: r.ward ?? r.truckCode,
+        city: "Shirpur",
+        color: PALETTE[i % PALETTE.length],
+        route: [],
+        totalStops: 12,
+        startOnline: r.status !== "offline" && r.status !== "decommissioned",
+      };
+    });
 
     useTrucks.getState().loadFleet(trucks);
     console.info(`[fleet] Loaded ${trucks.length} trucks from database`);
   } catch (err) {
-    console.warn("[fleet] Could not load trucks from DB, using fallback", err);
+    console.warn("[fleet] Could not load trucks from DB", err);
   }
 }
 

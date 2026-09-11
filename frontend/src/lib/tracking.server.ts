@@ -9,8 +9,6 @@
  * A local fallback from DRIVER_NAMES / FALLBACK_TRUCKS is used when the
  * database is unreachable so the app never hard-fails on cold start.
  */
-import { DRIVER_NAMES, FALLBACK_TRUCKS } from "@/lib/trucks";
-
 export type TruckFixRow = {
   truckId: string;
   truckCode: string;
@@ -24,8 +22,7 @@ export type TruckFixRow = {
 };
 
 /**
- * Resolves a driver phone number to the truck code they're assigned to.
- * Tries the database first; falls back to the static DRIVER_NAMES roster.
+ * Resolves a driver phone number to the truck code they're assigned to from the database.
  */
 export async function truckCodeForPhone(phone: string): Promise<string | null> {
   try {
@@ -47,13 +44,10 @@ export async function truckCodeForPhone(phone: string): Promise<string | null> {
       if (truck?.truck_code) return truck.truck_code;
     }
   } catch {
-    // DB unavailable — fall through to static roster
+    // DB unavailable
   }
 
-  // Fallback: static roster lookup
-  const idx = DRIVER_NAMES.findIndex((d) => d.phone === phone);
-  if (idx < 0) return null;
-  return FALLBACK_TRUCKS[idx]?.id ?? null;
+  return null;
 }
 
 export async function admin() {

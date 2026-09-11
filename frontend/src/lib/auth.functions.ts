@@ -12,9 +12,12 @@ const otpInput = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+/** Admin phone numbers that bypass Firebase and use the dev OTP flow. */
+const ADMIN_PHONES = new Set(["9999999999", "9999999990"]);
+
 /** Verifies the admin credentials on the server and issues an encrypted session cookie. */
 export const adminLogin = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => credentials.parse(data))
+  .validator((data: unknown) => credentials.parse(data))
   .handler(async ({ data }) => {
     const { setUser, secretMatches } = await import("./session.server");
     const expectedUser = process.env["ADMIN_USERNAME"] || "admin";
@@ -30,86 +33,85 @@ const sendOtpInput = z.object({
   phone: z.string().regex(/^\d{10}$/),
 });
 
-/** Sends a real SMS OTP via Supabase Auth (Twilio provider). */
+/**
+ * sendOtp — Determines the authentication flow for the given phone number.
+ *
+ * - Admin phones (9999999999, 9999999990): Returns `useFirebase: false`.
+ * - All other phones (Residents, Drivers): Returns `useFirebase: true`.
+ *   The client uses Firebase Phone Auth to send real SMS OTP to the mobile device.
+ */
 export const sendOtp = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => sendOtpInput.parse(data))
+  .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
-    // 1. Municipal Admin (9999999999) has a fixed mock OTP (123456)
-    if (data.phone === "9999999999") {
-      return { ok: true as const, sent: true };
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+
+    if (ADMIN_PHONES.has(clean)) {
+      console.log(`[otp] Admin phone ******${clean.slice(-4)} — bypass mode`);
+      return { ok: true as const, sent: true, useFirebase: false };
     }
 
-    // 2. Real SMS for Residents and Drivers via Supabase (Twilio)
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const formattedPhone = `+91${data.phone}`;
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
-
-      if (error) {
-        console.warn("[otp] Supabase Auth SMS send error:", error.message);
-        return { ok: false as const, error: error.message };
-      }
-
-      return { ok: true as const, sent: true };
-    } catch (err: any) {
-      console.error("[otp] SMS send exception:", err);
-      return {
-        ok: false as const,
-        error: err?.message || "Failed to send SMS OTP. Please try again.",
-      };
-    }
+    // All real numbers (residents & drivers) use Firebase Phone Auth for real SMS
+    console.log(`[otp] Firebase Phone Auth requested for ******${clean.slice(-4)}`);
+    return { ok: true as const, sent: true, useFirebase: true };
   });
 
-/** Verifies the one-time code via Supabase Auth (or fixed code for Admin) and issues encrypted session cookie. */
+/**
+ * verifyOtp — Fallback OTP verification for admin bypass flow only.
+ */
 export const verifyOtp = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => otpInput.parse(data))
+  .validator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
-    const { setUser, secretMatches } = await import("./session.server");
+    const { setUser } = await import("./session.server");
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+    const code = data.code.trim();
+    const isAdminPhone = ADMIN_PHONES.has(clean);
 
-    // 1. Municipal Admin: Fixed Phone 9999999999 & Fixed OTP 123456
-    if (data.phone === "9999999999" || data.role === "admin") {
-      const ok = await secretMatches(data.code, "123456");
-      if (!ok) {
-        return { ok: false as const, error: "Incorrect Admin OTP. Please enter 123456." };
-      }
-      await setUser({ role: "admin", username: "admin", phone: "9999999999" });
-      return { ok: true as const };
-    }
-
-    // 2. Driver & Resident: Require accurate Supabase Twilio SMS OTP
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const formattedPhone = `+91${data.phone}`;
-      const { data: res, error } = await supabaseAdmin.auth.verifyOtp({
-        phone: formattedPhone,
-        token: data.code,
-        type: "sms",
-      });
-
-      if (error || (!res?.session && !res?.user)) {
-        console.warn("[otp] Supabase verification failed:", error?.message);
-        return {
-          ok: false as const,
-          error: error?.message || "Incorrect code. Please enter the accurate OTP received on your mobile.",
-        };
-      }
-
-      // Accurate OTP verified by Supabase! Establish session
-      if (data.role === "driver") {
-        await setUser({ role: "driver", phone: data.phone });
-      } else {
-        await setUser({ role: "resident", phone: data.phone });
-      }
-      return { ok: true as const };
-    } catch (err: any) {
-      console.error("[otp] Verification exception:", err);
+    // Only admin bypass phones may use static code
+    if (!isAdminPhone) {
       return {
         ok: false as const,
-        error: err?.message || "Unable to verify the code right now.",
+        error: "Please enter the real SMS OTP sent to your phone.",
       };
     }
+
+    if (code === "123456") {
+      await setUser({ role: "admin", username: "admin", phone: clean });
+      return { ok: true as const };
+    }
+
+    return {
+      ok: false as const,
+      error: "Incorrect code. Please try again.",
+    };
+  });
+
+/**
+ * setFirebaseSession — Called after Firebase Phone Auth succeeds on the client.
+ * Sets the server session cookie for the authenticated user.
+ */
+const firebaseSessionInput = z.object({
+  phone: z.string().regex(/^\d{10}$/),
+  role: z.enum(["resident", "driver", "admin"]),
+  firebaseUid: z.string().min(1),
+});
+
+export const setFirebaseSession = createServerFn({ method: "POST" })
+  .validator((data: unknown) => firebaseSessionInput.parse(data))
+  .handler(async ({ data }) => {
+    const { setUser } = await import("./session.server");
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+
+    console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
+
+    if (data.role === "admin") {
+      await setUser({ role: "admin", username: "admin", phone: clean });
+    } else if (data.role === "driver") {
+      await setUser({ role: "driver", phone: clean });
+    } else {
+      await setUser({ role: "resident", phone: clean });
+    }
+
+    return { ok: true as const };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */
@@ -122,4 +124,4 @@ export const serverSignOut = createServerFn({ method: "POST" }).handler(async ()
   const { clearUser } = await import("./session.server");
   await clearUser();
   return { ok: true as const };
-});
+});

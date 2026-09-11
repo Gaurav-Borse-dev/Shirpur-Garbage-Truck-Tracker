@@ -29,13 +29,11 @@ export default eventHandler(async (event) => {
     const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
     if (!url || !key) {
-      // Fall back to hardcoded data when Supabase isn't configured
-      const { DRIVER_NAMES } = await import("../../../src/server/trucks");
       return {
         success: true,
-        count: DRIVER_NAMES.length,
-        source: "fallback",
-        data: DRIVER_NAMES,
+        count: 0,
+        source: "unconfigured",
+        data: [],
         timestamp: new Date().toISOString(),
       };
     }

@@ -4,7 +4,6 @@
  * client — these tables are unreachable from the browser.
  */
 import { sendToToken, pushConfigured, type PushMessage } from "./fcm.server";
-import { DRIVER_NAMES, TRUCKS } from "./trucks";
 
 export type SubjectRole = "resident" | "driver" | "admin";
 export type Subject = { role: SubjectRole; key: string };
@@ -297,9 +296,30 @@ export async function adminSubjects(): Promise<Subject[]> {
   return keys.map((key) => ({ role: "admin" as const, key }));
 }
 
-/** Resolves the roster driver phone that operates a truck code. */
-export function driverPhoneForTruck(truckCode: string): string | null {
-  const idx = TRUCKS.findIndex((t) => t.id === truckCode);
-  if (idx < 0) return null;
-  return DRIVER_NAMES[idx]?.phone ?? null;
+/** Resolves the roster driver phone that operates a truck code from the database. */
+export async function driverPhoneForTruck(truckCode: string): Promise<string | null> {
+  const sb = await db();
+  const { data: truck } = await sb
+    .from("trucks")
+    .select("id")
+    .eq("truck_code", truckCode)
+    .maybeSingle();
+
+  if (!truck?.id) return null;
+
+  const { data: driver } = await sb
+    .from("drivers")
+    .select("user_id")
+    .eq("assigned_truck_id", truck.id)
+    .maybeSingle();
+
+  if (!driver?.user_id) return null;
+
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("phone")
+    .eq("user_id", driver.user_id)
+    .maybeSingle();
+
+  return profile?.phone ?? null;
 }

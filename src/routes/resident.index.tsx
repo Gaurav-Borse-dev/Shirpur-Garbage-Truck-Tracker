@@ -134,20 +134,37 @@ function ResidentHome() {
         return true;
       };
       if (zone === "Nearby" && can("nearby")) {
-        push({ title: `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`, subtitle: tr("Head outside soon") });
+        push({
+          title: `🚛 ${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`,
+          subtitle: `${nearest.truck.name} (${nearest.truck.id}) · ${tr("Head outside soon")}`,
+          tone: "truck_nearby",
+          sender: "CleanTrack · Live Waste Tracker",
+          link: "/resident",
+        });
         fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmt.distance(distance)}`);
       }
       if (zone === "Arriving" && can("arriving")) {
-        push({ title: tr("Truck is almost here!"), subtitle: tr("Go outside now") });
-        fireBrowserNotif(notifEnabled, tr("Truck arriving"), `${nearest.truck.id}`);
+        push({
+          title: `🔔 ${tr("Truck is almost here!")}`,
+          subtitle: `${nearest.truck.wardName} · ${tr("Go outside now with your waste bin")}`,
+          tone: "truck_arrived",
+          sender: "CleanTrack · Shirpur Nagarparishad",
+          link: "/resident",
+        });
+        fireBrowserNotif(notifEnabled, tr("Truck arriving"), `${nearest.truck.id} · ${tr("Go outside now")}`);
       }
       if (zone === "Leaving" && can("leaving")) {
-        push({ title: tr("Truck has passed"), subtitle: tr("Check schedule for next pickup") });
+        push({
+          title: tr("Truck has passed"),
+          subtitle: tr("Check schedule for next pickup"),
+          tone: "default",
+          sender: "CleanTrack Shirpur",
+        });
       }
       prevZone.current = zone;
       setCurrentZone(zone);
     }
-  }, [distance, insideArriving, insideNearby, nearest, push, notifEnabled]);
+  }, [distance, insideArriving, insideNearby, nearest, push, notifEnabled, fmt, tr]);
 
   const zs = ZONE_STYLE[currentZone];
 

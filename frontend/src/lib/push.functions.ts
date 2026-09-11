@@ -94,7 +94,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
       return { ok: true as const, targets: 1, ...result };
     }
 
-    const phone = driverPhoneForTruck(data.target.truckCode);
+    const phone = await driverPhoneForTruck(data.target.truckCode);
     if (!phone) return { ok: false as const, reason: "unknown_truck" };
     const result = await sendToSubject({ role: "driver", key: phone }, message, {
       respectPrefs: false,

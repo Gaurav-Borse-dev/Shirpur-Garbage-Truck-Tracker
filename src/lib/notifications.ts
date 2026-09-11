@@ -8,6 +8,7 @@
  */
 import { useToast } from "@/components/Toast";
 import { readCache, writeCache } from "@/lib/cache";
+import { playNotificationSound, type SoundType } from "@/lib/notification-sound";
 
 export type NotificationKind =
   | "truck_nearby"
@@ -41,30 +42,38 @@ function persist(n: BackendNotification) {
   return true;
 }
 
-const tone: Record<NotificationKind, "default" | "success" | "warning"> = {
-  truck_nearby: "default",
-  truck_arrived: "success",
-  route_started: "default",
-  route_completed: "success",
-  booking_update: "success",
-  generic: "default",
-};
-
 /** Entry point used by the socket adapter and by the REST catch-up fetch. */
 export function handleBackendNotification(n: BackendNotification) {
   if (!n?.id) return;
   const isNew = persist(n);
   if (!isNew) return; // de-duplicate across socket + catch-up delivery
-  useToast.getState().push({ title: n.title, subtitle: n.body, tone: tone[n.kind] ?? "default" });
+
+  // Play signature CleanTrack garbage tracker sound
+  playNotificationSound(n.kind as SoundType);
+
+  // WhatsApp-style heads-up banner
+  useToast.getState().push({
+    title: n.title,
+    subtitle: n.body,
+    tone: n.kind as SoundType,
+    link: n.link,
+    sender: "CleanTrack Shirpur",
+  });
+
   showSystemNotification(n);
 }
 
 function showSystemNotification(n: BackendNotification) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
-  if (document.visibilityState === "visible") return; // toast already shown
+  if (document.visibilityState === "visible") return; // heads-up banner already shown in foreground
   try {
-    const notif = new Notification(n.title, { body: n.body, tag: n.id });
+    const notif = new Notification(n.title, {
+      body: n.body,
+      tag: n.id,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+    });
     notif.onclick = () => {
       window.focus();
       if (n.link) window.location.assign(n.link);

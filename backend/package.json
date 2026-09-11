@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.112.0",
     "date-fns": "^4.1.0",
+    "jiti": "^2.4.2",
     "nitro": "3.0.260603-beta",
     "zod": "^3.24.2"
   },

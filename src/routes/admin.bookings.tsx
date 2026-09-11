@@ -1,26 +1,51 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useBookings, type BookingStatus } from "@/store/bookings";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
+import { getAllBookings, decideBooking } from "@/lib/booking.functions";
 
 export const Route = createFileRoute("/admin/bookings")({
   component: AdminBookings,
 });
 
+type BookingStatus = "pending" | "approved" | "rejected";
+type BookingRow = {
+  id: string;
+  residentPhone: string;
+  city: string;
+  address: string;
+  reason: string;
+  fromDate: string;
+  toDate: string;
+  status: BookingStatus;
+  adminNote?: string;
+  createdAt: number;
+};
+
 function AdminBookings() {
   const tr = useT();
-  const bookings = useBookings((s) => s.bookings);
-  const decide = useBookings((s) => s.decide);
+  const qc = useQueryClient();
   const push = useToast((s) => s.push);
   const [filter, setFilter] = useState<BookingStatus | "all">("all");
 
+  // Load bookings from database
+  const { data: result } = useQuery({
+    queryKey: ["all-bookings", filter],
+    queryFn: () => getAllBookings({ data: { status: filter } }),
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+
+  const bookings: BookingRow[] = useMemo(() => {
+    return (result?.bookings ?? []) as BookingRow[];
+  }, [result]);
+
   const filtered = useMemo(
-    () => [...bookings]
-      .filter((b) => filter === "all" || b.status === filter)
-      .sort((a, b) => b.createdAt - a.createdAt),
-    [bookings, filter],
+    () => [...bookings].sort((a, b) => b.createdAt - a.createdAt),
+    [bookings],
   );
+
   const counts = useMemo(() => ({
     all: bookings.length,
     pending: bookings.filter((b) => b.status === "pending").length,
@@ -28,9 +53,17 @@ function AdminBookings() {
     rejected: bookings.filter((b) => b.status === "rejected").length,
   }), [bookings]);
 
+  const decideMutation = useMutation({
+    mutationFn: (args: { id: string; status: "approved" | "rejected"; note?: string }) =>
+      decideBooking({ data: args }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["all-bookings"] });
+    },
+  });
+
   function act(id: string, status: "approved" | "rejected") {
     const note = status === "rejected" ? (window.prompt(tr("Reason for rejection (optional)")) || undefined) : undefined;
-    decide(id, status, note);
+    decideMutation.mutate({ id, status, note });
     push({
       title: `${tr("Booking")} ${status === "approved" ? tr("approved") : tr("rejected")}`,
       subtitle: id,
@@ -78,7 +111,7 @@ function AdminBookings() {
             )}
             {filtered.map((b) => (
               <tr key={b.id} className="border-t border-neutral-100 align-top">
-                <td className="px-4 py-3 font-mono text-xs text-neutral-500">{b.id}</td>
+                <td className="px-4 py-3 font-mono text-xs text-neutral-500">{b.id.slice(0, 8)}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold text-ink">+91 {b.residentPhone}</div>
                   <div className="text-xs text-neutral-400">{b.city}</div>
