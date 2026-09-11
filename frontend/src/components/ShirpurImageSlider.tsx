@@ -11,55 +11,42 @@ import greenShirpurImg from "../assets/greenshirpur.jpg";
 interface Slide {
   id: string;
   src: string;
-  title: string;
-  subtitle: string;
-  badge: string;
+ 
 }
 
 const SLIDES: Slide[] = [
   {
     id: "banner",
     src: banner,
-    title: "CleanTrack Shirpur",
-    subtitle: "Smart waste management for a clean city",
-    badge: "Clean Shirpur",
+    
   },
+  
 
 
   {
     id: "clean-shirpur",
     src: cleanShirpurImg ,
-    title: "Clean Shirpur Campaign",
-    subtitle: "Keeping our city streets green & spotless",
-    badge: "Shirpur Nagarparishad",
+    
   },
   {
     id: "swachh-shirpur",
-    src: swachhShirpurImg || "/swachh-shirpur.jpg",
-    title: "Swachh Bharat Shirpur",
-    subtitle: "Segregated waste collection across all wards",
-    badge: "Swachh Abhiyan",
+    src: swachhShirpurImg ,
+   
   },
  {
   id: "green-shirpur",
   src: greenShirpurImg,
-  title: "Green Shirpur",
-  subtitle: "Smart garbage management",
-  badge: "Clean City",
+ 
 },
   {
     id: "clean-track",
-    src: cleanTrackImg || "/clean-track.jpg",
-    title: "CleanTrack Live Fleet",
-    subtitle: "Real-time municipal waste truck monitoring",
-    badge: "Smart Tracking",
+    src: cleanTrackImg ,
+   
   },
   {
     id: "smart-shirpur",
-    src: smartImg || "/smart.jpg",
-    title: "Smart Sanitation Fleet",
-    subtitle: "Automated waste management & clean city drive",
-    badge: "Municipal Sanitation",
+    src: smartImg ,
+  
   },
 ];
 
@@ -86,24 +73,23 @@ export function ShirpurImageSlider() {
   };
 
   return (
-    <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
+ <section className="w-full py-6 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
   
-  className="
+  
+ className="
     relative
     overflow-hidden
-    rounded-2xl
+    rounded-3xl
     shadow-lg
-    border
-    border-neutral-100
+    border-4
+    border-emerald-400
     bg-neutral-900
     group
-    aspect-[16/9]
-    sm:aspect-[21/9]
-    max-h-[420px]
-    sm:max-h-[500px]
-    md:max-h-[600px]
+   h-[260px]
+sm:h-[300px]
+md:h-[360px]
 "
 
         onMouseEnter={() => setIsPaused(true)}
@@ -113,45 +99,33 @@ export function ShirpurImageSlider() {
 
 >
         <AnimatePresence initial={false} mode="wait">
-          <motion.div
-            key={SLIDES[currentIndex].id}
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 w-full h-full"
-          >
-            {/* Background Image */}
-          {/* Background Image */}
-<motion.img
-  src={SLIDES[currentIndex].src}
-  alt={SLIDES[currentIndex].title}
-  className="absolute inset-0 w-full h-full object-cover object-center will-change-transform"
-  initial={{ scale: 1 }}
-  animate={{ scale: 1.05 }}
-  transition={{
-    duration: 3.5,
-    ease: "easeOut"
-  }}
+
+<motion.div
+ key={SLIDES[currentIndex].id}
+ initial={{opacity:0}}
+ animate={{opacity:1}}
+ exit={{opacity:0}}
+ transition={{duration:0.5}}
+ className="absolute inset-0"
+>
+
+<img
+ src={SLIDES[currentIndex].src}
+ alt="CleanTrack Shirpur"
+ className="
+ absolute
+ inset-0
+ w-full
+ h-full
+ object-contain
+ object-center
+ bg-white
+ "
 />
-            {/* Content Text Overlay */}
-<div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white z-10 flex flex-col justify-end">
 
-  <span className="inline-block self-start px-2.5 py-0.5 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-emerald-600/90 text-white rounded-full backdrop-blur-md">
-    {SLIDES[currentIndex].badge}
-  </span>
+</motion.div>
 
-  <h3 className="text-xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
-    {SLIDES[currentIndex].title}
-  </h3>
-
-  <p className="text-sm sm:text-lg text-neutral-200 mt-1 line-clamp-2 opacity-90">
-    {SLIDES[currentIndex].subtitle}
-  </p>
-
-</div>
-          </motion.div>
-        </AnimatePresence>
+</AnimatePresence>
 
         {/* Navigation Buttons */}
         <button
