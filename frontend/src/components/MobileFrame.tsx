@@ -10,7 +10,10 @@ export function MobileFrame({ children }: { children: ReactNode }) {
           h-dvh 
           bg-white 
           relative 
-          shadow-[0_0_60px_rgba(0,0,0,0.08)] 
+          shadow-[0_0_60px_rgba(0,0,0,0.08)]
+          border-4
+          border-black
+          rounded-none
           overflow-hidden 
           flex 
           flex-col
