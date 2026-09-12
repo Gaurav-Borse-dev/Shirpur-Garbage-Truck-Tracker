@@ -31,15 +31,12 @@ export const verifyOtp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
     const { setUser } = await import("./session.server");
-    if (data.code === "123456") {
-      if (data.role === "admin") {
-        await setUser({ role: "admin", username: "admin", phone: data.phone });
-      } else {
-        await setUser({ role: data.role, phone: data.phone });
-      }
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+    if (clean === "9999999999" && data.code === "123456") {
+      await setUser({ role: "admin", username: "admin", phone: clean });
       return { ok: true as const };
     }
-    return { ok: false as const, error: "Incorrect OTP. Please enter 123456" };
+    return { ok: false as const, error: "Static OTP 123456 is only valid for admin (9999999999)." };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */

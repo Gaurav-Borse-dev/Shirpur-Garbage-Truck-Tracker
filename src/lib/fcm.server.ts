@@ -151,10 +151,32 @@ export async function sendToToken(token: string, message: PushMessage): Promise<
             token,
             notification: { title: message.title, ...(message.body ? { body: message.body } : {}) },
             data,
-            android: { priority: "HIGH" },
-            webpush: message.link
-              ? { fcmOptions: { link: message.link } }
-              : undefined,
+            android: {
+              priority: "HIGH",
+              notification: {
+                channel_id: "cleantrack_truck_alerts",
+                sound: "truck_bell",
+                notification_priority: "PRIORITY_MAX",
+                visibility: "PUBLIC",
+                default_vibrate_timings: false,
+                vibrate_timings: ["0.1s", "0.2s", "0.1s", "0.2s"],
+                icon: "ic_launcher",
+              },
+            },
+            webpush: {
+              headers: {
+                Urgency: "high",
+              },
+              notification: {
+                icon: "/shirpur-logo.jpg",
+                badge: "/shirpur-logo.jpg",
+                vibrate: [200, 100, 200, 100, 200],
+                requireInteraction: true,
+              },
+              fcm_options: {
+                link: message.link || "/resident",
+              },
+            },
           },
         }),
         signal: AbortSignal.timeout(10_000),

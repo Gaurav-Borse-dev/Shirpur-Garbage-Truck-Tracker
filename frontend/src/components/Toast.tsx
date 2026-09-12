@@ -2,7 +2,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { create } from "zustand";
 import { useEffect } from "react";
 
-type ToastItem = { id: number; title: string; subtitle?: string; tone?: "default" | "success" | "warning" | string; sender?: string; link?: string };
+import { playNotificationSound, type SoundType } from "@/lib/notification-sound";
+
+type ToastItem = { id: number; title: string; subtitle?: string; tone?: "default" | "success" | "warning" | SoundType | string; sender?: string; link?: string };
 type ToastState = {
   items: ToastItem[];
   push: (t: Omit<ToastItem, "id">) => void;
@@ -14,6 +16,20 @@ export const useToast = create<ToastState>((set, get) => ({
   push: (t) => {
     const id = ++_id;
     set({ items: [...get().items, { ...t, id }] });
+
+    // Play signature notification sound
+    const soundKind: SoundType =
+      t.tone === "truck_arrived" || t.title.toLowerCase().includes("arrived") || t.title.toLowerCase().includes("almost")
+        ? "truck_arrived"
+        : t.tone === "truck_nearby" || t.title.toLowerCase().includes("nearby") || t.title.toLowerCase().includes("away")
+        ? "truck_nearby"
+        : t.tone === "route_completed" || t.title.toLowerCase().includes("completed")
+        ? "route_completed"
+        : t.tone === "booking_update" || t.title.toLowerCase().includes("booking")
+        ? "booking_update"
+        : "generic";
+    playNotificationSound(soundKind);
+
     setTimeout(() => get().dismiss(id), 4000);
   },
   dismiss: (id) => set({ items: get().items.filter((x) => x.id !== id) }),

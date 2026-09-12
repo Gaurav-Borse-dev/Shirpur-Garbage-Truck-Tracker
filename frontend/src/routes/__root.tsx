@@ -17,6 +17,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ClientOnly } from "@/components/ClientOnly";
 import { installPushRetry } from "@/lib/push-client";
 import { startForegroundPush } from "@/lib/push-foreground";
+import { WhatsAppNotificationHost } from "@/components/WhatsAppNotification";
 
 function NotFoundComponent() {
   return (
@@ -159,6 +160,11 @@ function RootShell({ children }: { children: ReactNode }) {
 function PushRuntime() {
   useEffect(() => {
     installPushRetry();
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.debug("[sw] registration:", err);
+      });
+    }
     return startForegroundPush();
   }, []);
   return null;
@@ -178,6 +184,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       {showLanguageSwitcher && <LanguageSwitcher />}
+      <WhatsAppNotificationHost />
       <ClientOnly>
         <PushRuntime />
       </ClientOnly>

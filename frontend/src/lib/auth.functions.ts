@@ -12,8 +12,8 @@ const otpInput = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
-/** Admin phone numbers that bypass Firebase and use the dev OTP flow. */
-const ADMIN_PHONES = new Set(["9999999999", "9999999990"]);
+/** Admin phone number that bypasses Firebase and uses the static test OTP (123456). */
+const ADMIN_PHONE = "9999999999";
 
 /** Verifies the admin credentials on the server and issues an encrypted session cookie. */
 export const adminLogin = createServerFn({ method: "POST" })
@@ -36,27 +36,27 @@ const sendOtpInput = z.object({
 /**
  * sendOtp — Determines the authentication flow for the given phone number.
  *
- * - Admin phones (9999999999, 9999999990): Returns `useFirebase: false`.
- * - All other phones (Residents, Drivers): Returns `useFirebase: true`.
- *   The client uses Firebase Phone Auth to send real SMS OTP to the mobile device.
+ * - Admin phone (9999999999): Returns `useFirebase: false` for instant static OTP (123456).
+ * - All other logins (driver and resident): Returns `useFirebase: true` for real SMS OTP via Firebase.
  */
 export const sendOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
 
-    if (ADMIN_PHONES.has(clean)) {
-      console.log(`[otp] Admin phone ******${clean.slice(-4)} — bypass mode`);
+    if (clean === ADMIN_PHONE) {
+      console.log(`[otp] Admin phone ${clean} — bypass mode (123456)`);
       return { ok: true as const, sent: true, useFirebase: false };
     }
 
-    // All real numbers (residents & drivers) use Firebase Phone Auth for real SMS
-    console.log(`[otp] Firebase Phone Auth requested for ******${clean.slice(-4)}`);
+    // All real numbers (driver and resident) use Firebase Phone Auth for real SMS OTP
+    console.log(`[otp] Real Firebase Phone Auth requested for ******${clean.slice(-4)}`);
     return { ok: true as const, sent: true, useFirebase: true };
   });
 
 /**
- * verifyOtp — Fallback OTP verification for admin bypass flow only.
+ * verifyOtp — OTP verification strictly for admin bypass flow (9999999999 with 123456).
+ * Drivers and residents authenticate via Firebase and use setFirebaseSession.
  */
 export const verifyOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => otpInput.parse(data))
@@ -64,13 +64,11 @@ export const verifyOtp = createServerFn({ method: "POST" })
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
     const code = data.code.trim();
-    const isAdminPhone = ADMIN_PHONES.has(clean);
 
-    // Only admin bypass phones may use static code
-    if (!isAdminPhone) {
+    if (clean !== ADMIN_PHONE) {
       return {
         ok: false as const,
-        error: "Please enter the real SMS OTP sent to your phone.",
+        error: "Real SMS OTP verification is required for this mobile number.",
       };
     }
 
@@ -81,7 +79,7 @@ export const verifyOtp = createServerFn({ method: "POST" })
 
     return {
       ok: false as const,
-      error: "Incorrect code. Please try again.",
+      error: "Incorrect code. Please enter 123456 for admin.",
     };
   });
 
@@ -103,7 +101,8 @@ export const setFirebaseSession = createServerFn({ method: "POST" })
 
     console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
 
-    if (data.role === "admin") {
+    // Admin role is reserved strictly for 9999999999
+    if (data.role === "admin" && clean === ADMIN_PHONE) {
       await setUser({ role: "admin", username: "admin", phone: clean });
     } else if (data.role === "driver") {
       await setUser({ role: "driver", phone: clean });

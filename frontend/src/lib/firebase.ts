@@ -48,11 +48,22 @@ export function setupRecaptcha(containerId = "recaptcha-container"): RecaptchaVe
   if (recaptchaVerifier) {
     return recaptchaVerifier;
   }
+  if (typeof document !== "undefined") {
+    let el = document.getElementById(containerId);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = containerId;
+      document.body.appendChild(el);
+    }
+  }
   const firebaseAuth = getFirebaseAuth();
   recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, containerId, {
     size: "invisible",
     callback: () => {
       // reCAPTCHA solved — allow signInWithPhoneNumber
+    },
+    "expired-callback": () => {
+      resetRecaptcha();
     },
   });
   return recaptchaVerifier;

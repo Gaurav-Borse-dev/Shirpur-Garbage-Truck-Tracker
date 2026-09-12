@@ -17,6 +17,8 @@ import { emitDriverDuty } from "@/lib/realtime";
 import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
 import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
+import { SHIRPUR } from "@/lib/trucks";
+import { ingestDriverGps } from "@/lib/tracking.functions";
 
 export const Route = createFileRoute("/driver")({
   head: () => ({
@@ -84,7 +86,83 @@ function DriverHome() {
     return () => { void stopDriverLocation(); };
   }, [onDuty, truckId]);
 
-  if (!live) return null;
+  useEffect(() => {
+    if (!live && truckId) {
+      useTrucks.getState().ingestFixes([{
+        truckId,
+        lat: SHIRPUR.lat + 0.009,
+        lng: SHIRPUR.lng,
+        heading: 180,
+        speed: 0,
+        status: "online",
+        ts: Date.now(),
+      }]);
+    }
+  }, [live, truckId]);
+
+  const [simActive, setSimActive] = useState(false);
+  const [simStep, setSimStep] = useState(0);
+
+  // Realistic route coordinates starting north of Shirpur, approaching city center & resident
+  const SIM_WAYPOINTS = [
+    { lat: 21.3585, lng: 74.8827, label: "Ward Entrance (1.1 km away)", tone: "enroute" },
+    { lat: 21.3540, lng: 74.8827, label: "Main Road (600m away)", tone: "enroute" },
+    { lat: 21.3508, lng: 74.8827, label: "Street Corner (280m - Nearby Radius!)", tone: "nearby" },
+    { lat: 21.3490, lng: 74.8827, label: "House Turn (80m - Arriving!)", tone: "arriving" },
+    { lat: 21.3483, lng: 74.8827, label: "Collection Point (At Resident)", tone: "arrived" },
+  ];
+
+  const triggerGpsFix = (lat: number, lng: number, speedMps = 6.9, heading = 180) => {
+    useTrucks.getState().ingestFixes([{
+      truckId,
+      lat,
+      lng,
+      heading,
+      speed: speedMps,
+      status: "online",
+      ts: Date.now(),
+    }]);
+    void ingestDriverGps({
+      data: {
+        truckCode: truckId,
+        lat,
+        lng,
+        heading,
+        speedKmh: speedMps * 3.6,
+      },
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (!simActive) return;
+    const interval = setInterval(() => {
+      setSimStep((prev) => {
+        const next = (prev + 1) % SIM_WAYPOINTS.length;
+        const pt = SIM_WAYPOINTS[next];
+        triggerGpsFix(pt.lat, pt.lng, 7.5, 180);
+        push({
+          title: `Simulated Drive: ${pt.label}`,
+          subtitle: `GPS: ${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}`,
+          tone: pt.tone === "arrived" || pt.tone === "arriving" ? "truck_arrived" : "truck_nearby",
+          sender: `Truck ${truckId} · GPS Sim`,
+        });
+        return next;
+      });
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [simActive, truckId]);
+
+  if (!live) {
+    return (
+      <MobileFrame>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-4" />
+          <div className="font-bold text-slate-800 text-base">Connecting Truck {truckId}…</div>
+          <div className="text-xs text-slate-500 mt-1">Initializing Shirpur collection route</div>
+        </div>
+      </MobileFrame>
+    );
+  }
 
   const online = live.status !== "offline";
   const stopNum = Math.min(live.completedStops + 1, live.truck.totalStops);
@@ -160,6 +238,66 @@ function DriverHome() {
               <CheckIcon className="w-3.5 h-3.5" />
             </button>
           </motion.div>
+
+          {/* GPS Simulation Test Drive Bar */}
+          <div className="pointer-events-auto bg-slate-950/95 text-white rounded-2xl p-3 border border-emerald-500/40 shadow-2xl backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${simActive ? "bg-emerald-400 animate-ping" : "bg-slate-500"}`} />
+                <span className="text-xs font-bold text-emerald-400">GPS Drive Simulator</span>
+              </div>
+              <button
+                id="btn-toggle-sim"
+                onClick={() => {
+                  if (!online) setOnline(truckId, true);
+                  setSimActive(!simActive);
+                }}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors shadow ${
+                  simActive ? "bg-amber-500 hover:bg-amber-600 text-slate-950" : "bg-emerald-500 hover:bg-emerald-600 text-slate-950"
+                }`}
+              >
+                {simActive ? "⏹ Pause Drive" : "▶ Start Drive Simulation"}
+              </button>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-300 flex items-center justify-between">
+              <span>Position: <strong className="text-white">{SIM_WAYPOINTS[simStep].label}</strong></span>
+              <span className="text-slate-400">Speed: <strong className="text-emerald-300">{simActive ? "27 km/h" : "0 km/h"}</strong></span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-800">
+              <button
+                id="btn-sim-nearby"
+                onClick={() => {
+                  if (!online) setOnline(truckId, true);
+                  setSimStep(2);
+                  triggerGpsFix(SIM_WAYPOINTS[2].lat, SIM_WAYPOINTS[2].lng, 6.0, 180);
+                  push({
+                    title: "Moved into Nearby Radius (280m)",
+                    subtitle: "Resident alert & sound chime triggered",
+                    tone: "truck_nearby",
+                  });
+                }}
+                className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-semibold flex items-center justify-center gap-1 border border-amber-500/30"
+              >
+                🔔 Move Nearby (280m)
+              </button>
+              <button
+                id="btn-sim-arriving"
+                onClick={() => {
+                  if (!online) setOnline(truckId, true);
+                  setSimStep(3);
+                  triggerGpsFix(SIM_WAYPOINTS[3].lat, SIM_WAYPOINTS[3].lng, 3.5, 180);
+                  push({
+                    title: "Arrived at Resident Street (80m)",
+                    subtitle: "Resident fanfare sound & popup triggered",
+                    tone: "truck_arrived",
+                  });
+                }}
+                className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[11px] font-semibold flex items-center justify-center gap-1 border border-emerald-500/30"
+              >
+                🚛 Move Arriving (80m)
+              </button>
+            </div>
+          </div>
         </div>
 
         <BottomSheet>

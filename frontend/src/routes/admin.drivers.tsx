@@ -49,11 +49,12 @@ function DriversPage() {
   const addMutation = useMutation({
     mutationFn: (d: { name: string; phone: string; truckId: string }) =>
       addFleetDriver({ data: { name: d.name, phone: d.phone, licenseNo: "N/A", truckCode: d.truckId } }),
-    onSuccess: (res: { ok: boolean; error?: string }) => {
+    onSuccess: (res: { ok: boolean; error?: string }, vars) => {
       if (!res.ok) {
         push({ title: tr("Error"), subtitle: res.error, tone: "warning" });
         return;
       }
+      useAuth.getState().addDriver({ name: vars.name, phone: vars.phone, truckId: vars.truckId, active: true });
       void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
       push({ title: tr("Driver added successfully") });
     },

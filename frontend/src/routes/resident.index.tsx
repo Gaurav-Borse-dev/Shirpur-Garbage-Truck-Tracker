@@ -14,6 +14,8 @@ import { SHIRPUR } from "@/lib/trucks";
 import { haversine, type LatLng } from "@/lib/geo";
 import { useFormat } from "@/lib/format";
 import { useT } from "@/lib/i18n";
+import { useWhatsAppNotification } from "@/components/WhatsAppNotification";
+import { playNotificationSound } from "@/lib/notification-sound";
 
 export const Route = createFileRoute("/resident/")({
   head: () => ({
@@ -134,11 +136,31 @@ function ResidentHome() {
         return true;
       };
       if (zone === "Nearby" && can("nearby")) {
-        push({ title: `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`, subtitle: tr("Head outside soon") });
+        const title = `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`;
+        const subtitle = tr("Head outside soon for waste collection");
+        push({ title, subtitle, tone: "truck_nearby" });
+        useWhatsAppNotification.getState().push({
+          title,
+          subtitle,
+          tone: "truck_nearby",
+          sender: "CleanTrack Shirpur",
+          link: "/resident",
+        });
+        playNotificationSound("truck_nearby");
         fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmt.distance(distance)}`);
       }
       if (zone === "Arriving" && can("arriving")) {
-        push({ title: tr("Truck is almost here!"), subtitle: tr("Go outside now") });
+        const title = tr("Truck is almost here!");
+        const subtitle = tr("Garbage truck has reached your street. Go outside now!");
+        push({ title, subtitle, tone: "truck_arrived" });
+        useWhatsAppNotification.getState().push({
+          title,
+          subtitle,
+          tone: "truck_arrived",
+          sender: "CleanTrack Shirpur",
+          link: "/resident",
+        });
+        playNotificationSound("truck_arrived");
         fireBrowserNotif(notifEnabled, tr("Truck arriving"), `${nearest.truck.id}`);
       }
       if (zone === "Leaving" && can("leaving")) {

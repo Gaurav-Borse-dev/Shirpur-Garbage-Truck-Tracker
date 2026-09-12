@@ -6,6 +6,14 @@ export type ServerSession = {
 
 export type SessionData = { user?: ServerSession };
 
+export async function getUser(): Promise<ServerSession | null> {
+  return null;
+}
+
+export async function setUser(_user: ServerSession): Promise<void> {}
+
+export async function clearUser(): Promise<void> {}
+
 
 
 

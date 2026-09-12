@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { ChevronLeft } from "@/components/icons";
-import { useAuth, detectRole, type Role } from "@/store/auth";
+import { useAuth, detectRole, loadDriversFromDb, type Role } from "@/store/auth";
 import { sendOtp, verifyOtp, setFirebaseSession } from "@/lib/auth.functions";
 import { useT } from "@/lib/i18n";
 import {
@@ -71,6 +71,10 @@ function UnifiedLoginPage() {
   } | null>(null);
 
   const isPhoneValid = /^\d{10}$/.test(phone);
+
+  useEffect(() => {
+    void loadDriversFromDb();
+  }, []);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -449,11 +453,19 @@ function UnifiedLoginPage() {
                 <div className="text-center">
                   <h1 className="text-2xl font-extrabold text-neutral-900">{t("Verify OTP")}</h1>
                   <p className="mt-1 text-xs text-neutral-500">
-                    {useFirebase ? t("Enter the 6-digit SMS code sent to") : t("Enter 6-digit code for")}
+                    {phone.trim().replace(/\D/g, "") === "9999999999"
+                      ? t("Admin test mode")
+                      : t("Enter the 6-digit SMS code sent to")}
                   </p>
                   <p className="font-bold text-emerald-700 text-sm mt-0.5">
                     +91 {phone.replace(/(\d{5})(\d{5})/, "$1 $2")}
                   </p>
+                  {phone.trim().replace(/\D/g, "") === "9999999999" && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-semibold text-amber-800">
+                      <span>⚡</span>
+                      <span>{t("Admin Test Access · OTP:")} <strong className="font-mono">123456</strong></span>
+                    </div>
+                  )}
                 </div>
 
                 {/* OTP Phone Device Illustration */}

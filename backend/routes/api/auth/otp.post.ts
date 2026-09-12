@@ -8,11 +8,11 @@ export default eventHandler(async (event) => {
   const role = String(body.role ?? "resident");
 
   const clean = phone.trim().replace(/\D/g, "").slice(-10);
-  const isAdminPhone = clean === "9999999999" || clean === "9999999990";
+  const isAdminPhone = clean === "9999999999";
 
   if (!isAdminPhone) {
     setResponseStatus(event, 400);
-    return { success: false, error: "Please enter the real SMS OTP sent to your phone." };
+    return { success: false, error: "Real SMS OTP verification is required for your phone number." };
   }
 
   const expectedOtp = process.env["LOGIN_OTP_CODE"] || "123456";
@@ -25,7 +25,7 @@ export default eventHandler(async (event) => {
 
   return {
     success: true,
-    user: { role, phone: clean },
+    user: { role: "admin", phone: clean },
     timestamp: new Date().toISOString(),
   };
 });
