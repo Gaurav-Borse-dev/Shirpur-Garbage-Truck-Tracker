@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
 import L from "leaflet";
 import { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
@@ -10,9 +10,122 @@ import { useI18n } from "@/store/i18n";
 import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
-// Clean OpenStreetMap tiles (no watermarks, free & high accuracy for Shirpur routes)
-const MAP_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const MAP_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// ── Map tile layer definitions ──
+// Esri World Imagery — free satellite tiles (no API key required)
+const TILE_SATELLITE = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  attr: '&copy; <a href="https://www.esri.com/">Esri</a> — Source: Esri, Maxar, Earthstar Geographics',
+};
+// Esri Reference Overlay — road & place labels on top of satellite
+const TILE_LABELS = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+  attr: '',
+};
+const TILE_PLACE_LABELS = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+  attr: '',
+};
+// OpenStreetMap — classic street map
+const TILE_STREETS = {
+  url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+};
+
+type MapStyle = "satellite" | "hybrid" | "streets";
+const MAP_STYLE_OPTIONS: { id: MapStyle; icon: string; label: string }[] = [
+  { id: "satellite", icon: "🛰", label: "Satellite" },
+  { id: "hybrid",    icon: "🛰", label: "Satellite + Labels" },
+  { id: "streets",   icon: "🗺", label: "Streets" },
+];
+
+/** Compact map-style switcher rendered as a Leaflet-aware overlay */
+function MapLayerSwitcher() {
+  const [style, setStyle] = useState<MapStyle>("hybrid");
+  const [open, setOpen] = useState(false);
+  const map = useMap();
+  const layersRef = useRef<{ base?: L.TileLayer; labels?: L.TileLayer; placeLabels?: L.TileLayer }>({});
+
+  // Initialize tile layers on first mount
+  useEffect(() => {
+    const base = L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attr, maxZoom: 19, maxNativeZoom: 18 });
+    const labels = L.tileLayer(TILE_LABELS.url, { attribution: TILE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
+    const placeLabels = L.tileLayer(TILE_PLACE_LABELS.url, { attribution: TILE_PLACE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
+    layersRef.current = { base, labels, placeLabels };
+
+    // Default: hybrid (satellite + labels)
+    base.addTo(map);
+    labels.addTo(map);
+    placeLabels.addTo(map);
+
+    return () => {
+      base.remove();
+      labels.remove();
+      placeLabels.remove();
+    };
+  }, [map]);
+
+  const applyStyle = useCallback((s: MapStyle) => {
+    const { base, labels, placeLabels } = layersRef.current;
+    if (!base || !labels || !placeLabels) return;
+
+    // Remove all first
+    base.remove();
+    labels.remove();
+    placeLabels.remove();
+
+    if (s === "streets") {
+      const streets = L.tileLayer(TILE_STREETS.url, { attribution: TILE_STREETS.attr, maxZoom: 19 });
+      streets.addTo(map);
+      // Swap base reference so cleanup works
+      layersRef.current.base = streets;
+    } else {
+      const sat = L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attr, maxZoom: 19, maxNativeZoom: 18 });
+      sat.addTo(map);
+      layersRef.current.base = sat;
+      if (s === "hybrid") {
+        const lbl = L.tileLayer(TILE_LABELS.url, { attribution: TILE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
+        const plbl = L.tileLayer(TILE_PLACE_LABELS.url, { attribution: TILE_PLACE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
+        lbl.addTo(map);
+        plbl.addTo(map);
+        layersRef.current.labels = lbl;
+        layersRef.current.placeLabels = plbl;
+      }
+    }
+
+    setStyle(s);
+    setOpen(false);
+  }, [map]);
+
+  return (
+    <div className="ct-layer-switcher">
+      <button
+        className="ct-layer-switcher-toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Change map style"
+        title="Map layers"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 22 8.5 12 15 2 8.5" />
+          <polyline points="2 15.5 12 22 22 15.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="ct-layer-switcher-menu">
+          {MAP_STYLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              className={`ct-layer-switcher-option${style === opt.id ? " active" : ""}`}
+              onClick={() => applyStyle(opt.id)}
+            >
+              <span className="ct-layer-switcher-icon">{opt.icon}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Top-down navigation garbage-tipper truck SVG with direction cone & headlights.
@@ -370,7 +483,7 @@ export function TruckMap(props: Props) {
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+        <MapLayerSwitcher />
 
         <RecenterOnKey
           center={props.resident}
@@ -456,7 +569,7 @@ export function TruckMap(props: Props) {
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+        <MapLayerSwitcher />
 
         {/* Navigation Camera Controller (Keeps road ahead visible) */}
         <DriverNavigationCameraController
@@ -499,7 +612,7 @@ export function TruckMap(props: Props) {
       attributionControl={false}
       className="w-full h-full"
     >
-      <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+      <MapLayerSwitcher />
 
       <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
       {SHIRPUR_LANDMARKS.map((lm) => (
