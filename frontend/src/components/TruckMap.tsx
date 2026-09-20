@@ -10,25 +10,33 @@ import { useI18n } from "@/store/i18n";
 import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
-// ── Map tile layer definitions ──
-// Esri World Imagery — free satellite tiles (no API key required)
+// ── High-Quality Map Tile Layer Definitions ──
+// Google Hybrid — Ultra-crisp satellite imagery with all roads, narrow galis, lanes & street labels
+// Zero watermarks, no API keys needed, full detail for Shirpur down to zoom 20
+const TILE_HYBRID = {
+  url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
+};
+
+// Google Satellite — Pure satellite imagery (real buildings, terrain, fields, water bodies)
 const TILE_SATELLITE = {
-  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  attr: '&copy; <a href="https://www.esri.com/">Esri</a> — Source: Esri, Maxar, Earthstar Geographics',
+  url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
 };
-// Esri Reference Overlay — road & place labels on top of satellite
-const TILE_LABELS = {
-  url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-  attr: '',
-};
-const TILE_PLACE_LABELS = {
-  url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  attr: '',
-};
-// OpenStreetMap — classic street map
+
+// Google Streets — Clear high-contrast street map with all tiny roads, alleys, and landmarks
 const TILE_STREETS = {
-  url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
 };
 
 type MapStyle = "satellite" | "hybrid" | "streets";
@@ -43,58 +51,59 @@ function MapLayerSwitcher() {
   const [style, setStyle] = useState<MapStyle>("hybrid");
   const [open, setOpen] = useState(false);
   const map = useMap();
-  const layersRef = useRef<{ base?: L.TileLayer; labels?: L.TileLayer; placeLabels?: L.TileLayer }>({});
+  const currentLayerRef = useRef<L.TileLayer | null>(null);
 
-  // Initialize tile layers on first mount
+  const getTileConfig = useCallback((s: MapStyle) => {
+    switch (s) {
+      case "satellite":
+        return TILE_SATELLITE;
+      case "streets":
+        return TILE_STREETS;
+      case "hybrid":
+      default:
+        return TILE_HYBRID;
+    }
+  }, []);
+
+  const applyStyle = useCallback(
+    (s: MapStyle) => {
+      if (currentLayerRef.current) {
+        map.removeLayer(currentLayerRef.current);
+      }
+      const cfg = getTileConfig(s);
+      const layer = L.tileLayer(cfg.url, {
+        attribution: cfg.attr,
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom,
+        maxNativeZoom: cfg.maxNativeZoom,
+      });
+      layer.addTo(map);
+      currentLayerRef.current = layer;
+      setStyle(s);
+      setOpen(false);
+    },
+    [map, getTileConfig],
+  );
+
+  // Initialize default "hybrid" (Satellite + Labels) layer on mount
   useEffect(() => {
-    const base = L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attr, maxZoom: 19, maxNativeZoom: 18 });
-    const labels = L.tileLayer(TILE_LABELS.url, { attribution: TILE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
-    const placeLabels = L.tileLayer(TILE_PLACE_LABELS.url, { attribution: TILE_PLACE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
-    layersRef.current = { base, labels, placeLabels };
-
-    // Default: hybrid (satellite + labels)
-    base.addTo(map);
-    labels.addTo(map);
-    placeLabels.addTo(map);
+    const cfg = TILE_HYBRID;
+    const layer = L.tileLayer(cfg.url, {
+      attribution: cfg.attr,
+      subdomains: cfg.subdomains,
+      maxZoom: cfg.maxZoom,
+      maxNativeZoom: cfg.maxNativeZoom,
+    });
+    layer.addTo(map);
+    currentLayerRef.current = layer;
 
     return () => {
-      base.remove();
-      labels.remove();
-      placeLabels.remove();
+      if (currentLayerRef.current) {
+        map.removeLayer(currentLayerRef.current);
+      }
     };
   }, [map]);
 
-  const applyStyle = useCallback((s: MapStyle) => {
-    const { base, labels, placeLabels } = layersRef.current;
-    if (!base || !labels || !placeLabels) return;
-
-    // Remove all first
-    base.remove();
-    labels.remove();
-    placeLabels.remove();
-
-    if (s === "streets") {
-      const streets = L.tileLayer(TILE_STREETS.url, { attribution: TILE_STREETS.attr, maxZoom: 19 });
-      streets.addTo(map);
-      // Swap base reference so cleanup works
-      layersRef.current.base = streets;
-    } else {
-      const sat = L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attr, maxZoom: 19, maxNativeZoom: 18 });
-      sat.addTo(map);
-      layersRef.current.base = sat;
-      if (s === "hybrid") {
-        const lbl = L.tileLayer(TILE_LABELS.url, { attribution: TILE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
-        const plbl = L.tileLayer(TILE_PLACE_LABELS.url, { attribution: TILE_PLACE_LABELS.attr, maxZoom: 19, maxNativeZoom: 18, pane: "overlayPane" });
-        lbl.addTo(map);
-        plbl.addTo(map);
-        layersRef.current.labels = lbl;
-        layersRef.current.placeLabels = plbl;
-      }
-    }
-
-    setStyle(s);
-    setOpen(false);
-  }, [map]);
 
   return (
     <div className="ct-layer-switcher">
@@ -472,7 +481,9 @@ export function TruckMap(props: Props) {
     return (
       <MapContainer
         center={[props.resident.lat, props.resident.lng]}
-        zoom={15}
+        zoom={16}
+        minZoom={10}
+        maxZoom={20}
         zoomControl={false}
         scrollWheelZoom={true}
         dragging={true}
@@ -564,7 +575,9 @@ export function TruckMap(props: Props) {
     return (
       <MapContainer
         center={[truck.position.lat, truck.position.lng]}
-        zoom={16}
+        zoom={17}
+        minZoom={10}
+        maxZoom={20}
         zoomControl={false}
         attributionControl={false}
         className="w-full h-full"
@@ -608,6 +621,8 @@ export function TruckMap(props: Props) {
   return (
     <MapContainer
       bounds={bounds}
+      minZoom={10}
+      maxZoom={20}
       zoomControl={false}
       attributionControl={false}
       className="w-full h-full"
@@ -643,31 +658,42 @@ export function TruckMap(props: Props) {
   );
 }
 
-/** Dual-cased navigation polyline (Dark Casing + Vibrant CleanTrack Green Core) */
+/** Dual-cased navigation polyline with glow for satellite visibility */
 function NavigationPolyline({ positions, active }: { positions: LatLng[]; active?: boolean }) {
   const coords = useMemo(() => positions.map((p) => [p.lat, p.lng] as [number, number]), [positions]);
   if (coords.length < 2) return null;
 
   return (
     <>
-      {/* Outer Road Casing */}
+      {/* Outer Glow — white halo so route is visible on dark satellite */}
+      <Polyline
+        positions={coords}
+        pathOptions={{
+          color: "#FFFFFF",
+          weight: active ? 14 : 9,
+          opacity: 0.25,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
+      {/* Dark Casing */}
       <Polyline
         positions={coords}
         pathOptions={{
           color: "#0F172A",
           weight: active ? 10 : 6,
-          opacity: 0.35,
+          opacity: 0.5,
           lineCap: "round",
           lineJoin: "round",
         }}
       />
-      {/* Inner Navigation Line */}
+      {/* Inner Navigation Line — bright green/blue */}
       <Polyline
         positions={coords}
         pathOptions={{
-          color: active ? "#22C55E" : "#3B82F6",
+          color: active ? "#4ADE80" : "#60A5FA",
           weight: active ? 6 : 3.5,
-          opacity: 0.95,
+          opacity: 1,
           lineCap: "round",
           lineJoin: "round",
         }}
