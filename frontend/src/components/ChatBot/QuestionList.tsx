@@ -37,9 +37,7 @@ export function QuestionList() {
             </button>
           ))
         ) : (
-          <div className="text-center text-gray-500 text-sm mt-4">
-            No questions available
-          </div>
+          <div className="text-center text-gray-500 text-sm mt-4">No questions available</div>
         )}
       </div>
     </div>

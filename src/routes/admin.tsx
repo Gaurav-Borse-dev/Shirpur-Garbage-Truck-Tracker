@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/store/auth";
 import { Logo } from "@/components/Logo";
 import { ToastHost } from "@/components/Toast";
@@ -25,6 +26,7 @@ function AdminRoute() {
 
 function AdminLayout() {
   const tr = useT();
+  const queryClient = useQueryClient();
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
@@ -81,7 +83,13 @@ function AdminLayout() {
             <div className="text-neutral-400">{tr("Municipal Admin")}</div>
           </div>
           <button
-            onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
+            onClick={async () => {
+              await serverSignOut();
+              logout();
+              queryClient.setQueryData(["server-session"], null);
+              queryClient.removeQueries({ queryKey: ["server-session"] });
+              navigate({ to: "/role" });
+            }}
             className="mt-2 w-full h-9 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 flex items-center justify-center gap-2 hover:bg-neutral-50"
           >
             <LogoutIcon className="w-3.5 h-3.5" /> {tr("Logout")}

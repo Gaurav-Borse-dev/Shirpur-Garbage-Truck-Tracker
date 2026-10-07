@@ -16,20 +16,14 @@ export function ChatBotWindow() {
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/20 z-40" 
-        onClick={close}
-      />
-      
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={close} />
+
       {/* Window - Properly positioned to not get cut off */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[90vw] max-w-sm h-[90vh] max-h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-2xl flex-shrink-0">
           <h2 className="font-bold text-lg">CleanTrack</h2>
-          <button 
-            onClick={close} 
-            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-          >
+          <button onClick={close} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -39,9 +33,7 @@ export function ChatBotWindow() {
           {view === "greeting" && (
             <div className="flex flex-col items-center justify-center p-6 text-center">
               <div className="text-5xl mb-4">👋</div>
-              <p className="text-gray-700 font-medium mb-6 text-sm">
-                {GREETINGS[lang]}
-              </p>
+              <p className="text-gray-700 font-medium mb-6 text-sm">{GREETINGS[lang]}</p>
               <div className="w-full">
                 <CategoryGrid />
               </div>
@@ -50,9 +42,7 @@ export function ChatBotWindow() {
 
           {view === "categories" && (
             <div className="p-4">
-              <div className="text-center text-sm text-gray-600 mb-4">
-                How can we help you?
-              </div>
+              <div className="text-center text-sm text-gray-600 mb-4">How can we help you?</div>
               <CategoryGrid />
             </div>
           )}

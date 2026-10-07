@@ -20,7 +20,8 @@ export function RequireRole({
   const clientSession = useAuth((s) => s.session);
   const tr = useT();
 
-  const activeRole = user?.role || clientSession?.role;
+  // Prioritize active client session so new logins aren't bounced by stale background server-session cache
+  const activeRole = clientSession?.role || user?.role;
 
   if (loading && !clientSession) {
     return <div className="min-h-screen w-full grid place-items-center text-sm text-neutral-400">{tr("Checking access…")}</div>;

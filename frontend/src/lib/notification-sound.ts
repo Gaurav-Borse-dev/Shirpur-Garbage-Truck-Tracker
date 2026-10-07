@@ -51,9 +51,12 @@ export function unlockAudio() {
   source.start(0);
 
   if (ctx.state === "suspended") {
-    ctx.resume().then(() => {
-      unlocked = true;
-    }).catch(() => {});
+    ctx
+      .resume()
+      .then(() => {
+        unlocked = true;
+      })
+      .catch(() => {});
   } else {
     unlocked = true;
   }
@@ -140,16 +143,16 @@ export function playNotificationSound(type: SoundType = "truck_nearby") {
       case "truck_arrived": {
         // Signature CleanTrack 4-note ascending fanfare chime (C5 -> E5 -> G5 -> C6)
         // Highly distinctive and immediately notifies resident that garbage truck is here!
-        playChimeNote(ctx, 523.25, t + 0.00, 0.45, 0.32); // C5
+        playChimeNote(ctx, 523.25, t + 0.0, 0.45, 0.32); // C5
         playChimeNote(ctx, 659.25, t + 0.12, 0.45, 0.34); // E5
-        playChimeNote(ctx, 783.99, t + 0.24, 0.50, 0.36); // G5
-        playChimeNote(ctx, 1046.50, t + 0.38, 0.75, 0.40); // C6 (long bright bell sustain)
+        playChimeNote(ctx, 783.99, t + 0.24, 0.5, 0.36); // G5
+        playChimeNote(ctx, 1046.5, t + 0.38, 0.75, 0.4); // C6 (long bright bell sustain)
         break;
       }
 
       case "truck_nearby": {
         // CleanTrack 3-note melodic alert chime (E5 -> G5 -> B5)
-        playChimeNote(ctx, 659.25, t + 0.00, 0.40, 0.30); // E5
+        playChimeNote(ctx, 659.25, t + 0.0, 0.4, 0.3); // E5
         playChimeNote(ctx, 783.99, t + 0.14, 0.45, 0.32); // G5
         playChimeNote(ctx, 987.77, t + 0.28, 0.65, 0.36); // B5
         break;
@@ -158,14 +161,14 @@ export function playNotificationSound(type: SoundType = "truck_nearby") {
       case "route_completed":
       case "route_started": {
         // Upbeat double chime for driver tasks & route milestones (G5 -> C6)
-        playChimeNote(ctx, 783.99, t + 0.00, 0.35, 0.30);
-        playChimeNote(ctx, 1046.50, t + 0.15, 0.60, 0.35);
+        playChimeNote(ctx, 783.99, t + 0.0, 0.35, 0.3);
+        playChimeNote(ctx, 1046.5, t + 0.15, 0.6, 0.35);
         break;
       }
 
       case "booking_update": {
         // Friendly municipal tone (A5 -> E6)
-        playChimeNote(ctx, 880.00, t + 0.00, 0.30, 0.26);
+        playChimeNote(ctx, 880.0, t + 0.0, 0.3, 0.26);
         playChimeNote(ctx, 1318.51, t + 0.12, 0.55, 0.32);
         break;
       }
@@ -174,8 +177,8 @@ export function playNotificationSound(type: SoundType = "truck_nearby") {
       case "generic":
       default: {
         // Crisp WhatsApp-style pop & bell ping (F5 -> C6)
-        playChimeNote(ctx, 698.46, t + 0.00, 0.25, 0.28);
-        playChimeNote(ctx, 1046.50, t + 0.09, 0.50, 0.34);
+        playChimeNote(ctx, 698.46, t + 0.0, 0.25, 0.28);
+        playChimeNote(ctx, 1046.5, t + 0.09, 0.5, 0.34);
         break;
       }
     }

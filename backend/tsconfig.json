@@ -1,11 +1,11 @@
 {
-  "include": ["routes/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
+  "include": ["routes/**/*.ts", "src/integrations/supabase/client.server.ts", "src/integrations/supabase/types.ts"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "vite/client"],
+    "types": ["node"],
 
     /* Bundler mode */
     "moduleResolution": "Bundler",

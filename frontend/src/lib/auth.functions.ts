@@ -99,7 +99,9 @@ export const setFirebaseSession = createServerFn({ method: "POST" })
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
 
-    console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
+    console.log(
+      `[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`,
+    );
 
     // Admin role is reserved strictly for 9999999999
     if (data.role === "admin" && clean === ADMIN_PHONE) {

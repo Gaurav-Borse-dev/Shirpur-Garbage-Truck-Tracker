@@ -12,26 +12,28 @@ import { useTrucks, type TruckFix } from "@/store/trucks";
 
 export type LiveScope = { all: true } | { lat: number; lng: number; radiusM: number };
 
-const POLL_MS = 4000;
-const MIN_GAP_MS = 1200;
+const POLL_MS = 3000;
+const MIN_GAP_MS = 1000;
 
 function toFix(t: {
-  truckCode: string;
+  truckId?: string;
+  truckCode?: string;
   lat: number;
   lng: number;
-  heading: number;
-  speedKmh: number;
+  heading?: number;
+  speedKmh?: number;
   fixedAt: string;
   status: string;
 }): TruckFix {
   return {
-    truckId: t.truckCode,
+    truckId: t.truckCode || t.truckId || "",
     lat: t.lat,
     lng: t.lng,
-    heading: t.heading,
+    heading: typeof t.heading === "number" && t.heading > 0 ? t.heading : undefined,
     speed: (t.speedKmh ?? 0) / 3.6,
     ts: t.fixedAt,
-    status: t.status === "offline" ? "offline" : t.status === "collecting" ? "collecting" : "online",
+    status:
+      t.status === "offline" ? "offline" : t.status === "collecting" ? "collecting" : "online",
   };
 }
 

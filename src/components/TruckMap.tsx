@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Circle, useMap, Tooltip, Popup } from "react-leaflet";
 import L from "leaflet";
 import { memo, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useTrucks, startSimulation, type LiveTruck } from "@/store/trucks";
@@ -10,9 +10,131 @@ import { useI18n } from "@/store/i18n";
 import { translate } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
-// Clean OpenStreetMap tiles (no watermarks, free & high accuracy for Shirpur routes)
-const MAP_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const MAP_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// ── High-Quality Map Tile Layer Definitions ──
+// Google Hybrid — Ultra-crisp satellite imagery with all roads, narrow galis, lanes & street labels
+// Zero watermarks, no API keys needed, full detail for Shirpur down to zoom 20
+const TILE_HYBRID = {
+  url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
+};
+
+// Google Satellite — Pure satellite imagery (real buildings, terrain, fields, water bodies)
+const TILE_SATELLITE = {
+  url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
+};
+
+// Google Streets — Clear high-contrast street map with all tiny roads, alleys, and landmarks
+const TILE_STREETS = {
+  url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+  subdomains: "0123",
+  maxZoom: 20,
+  maxNativeZoom: 20,
+  attr: '&copy; <a href="https://maps.google.com">Google Maps</a>',
+};
+
+type MapStyle = "satellite" | "hybrid" | "streets";
+const MAP_STYLE_OPTIONS: { id: MapStyle; icon: string; label: string }[] = [
+  { id: "satellite", icon: "🛰", label: "Satellite" },
+  { id: "hybrid",    icon: "🛰", label: "Satellite + Labels" },
+  { id: "streets",   icon: "🗺", label: "Streets" },
+];
+
+/** Compact map-style switcher rendered as a Leaflet-aware overlay */
+function MapLayerSwitcher() {
+  const [style, setStyle] = useState<MapStyle>("hybrid");
+  const [open, setOpen] = useState(false);
+  const map = useMap();
+  const currentLayerRef = useRef<L.TileLayer | null>(null);
+
+  const getTileConfig = useCallback((s: MapStyle) => {
+    switch (s) {
+      case "satellite":
+        return TILE_SATELLITE;
+      case "streets":
+        return TILE_STREETS;
+      case "hybrid":
+      default:
+        return TILE_HYBRID;
+    }
+  }, []);
+
+  const applyStyle = useCallback(
+    (s: MapStyle) => {
+      if (currentLayerRef.current) {
+        map.removeLayer(currentLayerRef.current);
+      }
+      const cfg = getTileConfig(s);
+      const layer = L.tileLayer(cfg.url, {
+        attribution: cfg.attr,
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom,
+        maxNativeZoom: cfg.maxNativeZoom,
+      });
+      layer.addTo(map);
+      currentLayerRef.current = layer;
+      setStyle(s);
+      setOpen(false);
+    },
+    [map, getTileConfig],
+  );
+
+  // Initialize default "hybrid" (Satellite + Labels) layer on mount
+  useEffect(() => {
+    const cfg = TILE_HYBRID;
+    const layer = L.tileLayer(cfg.url, {
+      attribution: cfg.attr,
+      subdomains: cfg.subdomains,
+      maxZoom: cfg.maxZoom,
+      maxNativeZoom: cfg.maxNativeZoom,
+    });
+    layer.addTo(map);
+    currentLayerRef.current = layer;
+
+    return () => {
+      if (currentLayerRef.current) {
+        map.removeLayer(currentLayerRef.current);
+      }
+    };
+  }, [map]);
+
+
+  return (
+    <div className="ct-layer-switcher">
+      <button
+        className="ct-layer-switcher-toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Change map style"
+        title="Map layers"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 22 8.5 12 15 2 8.5" />
+          <polyline points="2 15.5 12 22 22 15.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="ct-layer-switcher-menu">
+          {MAP_STYLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              className={`ct-layer-switcher-option${style === opt.id ? " active" : ""}`}
+              onClick={() => applyStyle(opt.id)}
+            >
+              <span className="ct-layer-switcher-icon">{opt.icon}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Top-down navigation garbage-tipper truck SVG with direction cone & headlights.
@@ -209,26 +331,33 @@ function DriverNavigationCameraController({
   active: boolean;
 }) {
   const map = useMap();
-  const lastPos = useRef<LatLng | null>(null);
+  const lastPanAt = useRef(0);
+  const lastTarget = useRef<LatLng | null>(null);
 
   useEffect(() => {
     if (!active) return;
-    if (
-      lastPos.current &&
-      Math.abs(lastPos.current.lat - position.lat) < 0.00005 &&
-      Math.abs(lastPos.current.lng - position.lng) < 0.00005
-    ) {
-      return;
-    }
-    lastPos.current = position;
+    const now = Date.now();
+    // Throttle camera smooth pan to at most once per 1100ms to avoid interrupting leaflet rendering
+    if (now - lastPanAt.current < 1100) return;
 
     // Offset camera slightly forward in direction of bearing so road ahead is visible
     const rad = (bearing * Math.PI) / 180;
-    const offsetLat = Math.cos(rad) * 0.0012;
-    const offsetLng = Math.sin(rad) * 0.0012;
+    const offsetLat = Math.cos(rad) * 0.0009;
+    const offsetLng = Math.sin(rad) * 0.0009;
 
     const targetCenter: [number, number] = [position.lat + offsetLat, position.lng + offsetLng];
-    map.panTo(targetCenter, { animate: true, duration: 0.8, easeLinearity: 0.25 });
+
+    if (
+      lastTarget.current &&
+      Math.abs(lastTarget.current.lat - targetCenter[0]) < 0.00008 &&
+      Math.abs(lastTarget.current.lng - targetCenter[1]) < 0.00008
+    ) {
+      return;
+    }
+
+    lastPanAt.current = now;
+    lastTarget.current = { lat: targetCenter[0], lng: targetCenter[1] };
+    map.panTo(targetCenter, { animate: true, duration: 0.6, easeLinearity: 0.4 });
   }, [position.lat, position.lng, bearing, active, map]);
 
   return null;
@@ -312,6 +441,79 @@ function NavigationControls({
   );
 }
 
+function ResidentControls({
+  resident,
+  activePos,
+  speedKmh,
+  signalFresh,
+  lastFixSec,
+}: {
+  resident: LatLng;
+  activePos?: LatLng;
+  speedKmh?: number;
+  signalFresh?: boolean;
+  lastFixSec?: number;
+}) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    if (activePos) {
+      const bounds = L.latLngBounds([[resident.lat, resident.lng], [activePos.lat, activePos.lng]]);
+      map.fitBounds(bounds.pad(0.35), { animate: true, duration: 0.7 });
+    } else {
+      map.flyTo([resident.lat, resident.lng], 16, { animate: true, duration: 0.7 });
+    }
+  }, [map, resident, activePos]);
+
+  return (
+    <NavigationControls
+      onRecenter={handleRecenter}
+      speedKmh={speedKmh}
+      signalFresh={signalFresh}
+      lastFixSec={lastFixSec}
+    />
+  );
+}
+
+function DriverControls({
+  position,
+  bearing,
+  speedKmh,
+  signalFresh,
+  lastFixSec,
+}: {
+  position: LatLng;
+  bearing: number;
+  speedKmh?: number;
+  signalFresh?: boolean;
+  lastFixSec?: number;
+}) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    const rad = (bearing * Math.PI) / 180;
+    const offsetLat = Math.cos(rad) * 0.0009;
+    const offsetLng = Math.sin(rad) * 0.0009;
+    map.flyTo([position.lat + offsetLat, position.lng + offsetLng], 17, { animate: true, duration: 0.7 });
+  }, [map, position, bearing]);
+
+  return (
+    <NavigationControls
+      onRecenter={handleRecenter}
+      speedKmh={speedKmh}
+      signalFresh={signalFresh}
+      lastFixSec={lastFixSec}
+    />
+  );
+}
+
+function AdminControls({ bounds }: { bounds: L.LatLngBoundsExpression }) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    map.fitBounds(bounds, { animate: true, duration: 0.7 });
+  }, [map, bounds]);
+
+  return <NavigationControls onRecenter={handleRecenter} />;
+}
+
 type ResidentMapProps = {
   mode: "resident";
   resident: LatLng;
@@ -342,7 +544,7 @@ export function TruckMap(props: Props) {
     const onlineTrucks = list.filter((t) => t.status !== "offline");
     const nearest =
       onlineTrucks.length === 0
-        ? undefined
+        ? list[0]
         : onlineTrucks.reduce((best, cur) =>
             haversine(cur.position, props.resident) < haversine(best.position, props.resident) ? cur : best,
           );
@@ -351,15 +553,17 @@ export function TruckMap(props: Props) {
     const etaText = formatEta(distanceM, lang).toUpperCase();
     const distText = formatDistance(distanceM, lang);
 
-    // Calculate GPS fix freshness (fresh if updated within 20s)
+    // Calculate GPS fix freshness (fresh if updated within 25s)
     const now = Date.now();
     const fixAgeSec = active?.lastUpdate ? Math.round((now - active.lastUpdate) / 1000) : 0;
-    const signalFresh = fixAgeSec < 20;
+    const signalFresh = fixAgeSec < 25;
 
     return (
       <MapContainer
         center={[props.resident.lat, props.resident.lng]}
-        zoom={15}
+        zoom={16}
+        minZoom={10}
+        maxZoom={20}
         zoomControl={false}
         scrollWheelZoom={true}
         dragging={true}
@@ -370,7 +574,7 @@ export function TruckMap(props: Props) {
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+        <MapLayerSwitcher />
 
         <RecenterOnKey
           center={props.resident}
@@ -428,8 +632,9 @@ export function TruckMap(props: Props) {
           </>
         )}
 
-        <NavigationControls
-          onRecenter={() => {}}
+        <ResidentControls
+          resident={props.resident}
+          activePos={active?.position}
           speedKmh={active ? active.speedMps * 3.6 : 0}
           signalFresh={signalFresh}
           lastFixSec={fixAgeSec}
@@ -446,17 +651,19 @@ export function TruckMap(props: Props) {
     const speedKmh = truck.speedMps * 3.6;
     const now = Date.now();
     const fixAgeSec = Math.round((now - truck.lastUpdate) / 1000);
-    const signalFresh = fixAgeSec < 20;
+    const signalFresh = fixAgeSec < 25;
 
     return (
       <MapContainer
         center={[truck.position.lat, truck.position.lng]}
-        zoom={16}
+        zoom={17}
+        minZoom={10}
+        maxZoom={20}
         zoomControl={false}
         attributionControl={false}
         className="w-full h-full"
       >
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+        <MapLayerSwitcher />
 
         {/* Navigation Camera Controller (Keeps road ahead visible) */}
         <DriverNavigationCameraController
@@ -476,7 +683,9 @@ export function TruckMap(props: Props) {
           icon={truckDivIcon(truck.bearing, { size: "lg", active: true, offline: truck.status === "offline" })}
         />
 
-        <NavigationControls
+        <DriverControls
+          position={truck.position}
+          bearing={truck.bearing}
           speedKmh={speedKmh}
           signalFresh={signalFresh}
           lastFixSec={fixAgeSec}
@@ -495,11 +704,13 @@ export function TruckMap(props: Props) {
   return (
     <MapContainer
       bounds={bounds}
+      minZoom={10}
+      maxZoom={20}
       zoomControl={false}
       attributionControl={false}
       className="w-full h-full"
     >
-      <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTR} maxZoom={19} />
+      <MapLayerSwitcher />
 
       <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
       {SHIRPUR_LANDMARKS.map((lm) => (
@@ -525,36 +736,47 @@ export function TruckMap(props: Props) {
         />
       ))}
 
-      <NavigationControls />
+      <AdminControls bounds={bounds} />
     </MapContainer>
   );
 }
 
-/** Dual-cased navigation polyline (Dark Casing + Vibrant CleanTrack Green Core) */
+/** Dual-cased navigation polyline with glow for satellite visibility */
 function NavigationPolyline({ positions, active }: { positions: LatLng[]; active?: boolean }) {
   const coords = useMemo(() => positions.map((p) => [p.lat, p.lng] as [number, number]), [positions]);
   if (coords.length < 2) return null;
 
   return (
     <>
-      {/* Outer Road Casing */}
+      {/* Outer Glow — white halo so route is visible on dark satellite */}
+      <Polyline
+        positions={coords}
+        pathOptions={{
+          color: "#FFFFFF",
+          weight: active ? 14 : 9,
+          opacity: 0.25,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
+      {/* Dark Casing */}
       <Polyline
         positions={coords}
         pathOptions={{
           color: "#0F172A",
           weight: active ? 10 : 6,
-          opacity: 0.35,
+          opacity: 0.5,
           lineCap: "round",
           lineJoin: "round",
         }}
       />
-      {/* Inner Navigation Line */}
+      {/* Inner Navigation Line — bright green/blue */}
       <Polyline
         positions={coords}
         pathOptions={{
-          color: active ? "#22C55E" : "#3B82F6",
+          color: active ? "#4ADE80" : "#60A5FA",
           weight: active ? 6 : 3.5,
-          opacity: 0.95,
+          opacity: 1,
           lineCap: "round",
           lineJoin: "round",
         }}

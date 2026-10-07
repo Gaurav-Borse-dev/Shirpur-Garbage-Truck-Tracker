@@ -4,14 +4,13 @@ import React from "react";
  * High-fidelity vector illustration of the Shirpur Green Garbage Truck
  * with city skyline, trees, and clean road as shown in the design specification.
  */
-export function GarbageTruckIllustration({ className = "w-full max-w-[280px] h-auto" }: { className?: string }) {
+export function GarbageTruckIllustration({
+  className = "w-full max-w-[280px] h-auto",
+}: {
+  className?: string;
+}) {
   return (
-    <svg
-      viewBox="0 0 320 180"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
+    <svg viewBox="0 0 320 180" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       {/* Background Soft Sky & City Skyline */}
       <defs>
         <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="180" gradientUnits="userSpaceOnUse">
@@ -19,11 +18,25 @@ export function GarbageTruckIllustration({ className = "w-full max-w-[280px] h-a
           <stop stopColor="#DCFCE7" stopOpacity="0.3" />
           <stop stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <linearGradient id="truckBodyGrad" x1="50" y1="50" x2="230" y2="150" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="truckBodyGrad"
+          x1="50"
+          y1="50"
+          x2="230"
+          y2="150"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop stopColor="#22C55E" />
           <stop stopColor="#16A34A" />
         </linearGradient>
-        <linearGradient id="cabGrad" x1="180" y1="70" x2="260" y2="150" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="cabGrad"
+          x1="180"
+          y1="70"
+          x2="260"
+          y2="150"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop stopColor="#4ADE80" />
           <stop stopColor="#22C55E" />
         </linearGradient>
@@ -87,39 +100,16 @@ export function GarbageTruckIllustration({ className = "w-full max-w-[280px] h-a
         />
 
         {/* Diagonal accents on container top */}
-        <path
-          d="M 54 75 L 182 75"
-          stroke="#15803D"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
+        <path d="M 54 75 L 182 75" stroke="#15803D" strokeWidth="2" strokeLinecap="round" />
 
         {/* White Recycling Symbol in Center of Truck Container */}
         <g transform="translate(118, 98) scale(1.15)">
-          <path
-            d="M 0 -14 L 3 -8 L -3 -8 Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M -1 -8 C 5 -8, 10 -4, 12 1 L 9 2 C 8 -2, 4 -5, -1 -5 Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M 14 3 L 14 10 L 8 7 Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M 10 5 C 12 9, 10 14, 6 17 L 4 14 C 7 12, 8 8, 7 5 Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M -11 8 L -14 2 L -8 3 Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M -8 5 C -12 2, -13 -3, -11 -7 L -9 -5 C -10 -2, -9 2, -6 4 Z"
-            fill="#FFFFFF"
-          />
+          <path d="M 0 -14 L 3 -8 L -3 -8 Z" fill="#FFFFFF" />
+          <path d="M -1 -8 C 5 -8, 10 -4, 12 1 L 9 2 C 8 -2, 4 -5, -1 -5 Z" fill="#FFFFFF" />
+          <path d="M 14 3 L 14 10 L 8 7 Z" fill="#FFFFFF" />
+          <path d="M 10 5 C 12 9, 10 14, 6 17 L 4 14 C 7 12, 8 8, 7 5 Z" fill="#FFFFFF" />
+          <path d="M -11 8 L -14 2 L -8 3 Z" fill="#FFFFFF" />
+          <path d="M -8 5 C -12 2, -13 -3, -11 -7 L -9 -5 C -10 -2, -9 2, -6 4 Z" fill="#FFFFFF" />
         </g>
 
         {/* Connecting Chassis Part */}
@@ -212,20 +202,29 @@ export function OtpPhoneIllustration({ className = "w-28 h-28" }: { className?: 
             fill="#FFFFFF"
           />
           {/* Top speaker notch */}
-          <line x1="28" y1="14" x2="36" y2="14" stroke="#86EFAC" strokeWidth="2" strokeLinecap="round" />
+          <line
+            x1="28"
+            y1="14"
+            x2="36"
+            y2="14"
+            stroke="#86EFAC"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
           {/* Bottom home bar */}
-          <line x1="29" y1="50" x2="35" y2="50" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
+          <line
+            x1="29"
+            y1="50"
+            x2="35"
+            y2="50"
+            stroke="#CBD5E1"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
 
           {/* Green chat bubble on top */}
           <g transform="translate(24, 20)">
-            <rect
-              x="0"
-              y="0"
-              width="24"
-              height="16"
-              rx="4"
-              fill="#16A34A"
-            />
+            <rect x="0" y="0" width="24" height="16" rx="4" fill="#16A34A" />
             {/* Chat tail */}
             <path d="M 4 16 L 2 20 L 8 16 Z" fill="#16A34A" />
             {/* 3 OTP dots */}
@@ -249,10 +248,18 @@ export function SuccessShieldIllustration({ className = "w-32 h-32" }: { classNa
       <div className="absolute inset-0 rounded-full bg-emerald-200/50 blur-xl animate-pulse" />
 
       {/* Sparkles around */}
-      <div className="absolute top-1 left-3 text-emerald-400 text-sm animate-bounce font-bold">✦</div>
-      <div className="absolute top-2 right-4 text-emerald-500 text-xs animate-pulse font-bold">★</div>
-      <div className="absolute bottom-3 left-4 text-emerald-500 text-xs animate-pulse font-bold">★</div>
-      <div className="absolute bottom-2 right-3 text-emerald-400 text-sm animate-bounce font-bold">✦</div>
+      <div className="absolute top-1 left-3 text-emerald-400 text-sm animate-bounce font-bold">
+        ✦
+      </div>
+      <div className="absolute top-2 right-4 text-emerald-500 text-xs animate-pulse font-bold">
+        ★
+      </div>
+      <div className="absolute bottom-3 left-4 text-emerald-500 text-xs animate-pulse font-bold">
+        ★
+      </div>
+      <div className="absolute bottom-2 right-3 text-emerald-400 text-sm animate-bounce font-bold">
+        ✦
+      </div>
 
       {/* Shield container */}
       <div className="relative w-24 h-24 rounded-full bg-gradient-to-b from-emerald-50 to-emerald-100 border border-emerald-200 flex items-center justify-center shadow-lg shadow-emerald-600/10">
@@ -283,7 +290,14 @@ export function SuccessShieldIllustration({ className = "w-32 h-32" }: { classNa
             strokeLinejoin="round"
           />
           <defs>
-            <linearGradient id="shieldGrad" x1="32" y1="8" x2="32" y2="54" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="shieldGrad"
+              x1="32"
+              y1="8"
+              x2="32"
+              y2="54"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop stopColor="#DCFCE7" />
               <stop stopColor="#BBF7D0" />
             </linearGradient>

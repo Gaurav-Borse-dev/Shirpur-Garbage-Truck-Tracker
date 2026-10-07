@@ -24,9 +24,11 @@ const decideInput = z.object({
   note: z.string().max(300).optional(),
 });
 
-const listInput = z.object({
-  status: z.enum(["all", "pending", "approved", "rejected"]).optional(),
-}).optional();
+const listInput = z
+  .object({
+    status: z.enum(["all", "pending", "approved", "rejected"]).optional(),
+  })
+  .optional();
 
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

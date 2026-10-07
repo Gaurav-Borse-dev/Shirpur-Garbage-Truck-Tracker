@@ -4,7 +4,14 @@ import { useEffect } from "react";
 
 import { playNotificationSound, type SoundType } from "@/lib/notification-sound";
 
-type ToastItem = { id: number; title: string; subtitle?: string; tone?: "default" | "success" | "warning" | SoundType | string; sender?: string; link?: string };
+type ToastItem = {
+  id: number;
+  title: string;
+  subtitle?: string;
+  tone?: "default" | "success" | "warning" | SoundType | string;
+  sender?: string;
+  link?: string;
+};
 type ToastState = {
   items: ToastItem[];
   push: (t: Omit<ToastItem, "id">) => void;
@@ -19,15 +26,19 @@ export const useToast = create<ToastState>((set, get) => ({
 
     // Play signature notification sound
     const soundKind: SoundType =
-      t.tone === "truck_arrived" || t.title.toLowerCase().includes("arrived") || t.title.toLowerCase().includes("almost")
+      t.tone === "truck_arrived" ||
+      t.title.toLowerCase().includes("arrived") ||
+      t.title.toLowerCase().includes("almost")
         ? "truck_arrived"
-        : t.tone === "truck_nearby" || t.title.toLowerCase().includes("nearby") || t.title.toLowerCase().includes("away")
-        ? "truck_nearby"
-        : t.tone === "route_completed" || t.title.toLowerCase().includes("completed")
-        ? "route_completed"
-        : t.tone === "booking_update" || t.title.toLowerCase().includes("booking")
-        ? "booking_update"
-        : "generic";
+        : t.tone === "truck_nearby" ||
+            t.title.toLowerCase().includes("nearby") ||
+            t.title.toLowerCase().includes("away")
+          ? "truck_nearby"
+          : t.tone === "route_completed" || t.title.toLowerCase().includes("completed")
+            ? "route_completed"
+            : t.tone === "booking_update" || t.title.toLowerCase().includes("booking")
+              ? "booking_update"
+              : "generic";
     playNotificationSound(soundKind);
 
     setTimeout(() => get().dismiss(id), 4000);
@@ -39,7 +50,9 @@ export function ToastHost() {
   const items = useToast((s) => s.items);
   useEffect(() => {
     if (items.length && typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try { navigator.vibrate?.(120); } catch {}
+      try {
+        navigator.vibrate?.(120);
+      } catch {}
     }
   }, [items.length]);
   return (
@@ -55,10 +68,17 @@ export function ToastHost() {
             className="pointer-events-auto w-full max-w-[380px] rounded-2xl bg-[#1C1C1E] text-white px-3 py-3 shadow-2xl flex items-center gap-3"
           >
             <div className="w-10 h-10 rounded-xl bg-brand grid place-items-center">
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                className="w-5 h-5"
+              >
                 <path d="M10 17h4V5H2v12h3" />
                 <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2" />
-                <circle cx="7.5" cy="17.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
+                <circle cx="7.5" cy="17.5" r="2.5" />
+                <circle cx="17.5" cy="17.5" r="2.5" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">

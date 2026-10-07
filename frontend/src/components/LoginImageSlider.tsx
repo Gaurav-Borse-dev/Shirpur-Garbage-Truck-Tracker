@@ -98,9 +98,7 @@ export function LoginImageSlider() {
               key={s.id}
               onClick={() => goTo(i)}
               className={`rounded-full transition-all duration-300 cursor-pointer ${
-                i === index
-                  ? "w-4 h-1.5 bg-white"
-                  : "w-1.5 h-1.5 bg-white/40 hover:bg-white/60"
+                i === index ? "w-4 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40 hover:bg-white/60"
               }`}
               aria-label={`Go to slide ${i + 1}`}
             />

@@ -85,7 +85,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CleanTrack — Live garbage truck tracking" },
-      { name: "description", content: "Track your municipal garbage truck in real time across Shirpur." },
+      {
+        name: "description",
+        content: "Track your municipal garbage truck in real time across Shirpur.",
+      },
       { property: "og:site_name", content: "CleanTrack" },
       { property: "og:title", content: "CleanTrack — Live Garbage Truck Tracking" },
       {
@@ -111,7 +114,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+      },
       { rel: "stylesheet", href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" },
     ],
     scripts: [
@@ -175,20 +181,19 @@ function RootComponent() {
   const location = useLocation();
 
   // Show language switcher only on these 2 pages
- // Show language switcher only on role selection page
-  const showLanguageSwitcher =
-    location.pathname === "/role";
+  // Show language switcher only on role selection page
+  const showLanguageSwitcher = location.pathname === "/role";
   return (
-  <QueryClientProvider client={queryClient}>
-    <AppSplash>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      {showLanguageSwitcher && <LanguageSwitcher />}
-      <WhatsAppNotificationHost />
-      <ClientOnly>
-        <PushRuntime />
-      </ClientOnly>
-    </AppSplash>
-  </QueryClientProvider>
-);
+    <QueryClientProvider client={queryClient}>
+      <AppSplash>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        {showLanguageSwitcher && <LanguageSwitcher />}
+        <WhatsAppNotificationHost />
+        <ClientOnly>
+          <PushRuntime />
+        </ClientOnly>
+      </AppSplash>
+    </QueryClientProvider>
+  );
 }

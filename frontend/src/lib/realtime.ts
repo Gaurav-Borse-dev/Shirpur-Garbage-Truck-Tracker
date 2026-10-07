@@ -88,7 +88,8 @@ export function getSocket(): Socket | null {
   socket.on(
     "route:assigned",
     (p: { truckId: string; route: { lat: number; lng: number }[]; totalStops?: number }) => {
-      if (p?.truckId && p.route?.length) useTrucks.getState().applyRoute(p.truckId, p.route, p.totalStops);
+      if (p?.truckId && p.route?.length)
+        useTrucks.getState().applyRoute(p.truckId, p.route, p.totalStops);
     },
   );
   socket.on("notification", (n: BackendNotification) => handleBackendNotification(n));
@@ -120,7 +121,10 @@ export function emitDriverGps(payload: {
   return true;
 }
 
-export function emitDriverDuty(truckId: string, action: "start" | "pause" | "resume" | "stop"): boolean {
+export function emitDriverDuty(
+  truckId: string,
+  action: "start" | "pause" | "resume" | "stop",
+): boolean {
   const s = getSocket();
   if (!s?.connected) return false;
   s.emit("driver:duty", { truckId, action });

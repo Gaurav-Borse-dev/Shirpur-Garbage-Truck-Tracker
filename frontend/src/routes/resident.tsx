@@ -26,21 +26,34 @@ function ResidentRoute() {
 
 function ResidentLayout() {
   const session = useAuth((s) => s.session);
-  if (!session || session.role !== "resident") return <Navigate to="/role" />;
+  const isResident = session?.role === "resident";
   // Use real device geolocation for the realtime subscription radius
   const radiusM = useSettings((s) => s.alertRadius);
   const [location, setLocation] = useState<LatLng>(SHIRPUR);
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) return;
     const id = navigator.geolocation.watchPosition(
-      (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) =>
+        setLocation({
+          lat: Number(pos.coords.latitude.toFixed(5)),
+          lng: Number(pos.coords.longitude.toFixed(5)),
+        }),
       () => {}, // Keep SHIRPUR fallback
       { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
     );
     return () => navigator.geolocation.clearWatch(id);
   }, []);
-  useRealtime({ role: "resident", lat: location.lat, lng: location.lng, radiusM: Math.max(radiusM, 2000) });
-  useBookingNotifications(session.phone);
+  const subLat = Number(location.lat.toFixed(4));
+  const subLng = Number(location.lng.toFixed(4));
+  useRealtime(
+    isResident
+      ? { role: "resident", lat: subLat, lng: subLng, radiusM: Math.max(radiusM, 2000) }
+      : null,
+  );
+  useBookingNotifications(isResident ? session.phone : "");
+
+  if (!isResident) return <Navigate to="/role" />;
+
   return (
     <MobileFrame>
       <div className="flex-1 relative overflow-hidden">
@@ -94,7 +107,11 @@ function BottomNav() {
           return (
             <Link key={to} to={to} className="flex flex-col items-center gap-1 py-2.5">
               <Icon className={`w-5 h-5 ${active ? "text-ink" : "text-neutral-400"}`} />
-              <span className={`text-[11px] ${active ? "text-ink font-semibold" : "text-neutral-400"}`}>{label}</span>
+              <span
+                className={`text-[11px] ${active ? "text-ink font-semibold" : "text-neutral-400"}`}
+              >
+                {label}
+              </span>
             </Link>
           );
         })}

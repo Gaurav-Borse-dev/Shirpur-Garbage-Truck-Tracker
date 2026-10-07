@@ -1,10 +1,18 @@
 import { create } from "zustand";
-import { type Truck } from "@/lib/trucks";
-import { bearing, haversine, lerpAngle, lerpLatLng, smoothClosedPath, type LatLng } from "@/lib/geo";
+import { type Truck, FALLBACK_TRUCKS, PALETTE, getWardRoute, SHIRPUR } from "@/lib/trucks";
+import {
+  bearing,
+  haversine,
+  lerpAngle,
+  lerpLatLng,
+  smoothClosedPath,
+  turnAngle,
+  type LatLng,
+} from "@/lib/geo";
 import { usePerf, drainRenderCount } from "@/store/perf";
 import { readCache, writeCache } from "@/lib/cache";
 import { startOfflineWatcher } from "@/store/offline";
-import { LIVE_BACKEND, SOCKET_ENABLED } from "@/lib/backend";
+import { SOCKET_ENABLED } from "@/lib/backend";
 
 export type LiveTruck = {
   id: string;
@@ -13,7 +21,7 @@ export type LiveTruck = {
   path: LatLng[];
   position: LatLng;
   bearing: number;
-  /** Current ground speed in m/s (accelerates/decelerates through curves). */
+  /** Current ground speed in m/s. */
   speedMps: number;
   status: "offline" | "online" | "collecting";
   segmentIndex: number; // current waypoint index
@@ -21,20 +29,30 @@ export type LiveTruck = {
   completedStops: number;
   trail: LatLng[];
   lastUpdate: number;
-  /** Latest GPS fix received from the backend (live mode only). */
-  fix?: { pos: LatLng; bearing: number; speedMps: number; at: number };
+  /** Pause timer remaining at a collection stop (in milliseconds) */
+  stopPauseMs?: number;
+  /** Latest GPS fix received from the backend/driver (live mode). */
+  fix?: {
+    fromPos: LatLng;
+    pos: LatLng;
+    bearing: number;
+    speedMps: number;
+    at: number;
+    receivedAt: number;
+    intervalMs: number;
+  };
 };
 
-/** A GPS fix as delivered by the backend transport. */
+/** A GPS fix as delivered by the backend transport or driver device. */
 export type TruckFix = {
   truckId: string;
   lat: number;
   lng: number;
-  /** Backend-reported heading in degrees; omitted values are derived from the fix delta. */
+  /** Backend/driver reported heading in degrees (0..360). */
   heading?: number;
-  /** Backend-reported ground speed in m/s. */
+  /** Ground speed in m/s. */
   speed?: number;
-  /** Backend timestamp (ms epoch or ISO). */
+  /** Fix timestamp (ms epoch or ISO string). */
   ts?: number | string;
   status?: LiveTruck["status"];
 };
@@ -50,7 +68,7 @@ type TrucksState = {
   setDriverOnline: (id: string, online: boolean) => void;
   completeStop: (id: string) => void;
   setConnection: (c: "live" | "reconnecting") => void;
-  /** Apply a batch of backend GPS fixes. Interpolation happens in _step. */
+  /** Apply a batch of live GPS fixes with high-accuracy dead reckoning & interpolation. */
   ingestFixes: (fixes: TruckFix[]) => void;
   /** Apply a backend-provided route/stop assignment. */
   applyRoute: (truckId: string, route: LatLng[], totalStops?: number) => void;
@@ -59,31 +77,36 @@ type TrucksState = {
   _step: (dtMs: number) => void;
 };
 
-const PALETTE = ["#22C55E", "#06B6D4", "#F97316", "#A855F7", "#EAB308", "#EC4899", "#0EA5E9", "#14B8A6"];
+// Physics cruise speeds
+const CRUISE_MPS = 5.8;
+const ACCEL_MPS2 = 1.8;
+const DECEL_MPS2 = 2.4;
 
 function initLive(truck: Truck): LiveTruck {
-  const path = truck.route.length >= 3 ? smoothClosedPath(truck.route, 8) : [];
-  const a = path[0] ?? { lat: 21.3483, lng: 74.8827 }; // Shirpur center fallback
-  const b = path[1] ?? a;
+  const route = truck.route && truck.route.length >= 3 ? truck.route : getWardRoute(0);
+  const a = route[0] ?? SHIRPUR;
   return {
     id: truck.id,
-    truck,
-    path,
+    truck: { ...truck, route },
+    path: route,
     position: a,
-    bearing: path.length >= 2 ? bearing(a, b) : 0,
+    bearing: 180,
     speedMps: 0,
-    status: truck.startOnline ? "online" : "offline",
+    status: truck.startOnline ? "collecting" : "offline",
     segmentIndex: 0,
     segmentT: 0,
     completedStops: 0,
-    trail: [],
+    trail: [a],
     lastUpdate: Date.now(),
+    stopPauseMs: 0,
   };
 }
 
-// Start with empty fleet — loaded from DB and realtime fixes
+// Initial fleet populated immediately with Shirpur ward routes so map is never blank
 const initial: Record<string, LiveTruck> = {};
-
+for (const t of FALLBACK_TRUCKS) {
+  initial[t.id] = initLive(t);
+}
 
 export const useTrucks = create<TrucksState>((set, get) => ({
   trucks: initial,
@@ -92,11 +115,27 @@ export const useTrucks = create<TrucksState>((set, get) => ({
   connection: "live",
   lastDrop: null,
   setStatus: (id, status) =>
-    set((s) => ({ trucks: { ...s.trucks, [id]: { ...s.trucks[id], status } } })),
-  setDriverOnline: (id, online) =>
     set((s) => ({
-      trucks: { ...s.trucks, [id]: { ...s.trucks[id], status: online ? "online" : "offline" } },
+      trucks: {
+        ...s.trucks,
+        [id]: s.trucks[id] ? { ...s.trucks[id], status } : s.trucks[id],
+      },
     })),
+  setDriverOnline: (id, online) =>
+    set((s) => {
+      const lt = s.trucks[id];
+      if (!lt) return s;
+      return {
+        trucks: {
+          ...s.trucks,
+          [id]: {
+            ...lt,
+            status: online ? "collecting" : "offline",
+            speedMps: online ? Math.max(lt.speedMps, 3.5) : 0,
+          },
+        },
+      };
+    }),
   completeStop: (id) =>
     set((s) => {
       const t = s.trucks[id];
@@ -111,38 +150,79 @@ export const useTrucks = create<TrucksState>((set, get) => ({
     if (!fixes.length) return;
     const state = get();
     const next = { ...state.trucks };
+    const now = Date.now();
     let changed = false;
+
     for (const f of fixes) {
       let lt = next[f.truckId];
-      // Auto-create entry for trucks we learn about from realtime but don't have yet
+      // Auto-create entry for trucks if not present
       if (!lt) {
         const idx = Object.keys(next).length;
+        const fallback = FALLBACK_TRUCKS[idx % FALLBACK_TRUCKS.length];
         const truck: Truck = {
           id: f.truckId,
-          name: f.truckId,
-          driverName: "",
-          driverPhone: "",
-          wardName: f.truckId,
+          name: fallback?.name ?? f.truckId,
+          driverName: fallback?.driverName ?? "Unassigned",
+          driverPhone: fallback?.driverPhone ?? "",
+          wardName: fallback?.wardName ?? f.truckId,
           city: "Shirpur",
           color: PALETTE[idx % PALETTE.length],
-          route: [],
+          route: getWardRoute(idx),
           totalStops: 12,
-          startOnline: true,
+          startOnline: f.status !== "offline",
         };
         lt = initLive(truck);
         next[f.truckId] = lt;
       }
-      const pos = { lat: f.lat, lng: f.lng };
-      const at = typeof f.ts === "string" ? Date.parse(f.ts) : (f.ts ?? Date.now());
-      const prev = lt.fix?.pos ?? lt.position;
-      const heading = f.heading ?? (haversine(prev, pos) > 1 ? bearing(prev, pos) : lt.bearing);
+
+      const targetPos: LatLng = {
+        lat: Number(f.lat.toFixed(6)),
+        lng: Number(f.lng.toFixed(6)),
+      };
+      const at = typeof f.ts === "string" ? Date.parse(f.ts) : (f.ts ?? now);
+      const prevPos = lt.fix?.pos ?? lt.position;
+      const deltaDistM = haversine(prevPos, targetPos);
+
+      // Determine vehicle orientation: prefer verified heading; compute from track delta if > 1.2m
+      let targetBearing = lt.bearing;
+      if (typeof f.heading === "number" && !isNaN(f.heading) && f.heading > 0) {
+        targetBearing = f.heading;
+      } else if (deltaDistM > 1.2) {
+        targetBearing = bearing(prevPos, targetPos);
+      }
+
+      const prevReceivedAt = lt.fix?.receivedAt ?? now - 2500;
+      const intervalMs = Math.max(800, Math.min(6000, now - prevReceivedAt));
+      const targetSpeed =
+        typeof f.speed === "number" && !isNaN(f.speed)
+          ? Math.max(0, f.speed)
+          : deltaDistM > 0.5
+            ? Math.min(15, deltaDistM / (intervalMs / 1000))
+            : 0;
+
+      // Snapping threshold: if difference is > 80m (initial fix or teleport), snap immediately
+      const shouldSnap = deltaDistM > 80 || !lt.fix;
+
       next[f.truckId] = {
         ...lt,
-        status: f.status ?? (f.speed && f.speed > 0.5 ? "collecting" : "online"),
-        fix: { pos, bearing: heading, speedMps: f.speed ?? 0, at },
+        status: f.status ?? (targetSpeed > 0.5 ? "collecting" : "online"),
+        position: shouldSnap ? targetPos : lt.position,
+        bearing: shouldSnap ? targetBearing : lt.bearing,
+        speedMps: targetSpeed,
+        lastUpdate: now,
+        fix: {
+          fromPos: shouldSnap ? targetPos : lt.position,
+          pos: targetPos,
+          bearing: targetBearing,
+          speedMps: targetSpeed,
+          at,
+          receivedAt: now,
+          intervalMs,
+        },
       };
       changed = true;
     }
+
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
 
@@ -168,64 +248,128 @@ export const useTrucks = create<TrucksState>((set, get) => ({
   loadFleet: (trucks) => {
     const state = get();
     const next: Record<string, LiveTruck> = {};
-    for (const truck of trucks) {
-      // Preserve existing fix/position if we already had this truck
+    trucks.forEach((truck, i) => {
       const existing = state.trucks[truck.id];
+      const wardRoute = truck.route?.length >= 3 ? truck.route : getWardRoute(i);
+      const driverName = truck.driverName || "Unassigned";
+      const driverPhone = truck.driverPhone || "";
+      const enhancedTruck: Truck = {
+        ...truck,
+        route: wardRoute,
+        driverName,
+        driverPhone,
+        color: truck.color || PALETTE[i % PALETTE.length],
+        totalStops: truck.totalStops || 12,
+        startOnline: truck.startOnline ?? false,
+      };
+
       if (existing) {
         next[truck.id] = {
           ...existing,
-          truck: { ...truck, route: existing.truck.route.length ? existing.truck.route : truck.route },
+          truck: enhancedTruck,
+          path: existing.path.length ? existing.path : smoothClosedPath(wardRoute, 8),
         };
       } else {
-        next[truck.id] = initLive(truck);
+        next[truck.id] = initLive(enhancedTruck);
       }
-    }
+    });
     set({ trucks: next, tick: state.tick + 1, dbLoaded: true });
   },
 
   _step: (dtMs) => {
     const state = get();
-    // Hard-pause stepping while reconnecting so positions don't jump on resume
     if (state.connection === "reconnecting") return;
     const next: Record<string, LiveTruck> = {};
     let changed = false;
     const now = Date.now();
+    const dtS = dtMs / 1000;
 
     for (const id in state.trucks) {
       const lt = state.trucks[id];
 
-      // Live GPS fix received from driver device — interpolate smoothly
+      // ── MODE A: Live Hardware GPS Fix Active (Interpolation & Dead Reckoning) ──
       if (lt.fix) {
         const gap = haversine(lt.position, lt.fix.pos);
-        if (gap < 0.3 && Math.abs(lt.speedMps - lt.fix.speedMps) < 0.05) {
-          next[id] = lt;
+
+        // Snap if far away (e.g. initial connection or teleport jump)
+        if (gap > 80) {
+          next[id] = {
+            ...lt,
+            position: lt.fix.pos,
+            bearing: lt.fix.bearing,
+            speedMps: lt.fix.speedMps,
+            lastUpdate: now,
+          };
+          changed = true;
           continue;
         }
-        // Ease over ~1 fix interval so 3-5s backend updates render continuously.
-        const k = Math.min(1, dtMs / 900);
-        const pos = lerpLatLng(lt.position, lt.fix.pos, k);
-        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 260));
-        const trail = lt.trail.length > 24 ? lt.trail.slice(-24) : lt.trail.slice();
-        next[id] = { ...lt, position: pos, bearing: bear, speedMps: lt.fix.speedMps, trail, lastUpdate: now };
+
+        const elapsed = now - lt.fix.receivedAt;
+        const progress = Math.min(1.25, elapsed / Math.max(800, lt.fix.intervalMs));
+
+        let pos: LatLng;
+        if (progress <= 1.0) {
+          // Precise linear interpolation along ground vector
+          pos = lerpLatLng(lt.fix.fromPos, lt.fix.pos, progress);
+        } else {
+          // Slight dead-reckoning extrapolation (up to 25% of interval) along bearing
+          const extraM = lt.speedMps * dtS * 0.5;
+          const rad = (lt.bearing * Math.PI) / 180;
+          const kmLat = 1 / 110.574;
+          const kmLng = 1 / (111.32 * Math.cos((lt.position.lat * Math.PI) / 180));
+          pos = {
+            lat: lt.position.lat + Math.cos(rad) * (extraM / 1000) * kmLat,
+            lng: lt.position.lng + Math.sin(rad) * (extraM / 1000) * kmLng,
+          };
+        }
+
+        // Smooth shortest-arc angle rotation
+        const bear = lerpAngle(lt.bearing, lt.fix.bearing, Math.min(1, dtMs / 160));
+        // Append to trail if moved > 2m
+        let trail = lt.trail;
+        const lastTrailPt = trail[trail.length - 1];
+        if (!lastTrailPt || haversine(lastTrailPt, pos) > 2.5) {
+          trail = trail.length > 24 ? trail.slice(-23) : trail.slice();
+          trail.push(pos);
+        }
+
+        next[id] = {
+          ...lt,
+          position: pos,
+          bearing: bear,
+          speedMps: lt.fix.speedMps,
+          trail,
+          lastUpdate: now,
+        };
         changed = true;
         continue;
       }
 
+      // If no active hardware GPS fix, vehicle does not fake-move. Keep current position.
       next[id] = lt;
     }
+
     if (changed) set({ trucks: next, tick: state.tick + 1 });
   },
 }));
 
-// Global RAF loop (runs once in client)
+// Global RAF loop
 let started = false;
-/** Marker/polyline update budget: never commit GPS batches faster than this. */
 const UPDATE_FPS_BUDGET = 30;
 const UPDATE_INTERVAL_MS = 1000 / UPDATE_FPS_BUDGET;
-type Snapshot = Record<string, { position: LatLng; bearing: number; segmentIndex: number; segmentT: number; completedStops: number; status: LiveTruck["status"] }>;
+type Snapshot = Record<
+  string,
+  {
+    position: LatLng;
+    bearing: number;
+    segmentIndex: number;
+    segmentT: number;
+    completedStops: number;
+    status: LiveTruck["status"];
+  }
+>;
 const SNAPSHOT_KEY = "trucks";
 
-/** Restore last-known truck state so an offline/cold start isn't blank. */
 function restoreSnapshot() {
   const snap = readCache<Snapshot>(SNAPSHOT_KEY, 1000 * 60 * 30);
   if (!snap) return;
@@ -236,7 +380,7 @@ function restoreSnapshot() {
     const lt = cur[id];
     const s = snap[id];
     if (!lt || !s) continue;
-    next[id] = { ...lt, ...s, trail: [], lastUpdate: Date.now() };
+    next[id] = { ...lt, ...s, trail: [s.position], lastUpdate: Date.now() };
     changed = true;
   }
   if (changed) useTrucks.setState({ trucks: next, tick: useTrucks.getState().tick + 1 });
@@ -259,33 +403,43 @@ function persistSnapshot() {
   writeCache(SNAPSHOT_KEY, snap);
 }
 
-/** Loads fleet data from the database and populates the store. */
+/** Loads fleet data and real driver assignments from the database. */
 async function loadFleetFromDb() {
   try {
-    const { getFleetTrucks } = await import("@/lib/tracking.functions");
-    const res = await getFleetTrucks();
-    if (!res.trucks?.length) return;
+    const { getFleetTrucks, getFleetDrivers } = await import("@/lib/tracking.functions");
+    const [trucksRes, driversRes] = await Promise.all([getFleetTrucks(), getFleetDrivers()]);
+    if (!trucksRes.trucks?.length) return;
 
-    const trucks: Truck[] = res.trucks.map((r, i) => {
+    // Map real driver assignments from database
+    const driverByTruckCode = new Map<string, { name: string; phone: string }>();
+    for (const d of driversRes?.drivers ?? []) {
+      if (d.assignedTruckCode && d.name && d.name !== "Unknown") {
+        driverByTruckCode.set(d.assignedTruckCode, { name: d.name, phone: d.phone ?? "" });
+      }
+    }
+
+    const trucks: Truck[] = trucksRes.trucks.map((r, i) => {
+      const wardRoute = getWardRoute(i);
+      const realDriver = driverByTruckCode.get(r.truckCode);
       return {
         id: r.truckCode,
         dbId: r.dbId,
         name: r.truckCode,
-        driverName: "",
-        driverPhone: "",
-        wardName: r.ward ?? r.truckCode,
+        driverName: realDriver?.name ?? "Unassigned",
+        driverPhone: realDriver?.phone ?? "",
+        wardName: r.ward ?? `Shirpur Ward ${i + 1}`,
         city: "Shirpur",
         color: PALETTE[i % PALETTE.length],
-        route: [],
+        route: wardRoute,
         totalStops: 12,
         startOnline: r.status !== "offline" && r.status !== "decommissioned",
       };
     });
 
     useTrucks.getState().loadFleet(trucks);
-    console.info(`[fleet] Loaded ${trucks.length} trucks from database`);
+    console.info(`[fleet] Loaded ${trucks.length} trucks from database with real assignments`);
   } catch (err) {
-    console.warn("[fleet] Could not load trucks from DB", err);
+    console.warn("[fleet] Could not load trucks from DB, using fallback", err);
   }
 }
 
@@ -299,35 +453,33 @@ export function startSimulation() {
   void loadFleetFromDb();
 
   if (SOCKET_ENABLED) {
-    // Live mode: open the backend transport. The RAF loop below only
-    // interpolates between backend GPS fixes — it generates no motion.
     void import("@/lib/realtime").then((m) => m.getSocket());
   }
+
   const snapshotTimer = window.setInterval(persistSnapshot, 10_000);
   window.addEventListener("pagehide", () => {
     window.clearInterval(snapshotTimer);
     persistSnapshot();
   });
+
   let last = performance.now();
-  // Throttling + batching: GPS deltas accumulate between commits, so the store
-  // (and therefore every marker/polyline) updates at most UPDATE_FPS_BUDGET/s.
   let pending = 0;
   let sinceCommit = 0;
   let batchStart = performance.now();
-  // Perf sampling
   let frames = 0;
   let commits = 0;
   let latencySum = 0;
   let latencySamples = 0;
   let sampleStart = performance.now();
+
   const loop = (now: number) => {
-    // Clamp dt so a tab-resume or reconnect never jumps trucks forward
     const dt = Math.min(80, now - last);
     last = now;
     frames++;
     if (pending === 0) batchStart = now;
     pending += dt;
     sinceCommit += dt;
+
     if (sinceCommit >= UPDATE_INTERVAL_MS) {
       const batched = pending;
       pending = 0;
@@ -337,6 +489,7 @@ export function startSimulation() {
       latencySum += performance.now() - batchStart;
       latencySamples++;
     }
+
     if (usePerf.getState().enabled && now - sampleStart >= 1000) {
       const secs = (now - sampleStart) / 1000;
       const state = useTrucks.getState();
@@ -358,29 +511,25 @@ export function startSimulation() {
       latencySamples = 0;
       sampleStart = now;
     }
+
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
 
-  // Detect online / offline / hidden tab
   const setConn = (c: "live" | "reconnecting") => {
     if (useTrucks.getState().connection !== c) useTrucks.getState().setConnection(c);
-    // Reset RAF clock on resume to avoid a giant dt the next frame
     last = performance.now();
     pending = 0;
     sinceCommit = 0;
   };
-  const goOffline = () => setConn("reconnecting");
-  const goOnline = () => {
+  window.addEventListener("offline", () => setConn("reconnecting"));
+  window.addEventListener("online", () => {
     setConn("reconnecting");
     setTimeout(() => setConn("live"), 700);
-  };
-  window.addEventListener("offline", goOffline);
-  window.addEventListener("online", goOnline);
-  if (typeof navigator !== "undefined" && navigator.onLine === false) goOffline();
+  });
 }
 
-/** Per-truck subscription: components re-render only when *their* truck changes. */
+/** Per-truck subscription hook */
 export function useTruck(id: string | undefined) {
   return useTrucks((s) => (id ? s.trucks[id] : undefined));
 }

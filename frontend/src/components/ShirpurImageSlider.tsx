@@ -11,42 +11,33 @@ import greenShirpurImg from "../assets/greenshirpur.jpg";
 interface Slide {
   id: string;
   src: string;
- 
 }
 
 const SLIDES: Slide[] = [
   {
     id: "banner",
     src: banner,
-    
   },
-  
-
 
   {
     id: "clean-shirpur",
-    src: cleanShirpurImg ,
-    
+    src: cleanShirpurImg,
   },
   {
     id: "swachh-shirpur",
-    src: swachhShirpurImg ,
-   
+    src: swachhShirpurImg,
   },
- {
-  id: "green-shirpur",
-  src: greenShirpurImg,
- 
-},
+  {
+    id: "green-shirpur",
+    src: greenShirpurImg,
+  },
   {
     id: "clean-track",
-    src: cleanTrackImg ,
-   
+    src: cleanTrackImg,
   },
   {
     id: "smart-shirpur",
-    src: smartImg ,
-  
+    src: smartImg,
   },
 ];
 
@@ -73,12 +64,10 @@ export function ShirpurImageSlider() {
   };
 
   return (
- <section className="w-full py-6 px-4 max-w-6xl mx-auto select-none">
+    <section className="w-full py-6 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-  
-  
- className="
+        className="
     relative
     overflow-hidden
     rounded-3xl
@@ -102,23 +91,20 @@ export function ShirpurImageSlider() {
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
-
->
+      >
         <AnimatePresence initial={false} mode="wait">
-
-<motion.div
- key={SLIDES[currentIndex].id}
- initial={{opacity:0}}
- animate={{opacity:1}}
- exit={{opacity:0}}
- transition={{duration:0.5}}
- className="absolute inset-0"
->
-
-<img
- src={SLIDES[currentIndex].src}
- alt="CleanTrack Shirpur"
- className="
+          <motion.div
+            key={SLIDES[currentIndex].id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0"
+          >
+            <img
+              src={SLIDES[currentIndex].src}
+              alt="CleanTrack Shirpur"
+              className="
  absolute
  inset-0
  w-full
@@ -127,11 +113,9 @@ export function ShirpurImageSlider() {
  object-center
  bg-white
  "
-/>
-
-</motion.div>
-
-</AnimatePresence>
+            />
+          </motion.div>
+        </AnimatePresence>
 
         {/* Navigation Buttons */}
         <button
@@ -139,8 +123,18 @@ export function ShirpurImageSlider() {
           className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/40 hover:bg-black/70 text-white grid place-items-center backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Previous Slide"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </button>
 
@@ -149,7 +143,12 @@ export function ShirpurImageSlider() {
           className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/40 hover:bg-black/70 text-white grid place-items-center backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Next Slide"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -160,8 +159,9 @@ export function ShirpurImageSlider() {
             <button
               key={slide.id}
               onClick={() => setCurrentIndex(index)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex ? "w-5 bg-white" : "w-1.5 bg-white/40"
-                }`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                index === currentIndex ? "w-5 bg-white" : "w-1.5 bg-white/40"
+              }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -172,4 +172,3 @@ export function ShirpurImageSlider() {
 }
 
 export default ShirpurImageSlider;
-

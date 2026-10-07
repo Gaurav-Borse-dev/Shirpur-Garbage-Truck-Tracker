@@ -61,7 +61,11 @@ function BookingPage() {
         return;
       }
       void qc.invalidateQueries({ queryKey: ["my-bookings"] });
-      push({ title: tr("Booking submitted"), subtitle: tr("Admin will review shortly"), tone: "success" });
+      push({
+        title: tr("Booking submitted"),
+        subtitle: tr("Admin will review shortly"),
+        tone: "success",
+      });
       setAddress("");
       setReason("");
     },
@@ -87,11 +91,20 @@ function BookingPage() {
   return (
     <div className="absolute inset-0 overflow-y-auto bg-white pb-16">
       <div className="px-6 pt-6 flex items-center gap-3">
-        <button onClick={() => navigate({ to: "/resident/profile" })} className="text-sm text-neutral-500">‹ {tr("Back")}</button>
+        <button
+          onClick={() => navigate({ to: "/resident/profile" })}
+          className="text-sm text-neutral-500"
+        >
+          ‹ {tr("Back")}
+        </button>
       </div>
       <div className="px-6 pt-2">
         <h1 className="text-2xl font-bold text-ink">{tr("Book a Big Dustbin")}</h1>
-        <p className="text-sm text-neutral-500 mt-1">{tr("For weddings, functions and large gatherings. Municipality will deliver a community dustbin to your venue.")}</p>
+        <p className="text-sm text-neutral-500 mt-1">
+          {tr(
+            "For weddings, functions and large gatherings. Municipality will deliver a community dustbin to your venue.",
+          )}
+        </p>
       </div>
 
       <form onSubmit={submit} className="px-6 mt-5 space-y-4">
@@ -136,7 +149,11 @@ function BookingPage() {
           </Field>
         </div>
         {err && <div className="text-xs text-red-600">{err}</div>}
-        <button type="submit" disabled={createMutation.isPending} className="w-full h-12 rounded-xl bg-ink text-white font-semibold disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={createMutation.isPending}
+          className="w-full h-12 rounded-xl bg-ink text-white font-semibold disabled:opacity-60"
+        >
           {createMutation.isPending ? tr("Submitting...") : tr("Submit booking request")}
         </button>
       </form>
@@ -172,17 +189,31 @@ function BookingCard({ b, tr }: { b: BookingRow; tr: (k: string) => string }) {
     approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
     rejected: "bg-red-50 text-red-700 border-red-200",
   } as const;
-  const statusLabelMap = { pending: tr("pending"), approved: tr("approved"), rejected: tr("rejected") } as const;
+  const statusLabelMap = {
+    pending: tr("pending"),
+    approved: tr("approved"),
+    rejected: tr("rejected"),
+  } as const;
   return (
     <div className="rounded-2xl border border-neutral-200 p-3.5">
       <div className="flex items-center justify-between">
         <div className="text-xs font-mono text-neutral-400">{b.id.slice(0, 8)}</div>
-        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${toneMap[b.status]}`}>{statusLabelMap[b.status]}</span>
+        <span
+          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${toneMap[b.status]}`}
+        >
+          {statusLabelMap[b.status]}
+        </span>
       </div>
       <div className="mt-1.5 text-sm font-semibold text-ink">{b.reason}</div>
       <div className="text-xs text-neutral-500 mt-0.5">{b.address}</div>
-      <div className="text-xs text-neutral-600 mt-2">{b.fromDate} → {b.toDate}</div>
-      {b.adminNote && <div className="mt-2 text-xs text-neutral-500 italic">{tr("Admin:")} {b.adminNote}</div>}
+      <div className="text-xs text-neutral-600 mt-2">
+        {b.fromDate} → {b.toDate}
+      </div>
+      {b.adminNote && (
+        <div className="mt-2 text-xs text-neutral-500 italic">
+          {tr("Admin:")} {b.adminNote}
+        </div>
+      )}
     </div>
   );
 }

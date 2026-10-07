@@ -43,7 +43,10 @@ function LiveMapPage() {
         {/* Header card */}
         <div className="bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] p-4 pointer-events-auto">
           <div className="flex items-center gap-3">
-            <button className="w-9 h-9 rounded-full bg-neutral-100 grid place-items-center text-ink" aria-label="Menu">
+            <button
+              className="w-9 h-9 rounded-full bg-neutral-100 grid place-items-center text-ink"
+              aria-label="Menu"
+            >
               <div className="space-y-[3px]">
                 <span className="block w-4 h-[2px] bg-ink rounded" />
                 <span className="block w-4 h-[2px] bg-ink rounded" />
@@ -57,8 +60,18 @@ function LiveMapPage() {
           <div className="mt-4 grid grid-cols-2 gap-3">
             <StatCard label={tr("Total Trucks")} value={totals.total} accent="ink" icon="truck" />
             <StatCard label={tr("Active Trucks")} value={totals.active} accent="green" icon="dot" />
-            <StatCard label={tr("Completed Stops")} value={totals.completed} accent="green" icon="check" />
-            <StatCard label={tr("Pending Stops")} value={totals.pending} accent="orange" icon="circle" />
+            <StatCard
+              label={tr("Completed Stops")}
+              value={totals.completed}
+              accent="green"
+              icon="check"
+            />
+            <StatCard
+              label={tr("Pending Stops")}
+              value={totals.pending}
+              accent="orange"
+              icon="circle"
+            />
           </div>
         </div>
 
@@ -70,7 +83,9 @@ function LiveMapPage() {
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`flex-1 py-3 text-[13px] font-semibold capitalize border-b-2 -mb-px transition-colors ${
-                  filter === f ? "text-brand border-brand" : "text-neutral-400 border-transparent hover:text-ink"
+                  filter === f
+                    ? "text-brand border-brand"
+                    : "text-neutral-400 border-transparent hover:text-ink"
                 }`}
               >
                 {f === "all" ? tr("All Trucks") : tr(f)}
@@ -81,14 +96,19 @@ function LiveMapPage() {
             {list.map((t) => {
               const stop = Math.min(t.completedStops + 1, t.truck.totalStops);
               const statusLabel =
-                t.status === "offline" ? "Offline" : t.completedStops >= t.truck.totalStops ? "Complete" : "On Route";
+                t.status === "offline"
+                  ? "Offline"
+                  : t.completedStops >= t.truck.totalStops
+                    ? "Complete"
+                    : "On Route";
               const statusTone =
                 t.status === "offline"
                   ? "text-neutral-400"
                   : statusLabel === "Complete"
-                  ? "text-brand"
-                  : "text-brand";
-              const speedLabel = t.speedMps > 0 ? `${Math.round(t.speedMps * 3.6)} km/h` : tr("Active");
+                    ? "text-brand"
+                    : "text-brand";
+              const speedLabel =
+                t.speedMps > 0 ? `${Math.round(t.speedMps * 3.6)} km/h` : tr("Active");
               return (
                 <button
                   key={t.id}
@@ -97,9 +117,13 @@ function LiveMapPage() {
                     highlight === t.id ? "bg-brand-soft/50" : "hover:bg-neutral-50"
                   }`}
                 >
-                  <div className={`w-11 h-11 rounded-xl grid place-items-center shrink-0 ${
-                    t.status === "offline" ? "bg-neutral-100 text-neutral-400" : "bg-brand-soft text-brand"
-                  }`}>
+                  <div
+                    className={`w-11 h-11 rounded-xl grid place-items-center shrink-0 ${
+                      t.status === "offline"
+                        ? "bg-neutral-100 text-neutral-400"
+                        : "bg-brand-soft text-brand"
+                    }`}
+                  >
                     <TruckIcon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -110,13 +134,17 @@ function LiveMapPage() {
                       {tr(statusLabel)} · {tr("Stop")} {stop}/{t.truck.totalStops}
                     </div>
                   </div>
-                  <div className="text-xs text-neutral-500 shrink-0">{t.status === "offline" ? "—" : speedLabel}</div>
+                  <div className="text-xs text-neutral-500 shrink-0">
+                    {t.status === "offline" ? "—" : speedLabel}
+                  </div>
                 </button>
               );
             })}
           </div>
           <div className="border-t border-neutral-100 px-4 py-3 flex items-center justify-between text-sm">
-            <span className="text-neutral-500">{list.length} {tr("of")} {all.length} {tr("shown")}</span>
+            <span className="text-neutral-500">
+              {list.length} {tr("of")} {all.length} {tr("shown")}
+            </span>
             <span className="text-ink font-semibold">{tr("View All")} ›</span>
           </div>
         </div>
@@ -148,11 +176,19 @@ function StatCard({
           {icon === "truck" && <TruckIcon className="w-4 h-4" />}
           {icon === "dot" && <span className="w-2 h-2 rounded-full bg-brand" />}
           {icon === "check" && (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              className="w-3 h-3"
+            >
               <polyline points="20 6 9 17 4 12" />
             </svg>
           )}
-          {icon === "circle" && <span className="w-3 h-3 rounded-full border-2 border-orange-500" />}
+          {icon === "circle" && (
+            <span className="w-3 h-3 rounded-full border-2 border-orange-500" />
+          )}
         </span>
       </div>
       <div className="text-2xl font-bold text-ink mt-1 leading-none">{value}</div>

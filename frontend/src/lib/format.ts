@@ -51,7 +51,11 @@ export function formatTime(d: Date | number, lang: Lang) {
 export function formatDate(d: Date | number | string, lang: Lang) {
   const date = typeof d === "string" ? new Date(d) : d;
   try {
-    return new Intl.DateTimeFormat(LOCALE[lang], { day: "numeric", month: "short", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat(LOCALE[lang], {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
   } catch {
     return new Date(date).toDateString();
   }

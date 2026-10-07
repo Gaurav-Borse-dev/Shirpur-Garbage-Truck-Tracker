@@ -175,7 +175,13 @@ function WardsPage() {
 
 /* ── Add Ward Modal ──────────────────────────────────────────────────── */
 
-function AddWardModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name: string) => void }) {
+function AddWardModal({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (name: string) => void;
+}) {
   const tr = useT();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -224,7 +230,10 @@ function AddWardModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (n
           >
             {tr("Cancel")}
           </button>
-          <button type="submit" className="h-10 px-5 rounded-lg bg-ink text-white text-sm font-semibold">
+          <button
+            type="submit"
+            className="h-10 px-5 rounded-lg bg-ink text-white text-sm font-semibold"
+          >
             {tr("Add Ward")}
           </button>
         </div>
@@ -258,10 +267,15 @@ function ConfirmDeleteModal({
         </p>
         {hasAssignments && (
           <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <p className="text-xs font-semibold text-amber-700">{tr("Notice: Trucks currently assigned to this ward")}</p>
+            <p className="text-xs font-semibold text-amber-700">
+              {tr("Notice: Trucks currently assigned to this ward")}
+            </p>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {assignedTrucks.map((code) => (
-                <span key={code} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
+                <span
+                  key={code}
+                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800"
+                >
                   {code}
                 </span>
               ))}

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { useI18n } from "@/store/i18n";
 import { getMyBookings } from "@/lib/booking.functions";
@@ -18,6 +18,7 @@ function ProfilePage() {
   const navigate = useNavigate();
   const session = useAuth((s) => s.session)!;
   const logout = useAuth((s) => s.logout);
+  const queryClient = useQueryClient();
   const radius = useSettings((s) => s.alertRadius);
   const setRadius = useSettings((s) => s.setAlertRadius);
   const [draft, setDraft] = useState(radius);
@@ -101,7 +102,13 @@ function ProfilePage() {
 
       <div className="px-6 mt-8 pb-10">
         <button
-          onClick={async () => { await serverSignOut(); logout(); navigate({ to: "/role" }); }}
+          onClick={async () => {
+            await serverSignOut();
+            logout();
+            queryClient.setQueryData(["server-session"], null);
+            queryClient.removeQueries({ queryKey: ["server-session"] });
+            navigate({ to: "/role" });
+          }}
           className="w-full h-12 rounded-xl border border-red-200 text-red-600 font-semibold"
         >
           {tr("Logout")}

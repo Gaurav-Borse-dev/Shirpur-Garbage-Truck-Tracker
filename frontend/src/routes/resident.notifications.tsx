@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getNotificationPrefs, saveNotificationPrefs, sendSelfTestPush } from "@/lib/push.functions";
+import {
+  getNotificationPrefs,
+  saveNotificationPrefs,
+  sendSelfTestPush,
+} from "@/lib/push.functions";
 import { ensureNotificationPermission } from "@/lib/notifications";
 import {
   permissionState as readPermission,
@@ -36,11 +40,14 @@ export const Route = createFileRoute("/resident/notifications")({
 
 const FREQUENCIES = [
   { value: "immediate", label: "Every alert", hint: "Notify me each time a truck comes close" },
-  { value: "every_15m", label: "At most every 15 min", hint: "Group alerts into 15 minute windows" },
+  {
+    value: "every_15m",
+    label: "At most every 15 min",
+    hint: "Group alerts into 15 minute windows",
+  },
   { value: "hourly", label: "Hourly", hint: "One alert per hour at most" },
   { value: "daily", label: "Daily summary", hint: "One alert a day" },
 ] as const;
-
 
 type Frequency = (typeof FREQUENCIES)[number]["value"];
 type Permission = "default" | "granted" | "denied" | "unsupported";
@@ -76,7 +83,8 @@ function NotificationSettingsPage() {
     mutationFn: async (next: { nearbyAlertsEnabled: boolean; alertFrequency: Frequency }) => {
       let state: Permission = readPermission();
       if (next.nearbyAlertsEnabled) {
-        if (state === "default") state = (await ensureNotificationPermission()) ? "granted" : readPermission();
+        if (state === "default")
+          state = (await ensureNotificationPermission()) ? "granted" : readPermission();
         // Registers this device (native FCM token when the app runs inside the
         // mobile wrapper) so nearby-truck pushes can actually be delivered.
         if (state === "granted") await registerThisDevice({ requirePermission: false });
@@ -169,7 +177,9 @@ function NotificationSettingsPage() {
             {permission === "granted"
               ? tr("This device is allowed to show CleanTrack notifications.")
               : permission === "denied"
-                ? tr("Notifications are blocked. Allow them for this site in your browser settings, then retry.")
+                ? tr(
+                    "Notifications are blocked. Allow them for this site in your browser settings, then retry.",
+                  )
                 : permission === "unsupported"
                   ? tr("This device can't show system notifications — in-app alerts still work.")
                   : tr("Allow notifications so alerts reach you even when CleanTrack is closed.")}
@@ -192,7 +202,8 @@ function NotificationSettingsPage() {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-ink">{tr("Nearby truck alerts")}</div>
             <div className="text-xs text-neutral-500 mt-0.5">
-              {tr("Within")} {radius >= 1000 ? `${radius / 1000} km` : `${radius} m`} {tr("of your address")}
+              {tr("Within")} {radius >= 1000 ? `${radius / 1000} km` : `${radius} m`}{" "}
+              {tr("of your address")}
             </div>
           </div>
           <button
@@ -209,7 +220,9 @@ function NotificationSettingsPage() {
         </div>
       </div>
 
-      <div className={`px-6 mt-6 transition-opacity ${enabled ? "" : "opacity-40 pointer-events-none"}`}>
+      <div
+        className={`px-6 mt-6 transition-opacity ${enabled ? "" : "opacity-40 pointer-events-none"}`}
+      >
         <h2 className="text-sm font-bold text-ink">{tr("Alert frequency")}</h2>
         <div className="mt-3 space-y-2">
           {FREQUENCIES.map((f) => (

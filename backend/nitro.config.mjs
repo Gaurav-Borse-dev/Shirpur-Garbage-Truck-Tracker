@@ -6,6 +6,7 @@ export default defineConfig({
     { route: "/", handler: "./routes/index.ts", method: "get" },
     { route: "/api/health", handler: "./routes/api/health.ts", method: "get" },
     { route: "/api/trucks", handler: "./routes/api/trucks/index.get.ts", method: "get" },
+    { route: "/api/trucks/locations", handler: "./routes/api/trucks/locations.get.ts", method: "get" },
     { route: "/api/drivers", handler: "./routes/api/drivers/index.get.ts", method: "get" },
     { route: "/api/auth/admin", handler: "./routes/api/auth/admin.post.ts", method: "post" },
     { route: "/api/auth/otp", handler: "./routes/api/auth/otp.post.ts", method: "post" },

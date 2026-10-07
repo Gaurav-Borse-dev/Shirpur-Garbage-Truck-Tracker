@@ -9,12 +9,18 @@ export type ServerSession = {
 type SessionData = { user?: ServerSession };
 
 function config() {
-  const password = process.env["SESSION_SECRET"] || "cleantrack-shirpur-super-secret-session-key-2026-min32chars";
+  const password =
+    process.env["SESSION_SECRET"] || "cleantrack-shirpur-super-secret-session-key-2026-min32chars";
   return {
     password,
     name: "cleantrack-session",
     maxAge: 60 * 60 * 12,
-    cookie: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" },
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      path: "/",
+    },
   };
 }
 

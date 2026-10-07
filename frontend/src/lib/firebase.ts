@@ -106,10 +106,7 @@ export async function firebaseSendOtp(phone10Digit: string): Promise<Confirmatio
  * Verify the OTP code using the ConfirmationResult from firebaseSendOtp.
  * Returns the Firebase User on success.
  */
-export async function firebaseVerifyOtp(
-  confirmationResult: ConfirmationResult,
-  code: string,
-) {
+export async function firebaseVerifyOtp(confirmationResult: ConfirmationResult, code: string) {
   const credential = await confirmationResult.confirm(code);
   return credential.user;
 }

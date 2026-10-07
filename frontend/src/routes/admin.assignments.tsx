@@ -68,7 +68,10 @@ function AssignmentsPage() {
           tick: useTrucks.getState().tick + 1,
         });
       }
-      push({ title: tr("Assignment updated"), subtitle: `${selectedId} ${tr("now covers")} ${ward}` });
+      push({
+        title: tr("Assignment updated"),
+        subtitle: `${selectedId} ${tr("now covers")} ${ward}`,
+      });
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 1800);
     },
@@ -146,14 +149,20 @@ function AssignmentsPage() {
                   >
                     <option value="">{tr("Select a ward…")}</option>
                     {wardNames.map((w) => (
-                      <option key={w} value={w}>{w}</option>
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
                     ))}
                     {/* Keep current ward visible even if not in list */}
                     {ward && !wardNames.includes(ward) && (
-                      <option value={ward}>{ward} ({tr("current")})</option>
+                      <option value={ward}>
+                        {ward} ({tr("current")})
+                      </option>
                     )}
                   </select>
-                  <div className="text-[11px] text-neutral-400 mt-1">{tr("Select from configured wards")}</div>
+                  <div className="text-[11px] text-neutral-400 mt-1">
+                    {tr("Select from configured wards")}
+                  </div>
                 </Field>
                 <Field label={tr("City")}>
                   <div className="h-11 px-3 rounded-lg bg-neutral-50 flex items-center text-sm font-semibold text-ink">
@@ -163,12 +172,13 @@ function AssignmentsPage() {
               </div>
 
               <div className="mt-6 rounded-xl bg-neutral-50 p-4 text-xs text-neutral-600 leading-relaxed">
-                {tr("Saving resets the route for")} {selected.id} {tr("to a freshly generated collection loop centered on the selected city. The driver's app updates instantly — no app restart required.")}
+                {tr("Saving resets the route for")} {selected.id}{" "}
+                {tr(
+                  "to a freshly generated collection loop centered on the selected city. The driver's app updates instantly — no app restart required.",
+                )}
               </div>
 
-              {error && (
-                <div className="mt-4 text-sm text-red-600 ct-shake">{error}</div>
-              )}
+              {error && <div className="mt-4 text-sm text-red-600 ct-shake">{error}</div>}
 
               <div className="mt-6 flex items-center gap-3">
                 <button

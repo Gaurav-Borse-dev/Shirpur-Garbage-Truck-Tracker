@@ -5,7 +5,7 @@ import { useChatBotResponse } from "@/hooks/useChatBotResponse";
 
 export function ResponseDisplay() {
   const { setView, isLoading, error, messages } = useChatBot();
-  
+
   // Hook handles fetching data
   useChatBotResponse();
 
@@ -45,9 +45,7 @@ export function ResponseDisplay() {
               ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 text-sm mt-4">
-            No response yet
-          </div>
+          <div className="text-center text-gray-500 text-sm mt-4">No response yet</div>
         )}
       </div>
 

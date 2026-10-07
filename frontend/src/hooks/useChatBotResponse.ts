@@ -81,7 +81,10 @@ function getResponseForQuestion(questionId: string, lang: string): string {
         };
         return msg[lang as "en" | "hi" | "mr"] ?? msg.en;
       }
-      const list = onlineTrucks.slice(0, 3).map((t) => `🚛 ${t.truck.name || t.truck.id} — ${t.truck.wardName || "Shirpur"}`).join("\n");
+      const list = onlineTrucks
+        .slice(0, 3)
+        .map((t) => `🚛 ${t.truck.name || t.truck.id} — ${t.truck.wardName || "Shirpur"}`)
+        .join("\n");
       const msg = {
         en: `📍 Active trucks in Shirpur:\n${list}`,
         hi: `📍 शिरपुर में सक्रिय ट्रकें:\n${list}`,

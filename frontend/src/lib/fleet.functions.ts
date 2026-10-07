@@ -17,7 +17,10 @@ const addDriverInput = z.object({
 const updateDriverInput = z.object({
   driverId: z.string().uuid(),
   name: z.string().min(1).max(100).optional(),
-  phone: z.string().regex(/^\d{10}$/).optional(),
+  phone: z
+    .string()
+    .regex(/^\d{10}$/)
+    .optional(),
   truckCode: z.string().min(1).max(20).optional(),
   active: z.boolean().optional(),
 });
@@ -102,7 +105,10 @@ export const addFleetDriver = createServerFn({ method: "POST" })
         if (found) {
           userId = found.id;
         } else {
-          return { ok: false as const, error: `Failed to create auth user: ${authErr?.message ?? "unknown"}` };
+          return {
+            ok: false as const,
+            error: `Failed to create auth user: ${authErr?.message ?? "unknown"}`,
+          };
         }
       } else {
         userId = authUser.user.id;
@@ -151,14 +157,16 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       .single();
 
     if (driverErr || !newDriver) {
-      return { ok: false as const, error: `Failed to create driver: ${driverErr?.message ?? "unknown"}` };
+      return {
+        ok: false as const,
+        error: `Failed to create driver: ${driverErr?.message ?? "unknown"}`,
+      };
     }
 
     // 8. Assign role
-    await sb.from("user_roles").upsert(
-      { user_id: userId, role: "driver" as const },
-      { onConflict: "user_id" },
-    );
+    await sb
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "driver" as const }, { onConflict: "user_id" });
 
     return { ok: true as const, driverId: newDriver.id, action: "created" };
   });
@@ -203,10 +211,7 @@ export const updateFleetDriver = createServerFn({ method: "POST" })
 
     // Update active/duty status
     if (data.active !== undefined) {
-      await sb
-        .from("drivers")
-        .update({ on_duty: data.active })
-        .eq("id", data.driverId);
+      await sb.from("drivers").update({ on_duty: data.active }).eq("id", data.driverId);
     }
 
     return { ok: true as const };
@@ -336,19 +341,12 @@ export const removeWard = createServerFn({ method: "POST" })
     const sb = await db();
 
     // Look up ward name first
-    const { data: ward } = await sb
-      .from("wards")
-      .select("id, name")
-      .eq("id", data.wardId)
-      .single();
+    const { data: ward } = await sb.from("wards").select("id, name").eq("id", data.wardId).single();
 
     if (!ward) return { ok: false as const, error: "Ward not found" };
 
     // Unassign any trucks that were assigned to this ward
-    await sb
-      .from("trucks")
-      .update({ ward: null })
-      .eq("ward", ward.name);
+    await sb.from("trucks").update({ ward: null }).eq("ward", ward.name);
 
     // Delete the ward
     const { error } = await sb.from("wards").delete().eq("id", data.wardId);

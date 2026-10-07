@@ -1,45 +1,45 @@
-﻿import { create } from 'zustand'
+﻿import { create } from "zustand";
 
-export type ChatBotView = 'greeting' | 'categories' | 'questions' | 'response'
+export type ChatBotView = "greeting" | "categories" | "questions" | "response";
 
 export interface ChatMessage {
-  id: string
-  type: 'bot' | 'user'
-  content: string
-  timestamp: Date
+  id: string;
+  type: "bot" | "user";
+  content: string;
+  timestamp: Date;
 }
 
 interface ChatBotState {
   // UI State
-  isOpen: boolean
-  view: ChatBotView
-  selectedCategory: string | null
-  selectedQuestion: string | null
-  
+  isOpen: boolean;
+  view: ChatBotView;
+  selectedCategory: string | null;
+  selectedQuestion: string | null;
+
   // Messages
-  messages: ChatMessage[]
-  isLoading: boolean
-  error: string | null
-  responseData: any | null
-  
+  messages: ChatMessage[];
+  isLoading: boolean;
+  error: string | null;
+  responseData: any | null;
+
   // Actions
-  open: () => void
-  close: () => void
-  setView: (view: ChatBotView) => void
-  selectCategory: (categoryId: string) => void
-  selectQuestion: (questionId: string) => void
-  addMessage: (message: ChatMessage) => void
-  clearMessages: () => void
-  setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
-  setResponseData: (data: any) => void
-  reset: () => void
+  open: () => void;
+  close: () => void;
+  setView: (view: ChatBotView) => void;
+  selectCategory: (categoryId: string) => void;
+  selectQuestion: (questionId: string) => void;
+  addMessage: (message: ChatMessage) => void;
+  clearMessages: () => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  setResponseData: (data: any) => void;
+  reset: () => void;
 }
 
 export const useChatBot = create<ChatBotState>((set) => ({
   // Initial state
   isOpen: false,
-  view: 'greeting',
+  view: "greeting",
   selectedCategory: null,
   selectedQuestion: null,
   messages: [],
@@ -49,27 +49,37 @@ export const useChatBot = create<ChatBotState>((set) => ({
 
   // Actions
   open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false, view: 'greeting', selectedCategory: null, selectedQuestion: null, messages: [], responseData: null }),
+  close: () =>
+    set({
+      isOpen: false,
+      view: "greeting",
+      selectedCategory: null,
+      selectedQuestion: null,
+      messages: [],
+      responseData: null,
+    }),
   setView: (view) => set({ view }),
   selectCategory: (categoryId) =>
     set({
       selectedCategory: categoryId,
-      view: 'questions',
+      view: "questions",
       messages: [], // Clear messages when switching to questions
     }),
   selectQuestion: (questionId) =>
     set((state) => ({
       selectedQuestion: questionId,
-      view: 'response',
+      view: "response",
       isLoading: true,
       messages: [], // Clear messages when switching to response
     })),
   addMessage: (message) =>
     set((state) => {
       // Check if message already exists
-      const exists = state.messages.some((m) => m.content === message.content && m.type === message.type);
+      const exists = state.messages.some(
+        (m) => m.content === message.content && m.type === message.type,
+      );
       if (exists) return state;
-      
+
       return {
         messages: [...state.messages, message],
       };
@@ -80,7 +90,7 @@ export const useChatBot = create<ChatBotState>((set) => ({
   setResponseData: (data) => set({ responseData: data }),
   reset: () =>
     set({
-      view: 'greeting',
+      view: "greeting",
       selectedCategory: null,
       selectedQuestion: null,
       messages: [],
@@ -88,4 +98,4 @@ export const useChatBot = create<ChatBotState>((set) => ({
       error: null,
       responseData: null,
     }),
-}))
+}));

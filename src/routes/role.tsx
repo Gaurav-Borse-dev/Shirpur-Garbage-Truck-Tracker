@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { ChevronLeft } from "@/components/icons";
-import { useAuth, detectRole, type Role } from "@/store/auth";
+import { useAuth, detectRole, detectRoleAsync, loadDriversFromDb, type Role } from "@/store/auth";
 import { sendOtp, verifyOtp, setFirebaseSession } from "@/lib/auth.functions";
 import { useT } from "@/lib/i18n";
 import {
@@ -169,8 +169,8 @@ function UnifiedLoginPage() {
     setVerifying(true);
     setError("");
 
-    const detected = detectRole(phone);
-    const cleanPhone = phone.trim().replace(/\D/g, "");
+    const cleanPhone = phone.trim().replace(/\D/g, "").slice(-10);
+    const detected = await detectRoleAsync(cleanPhone);
 
     let roleTitle = t("Resident");
     let roleSubtitle = t("Opening live truck tracking & collection alerts…");
@@ -254,7 +254,15 @@ function UnifiedLoginPage() {
         });
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["server-session"] });
+      // Synchronously prime the query cache with the newly authenticated session
+      // so RequireRole never sees stale role or null state when navigating
+      const serverSessionData = {
+        role: detected.role,
+        phone: cleanPhone,
+        ...(detected.role === "admin" ? { username: "admin" } : {}),
+      };
+      queryClient.setQueryData(["server-session"], serverSessionData);
+      void queryClient.invalidateQueries({ queryKey: ["server-session"] });
 
       // Move to Step 3: Success & Smooth Redirection
       setStep("redirecting");

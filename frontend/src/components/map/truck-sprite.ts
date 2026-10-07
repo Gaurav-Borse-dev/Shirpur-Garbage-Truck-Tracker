@@ -9,8 +9,8 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { MAP_COLORS } from "./map-style";
 
-const SPRITE_SIZE = 64;     // px (high-DPI: rendered at 2x)
-const SPRITE_SCALE = 2;     // device pixel ratio for crisp rendering
+const SPRITE_SIZE = 64; // px (high-DPI: rendered at 2x)
+const SPRITE_SCALE = 2; // device pixel ratio for crisp rendering
 
 type Variant = "online" | "offline" | "active";
 
@@ -135,7 +135,14 @@ function drawTruck(ctx: CanvasRenderingContext2D, variant: Variant) {
 }
 
 /** Helper: draw a rounded rectangle path. */
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);

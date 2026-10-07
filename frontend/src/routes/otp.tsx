@@ -157,7 +157,9 @@ function Otp() {
         ))}
       </div>
 
-      {error && <div className="px-6 mt-4 text-xs font-semibold text-red-600 text-center">{error}</div>}
+      {error && (
+        <div className="px-6 mt-4 text-xs font-semibold text-red-600 text-center">{error}</div>
+      )}
 
       <div className="px-6 mt-6 text-center text-xs text-neutral-400">
         {tr("Admin Test Access: Enter the 6-digit verification code (123456) to sign in.")}

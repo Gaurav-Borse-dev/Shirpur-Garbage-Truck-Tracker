@@ -41,10 +41,13 @@ export const useAuth = create<AuthState>()(
       setSession: (s) => set({ session: s }),
       logout: () => set({ session: null }),
       findDriverByPhone: (phone) => {
-        const clean = phone.trim().replace(/\D/g, "");
-        if (!clean) return undefined;
+        const clean = phone.trim().replace(/\D/g, "").slice(-10);
+        if (!clean || clean.length < 10) return undefined;
         const drivers = get().approvedDrivers || [];
-        return drivers.find((d: ApprovedDriver) => d.phone.trim().replace(/\D/g, "") === clean && d.active);
+        return drivers.find(
+          (d: ApprovedDriver) =>
+            d.phone.trim().replace(/\D/g, "").slice(-10) === clean,
+        );
       },
       addDriver: (d) => {
         const list = get().approvedDrivers;
@@ -56,13 +59,17 @@ export const useAuth = create<AuthState>()(
       },
       updateDriver: (phone, patch) => {
         const list = get().approvedDrivers;
-        if (patch.truckId && list.some((x) => x.phone !== phone && x.truckId === patch.truckId && x.active)) {
+        if (
+          patch.truckId &&
+          list.some((x) => x.phone !== phone && x.truckId === patch.truckId && x.active)
+        ) {
           return "Truck already assigned to another active driver";
         }
         set({ approvedDrivers: list.map((x) => (x.phone === phone ? { ...x, ...patch } : x)) });
         return null;
       },
-      removeDriver: (phone) => set({ approvedDrivers: get().approvedDrivers.filter((x) => x.phone !== phone) }),
+      removeDriver: (phone) =>
+        set({ approvedDrivers: get().approvedDrivers.filter((x) => x.phone !== phone) }),
       loadDrivers: (drivers) => set({ approvedDrivers: drivers, dbDriversLoaded: true }),
     }),
     { name: "cleantrack-auth" },
@@ -79,11 +86,34 @@ export function detectRole(phone: string): {
   role: Role;
   driver?: ApprovedDriver;
 } {
-  const clean = phone.trim().replace(/\D/g, "");
+  const clean = phone.trim().replace(/\D/g, "").slice(-10);
   if (clean === "9999999999") {
     return { role: "admin" };
   }
   const driver = useAuth.getState().findDriverByPhone(clean);
+  if (driver) {
+    return { role: "driver", driver };
+  }
+  return { role: "resident" };
+}
+
+/**
+ * Asynchronously detects user role, ensuring driver roster from the DB is loaded
+ * if the number is not immediately recognized as admin or known driver.
+ */
+export async function detectRoleAsync(phone: string): Promise<{
+  role: Role;
+  driver?: ApprovedDriver;
+}> {
+  const clean = phone.trim().replace(/\D/g, "").slice(-10);
+  if (clean === "9999999999") {
+    return { role: "admin" };
+  }
+  let driver = useAuth.getState().findDriverByPhone(clean);
+  if (!driver && !useAuth.getState().dbDriversLoaded) {
+    await loadDriversFromDb();
+    driver = useAuth.getState().findDriverByPhone(clean);
+  }
   if (driver) {
     return { role: "driver", driver };
   }

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileFrame } from "@/components/MobileFrame";
 import { Logo } from "@/components/Logo";
 import { ChevronLeft } from "@/components/icons";
-import { useAuth, detectRole, loadDriversFromDb, type Role } from "@/store/auth";
+import { useAuth, detectRole, detectRoleAsync, loadDriversFromDb, type Role } from "@/store/auth";
 import { sendOtp, verifyOtp, setFirebaseSession } from "@/lib/auth.functions";
 import { useT } from "@/lib/i18n";
 import {
@@ -127,11 +127,12 @@ function UnifiedLoginPage() {
       setDigits(["", "", "", "", "", ""]);
       setStep("otp");
     } catch (err: any) {
-      const msg = err?.code === "auth/too-many-requests"
-        ? t("Too many attempts. Please try again later.")
-        : err?.code === "auth/invalid-phone-number"
-        ? t("Invalid phone number. Please check and try again.")
-        : err?.message || t("Failed to send OTP. Please check your mobile number.");
+      const msg =
+        err?.code === "auth/too-many-requests"
+          ? t("Too many attempts. Please try again later.")
+          : err?.code === "auth/invalid-phone-number"
+            ? t("Invalid phone number. Please check and try again.")
+            : err?.message || t("Failed to send OTP. Please check your mobile number.");
       setError(msg);
       setSending(false);
     }
@@ -173,8 +174,8 @@ function UnifiedLoginPage() {
     setVerifying(true);
     setError("");
 
-    const detected = detectRole(phone);
-    const cleanPhone = phone.trim().replace(/\D/g, "");
+    const cleanPhone = phone.trim().replace(/\D/g, "").slice(-10);
+    const detected = await detectRoleAsync(cleanPhone);
 
     let roleTitle = t("Resident");
     let roleSubtitle = t("Opening live truck tracking & collection alerts…");
@@ -258,7 +259,15 @@ function UnifiedLoginPage() {
         });
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["server-session"] });
+      // Synchronously prime the query cache with the newly authenticated session
+      // so RequireRole never sees stale role or null state when navigating
+      const serverSessionData = {
+        role: detected.role,
+        phone: cleanPhone,
+        ...(detected.role === "admin" ? { username: "admin" } : {}),
+      };
+      queryClient.setQueryData(["server-session"], serverSessionData);
+      void queryClient.invalidateQueries({ queryKey: ["server-session"] });
 
       // Move to Step 3: Success & Smooth Redirection
       setStep("redirecting");
@@ -268,11 +277,12 @@ function UnifiedLoginPage() {
         navigate({ to: targetRoute as any });
       }, 1200);
     } catch (err: any) {
-      const msg = err?.code === "auth/invalid-verification-code"
-        ? t("Incorrect code. Please check and try again.")
-        : err?.code === "auth/code-expired"
-        ? t("OTP expired. Please resend.")
-        : err?.message || t("Unable to verify the code right now.");
+      const msg =
+        err?.code === "auth/invalid-verification-code"
+          ? t("Incorrect code. Please check and try again.")
+          : err?.code === "auth/code-expired"
+            ? t("OTP expired. Please resend.")
+            : err?.message || t("Unable to verify the code right now.");
       setError(msg);
       setShake(true);
       setTimeout(() => setShake(false), 450);
@@ -294,8 +304,6 @@ function UnifiedLoginPage() {
 
   return (
     <MobileFrame>
-
-
       <div className="flex-1 flex flex-col p-4 sm:p-5">
         <AnimatePresence mode="wait">
           {/* ================= STEP 1: ENTER MOBILE NUMBER ================= */}
@@ -463,7 +471,10 @@ function UnifiedLoginPage() {
                   {phone.trim().replace(/\D/g, "") === "9999999999" && (
                     <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-semibold text-amber-800">
                       <span>⚡</span>
-                      <span>{t("Admin Test Access · OTP:")} <strong className="font-mono">123456</strong></span>
+                      <span>
+                        {t("Admin Test Access · OTP:")}{" "}
+                        <strong className="font-mono">123456</strong>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -543,7 +554,13 @@ function UnifiedLoginPage() {
                 </motion.button>
 
                 <div className="flex items-center justify-center gap-1.5 text-[11px] text-neutral-400">
-                  <svg className="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="w-3.5 h-3.5 text-neutral-400"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>

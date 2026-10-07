@@ -6,7 +6,6 @@ export function Logo({ size = 56 }: { size?: number }) {
 
   return (
     <div className="inline-flex items-center gap-3 shrink-0 select-none">
-
       {/* Shirpur Nagarparishad Logo */}
       <div
         className="
@@ -37,10 +36,8 @@ export function Logo({ size = 56 }: { size?: number }) {
         />
       </div>
 
-
       {/* Brand Text */}
       <div className="flex flex-col justify-center">
-
         {/* Highlight Name */}
         <div
           className="
@@ -67,7 +64,7 @@ export function Logo({ size = 56 }: { size?: number }) {
               whitespace-nowrap
             "
           >
-            Shirpur–Warwade 
+            Shirpur–Warwade
           </span>
 
           <span
@@ -80,7 +77,6 @@ export function Logo({ size = 56 }: { size?: number }) {
             "
           />
         </div>
-
 
         {/* Subtitle */}
         <span
@@ -96,9 +92,7 @@ export function Logo({ size = 56 }: { size?: number }) {
         >
           {tr("Shirpur Municipal Corp")}
         </span>
-
       </div>
-
     </div>
   );
 }

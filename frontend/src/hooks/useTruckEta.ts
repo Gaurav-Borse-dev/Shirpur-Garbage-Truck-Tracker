@@ -1,27 +1,37 @@
 import { useEffect, useState } from "react";
 import { getTruckEta } from "@/lib/tracking.functions";
+import type { LatLng } from "@/lib/geo";
 
 export type BackendEta = { durationS: number; distanceM: number } | null;
 
 /**
- * Backend-calculated (OSRM road network) ETA from a truck to a point.
- * Refreshes on a slow interval; results are cached server-side.
+ * Backend-calculated (OSRM road network) ETA from a truck's live position to a resident point.
+ * Refreshes on position changes and periodic interval; cached server-side.
  */
-export function useTruckEta(truckCode: string | undefined, to: { lat: number; lng: number }) {
+export function useTruckEta(truckCode: string | undefined, to: LatLng, truckPos?: LatLng) {
   const [eta, setEta] = useState<BackendEta>(null);
-  const key = truckCode ? `${truckCode}:${to.lat.toFixed(4)}:${to.lng.toFixed(4)}` : null;
+
+  const fromPart = truckPos ? `${truckPos.lat.toFixed(4)},${truckPos.lng.toFixed(4)}` : "live";
+  const toPart = `${to.lat.toFixed(4)},${to.lng.toFixed(4)}`;
+  const key = truckCode ? `${truckCode}@${fromPart}->${toPart}` : null;
 
   useEffect(() => {
-    if (!key) {
+    if (!key || !truckCode) {
       setEta(null);
       return;
     }
-    const [code, lat, lng] = key.split(":");
     let cancelled = false;
 
     async function load() {
       try {
-        const res = await getTruckEta({ data: { truckCode: code, lat: Number(lat), lng: Number(lng) } });
+        const res = await getTruckEta({
+          data: {
+            truckCode,
+            lat: to.lat,
+            lng: to.lng,
+            ...(truckPos ? { truckLat: truckPos.lat, truckLng: truckPos.lng } : {}),
+          },
+        });
         if (cancelled) return;
         setEta(res.available ? { durationS: res.durationS, distanceM: res.distanceM } : null);
       } catch {
@@ -30,12 +40,12 @@ export function useTruckEta(truckCode: string | undefined, to: { lat: number; ln
     }
 
     void load();
-    const timer = window.setInterval(load, 30_000);
+    const timer = window.setInterval(load, 25_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [key]);
+  }, [key, truckCode, to.lat, to.lng, truckPos?.lat, truckPos?.lng]);
 
   return eta;
 }

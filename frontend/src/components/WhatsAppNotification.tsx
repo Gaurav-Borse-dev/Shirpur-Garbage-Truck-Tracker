@@ -39,15 +39,19 @@ export const useWhatsAppNotification = create<WhatsAppAlertState>((set, get) => 
 
     // Play signature garbage tracker notification chime
     const soundKind: SoundType =
-      t.tone === "truck_arrived" || t.title.toLowerCase().includes("arrived") || t.title.toLowerCase().includes("almost")
+      t.tone === "truck_arrived" ||
+      t.title.toLowerCase().includes("arrived") ||
+      t.title.toLowerCase().includes("almost")
         ? "truck_arrived"
-        : t.tone === "truck_nearby" || t.title.toLowerCase().includes("nearby") || t.title.toLowerCase().includes("away")
-        ? "truck_nearby"
-        : t.tone === "route_completed" || t.title.toLowerCase().includes("completed")
-        ? "route_completed"
-        : t.tone === "booking_update" || t.title.toLowerCase().includes("booking")
-        ? "booking_update"
-        : "whatsapp_pop";
+        : t.tone === "truck_nearby" ||
+            t.title.toLowerCase().includes("nearby") ||
+            t.title.toLowerCase().includes("away")
+          ? "truck_nearby"
+          : t.tone === "route_completed" || t.title.toLowerCase().includes("completed")
+            ? "route_completed"
+            : t.tone === "booking_update" || t.title.toLowerCase().includes("booking")
+              ? "booking_update"
+              : "whatsapp_pop";
 
     playNotificationSound(soundKind);
 
@@ -103,7 +107,11 @@ export function WhatsAppNotificationHost() {
                 </div>
                 <span className="text-[11px] font-bold text-emerald-400 tracking-wide flex items-center gap-1">
                   {item.sender}
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-emerald-400 inline-block">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-3 h-3 text-emerald-400 inline-block"
+                  >
                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                   </svg>
                 </span>
@@ -126,7 +134,13 @@ export function WhatsAppNotificationHost() {
             {/* Notification message body */}
             <div className="p-3.5 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="w-5 h-5"
+                >
                   <path d="M10 17h4V5H2v12h3" />
                   <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2" />
                   <circle cx="7.5" cy="17.5" r="2.5" />

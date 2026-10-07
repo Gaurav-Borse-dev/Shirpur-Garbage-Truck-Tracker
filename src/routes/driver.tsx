@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ClientOnly } from "@/components/ClientOnly";
@@ -17,6 +18,8 @@ import { emitDriverDuty } from "@/lib/realtime";
 import { RequireRole } from "@/components/RequireRole";
 import { serverSignOut } from "@/lib/auth.functions";
 import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
+import { SHIRPUR } from "@/lib/trucks";
+import { ingestDriverGps } from "@/lib/tracking.functions";
 
 export const Route = createFileRoute("/driver")({
   head: () => ({
@@ -30,7 +33,8 @@ export const Route = createFileRoute("/driver")({
       { property: "og:title", content: "Driver Route & Stops — CleanTrack" },
       {
         property: "og:description",
-        content: "Share live location and manage your collection stops on the CleanTrack driver app.",
+        content:
+          "Share live location and manage your collection stops on the CleanTrack driver app.",
       },
     ],
   }),
@@ -49,12 +53,12 @@ type StopStatus = "enroute" | "arrived" | "completed";
 
 function DriverHome() {
   const tr = useT();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const session = useAuth((s) => s.session);
   const logout = useAuth((s) => s.logout);
-  const navigate = useNavigate();
-  if (!session || session.role !== "driver") return <Navigate to="/role" />;
-
-  const truckId = session.truckId;
+  const isDriver = session?.role === "driver";
+  const truckId = isDriver ? session.truckId : "";
   const live = useTrucks((s) => s.trucks[truckId]);
   const setOnline = useTrucks((s) => s.setDriverOnline);
   const complete = useTrucks((s) => s.completeStop);
@@ -64,7 +68,7 @@ function DriverHome() {
   const [stopStatus, setStopStatus] = useState<StopStatus>("enroute");
   const [expanded, setExpanded] = useState(false);
 
-  useRealtime({ role: "driver", truckId });
+  useRealtime(isDriver ? { role: "driver", truckId } : null);
   // Mobile wrapper path: the native shell supplies the FCM token, so no VAPID
   // key or Firebase web config is needed here.
   useEffect(() => {
@@ -81,10 +85,24 @@ function DriverHome() {
       emitDriverDuty(truckId, "stop");
       void stopDriverLocation();
     }
-    return () => { void stopDriverLocation(); };
+    return () => {
+      void stopDriverLocation();
+    };
   }, [onDuty, truckId]);
 
-  if (!live) return null;
+  if (!isDriver) return <Navigate to="/role" />;
+
+  if (!live) {
+    return (
+      <MobileFrame>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-4" />
+          <div className="font-bold text-slate-800 text-base">Connecting Truck {truckId}…</div>
+          <div className="text-xs text-slate-500 mt-1">Initializing Shirpur collection route</div>
+        </div>
+      </MobileFrame>
+    );
+  }
 
   const online = live.status !== "offline";
   const stopNum = Math.min(live.completedStops + 1, live.truck.totalStops);
@@ -119,8 +137,12 @@ function DriverHome() {
                 {stopNum}
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{tr("Driver Navigation")}</div>
-                <div className="text-xs font-bold text-white truncate max-w-[140px]">{session.driverName} · {truckId}</div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  {tr("Driver Navigation")}
+                </div>
+                <div className="text-xs font-bold text-white truncate max-w-[140px]">
+                  {session.driverName} · {truckId}
+                </div>
               </div>
             </div>
             <div className="pointer-events-auto flex items-center gap-2">
@@ -130,8 +152,11 @@ function DriverHome() {
                   {tr("Reconnecting")}
                 </div>
               )}
-              <div className={`ct-pill ${online ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300"} shadow-md`}>
-                <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-slate-400"}`} /> {online ? tr("Online") : tr("Offline")}
+              <div
+                className={`ct-pill ${online ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-300"} shadow-md`}
+              >
+                <span className={`w-2 h-2 rounded-full ${online ? "bg-white" : "bg-slate-400"}`} />{" "}
+                {online ? tr("Online") : tr("Offline")}
               </div>
             </div>
           </div>
@@ -147,7 +172,9 @@ function DriverHome() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 {tr("Next Collection Stop")}
               </div>
-              <div className="text-sm font-bold text-white truncate mt-0.5">{live.truck.wardName}</div>
+              <div className="text-sm font-bold text-white truncate mt-0.5">
+                {live.truck.wardName}
+              </div>
               <div className="text-xs text-slate-400 truncate mt-0.5">
                 {tr("Collection Point")} #{stopNum} · {tr("Shirpur Ward")}
               </div>
@@ -168,18 +195,24 @@ function DriverHome() {
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-neutral-200">
               <div className="flex-1">
                 <div className={`font-bold text-sm ${online ? "text-brand" : "text-neutral-500"}`}>
-                  {tr("You are")} {online ? tr("Online").toUpperCase() : tr("Offline").toUpperCase()}
+                  {tr("You are")}{" "}
+                  {online ? tr("Online").toUpperCase() : tr("Offline").toUpperCase()}
                 </div>
                 <div className="text-xs text-neutral-500">
-                  {online ? tr("Residents can see your location.") : tr("Go online to start broadcasting.")}
+                  {online
+                    ? tr("Residents can see your location.")
+                    : tr("Go online to start broadcasting.")}
                 </div>
               </div>
               <button
                 onClick={() => setOnline(truckId, !online)}
                 className={`w-12 h-7 rounded-full relative transition-colors ${online ? "bg-brand" : "bg-neutral-300"}`}
               >
-                <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  className={`absolute top-0.5 ${online ? "right-0.5" : "left-0.5"} w-6 h-6 rounded-full bg-white shadow`} />
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  className={`absolute top-0.5 ${online ? "right-0.5" : "left-0.5"} w-6 h-6 rounded-full bg-white shadow`}
+                />
               </button>
             </div>
 
@@ -192,7 +225,9 @@ function DriverHome() {
               <div className="text-[11px] text-neutral-400 mt-0.5">
                 {tr("Assigned by Municipal Admin · live sync")}
               </div>
-              <div className="text-xs text-neutral-500">{tr("Collection point")} #{stopNum}</div>
+              <div className="text-xs text-neutral-500">
+                {tr("Collection point")} #{stopNum}
+              </div>
               <div className="mt-3 grid grid-cols-3 gap-1.5">
                 {(["enroute", "arrived", "completed"] as const).map((s) => (
                   <button
@@ -216,12 +251,18 @@ function DriverHome() {
                       stopStatus === s ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
                     }`}
                   >
-                    {s === "enroute" ? tr("En Route") : s === "arrived" ? tr("Arrived") : tr("Completed")}
+                    {s === "enroute"
+                      ? tr("En Route")
+                      : s === "arrived"
+                        ? tr("Arrived")
+                        : tr("Completed")}
                   </button>
                 ))}
               </div>
               {stopStatus === "arrived" && (
-                <div className="mt-3 text-xs text-brand font-semibold">{tr("3 residents notified nearby")}</div>
+                <div className="mt-3 text-xs text-brand font-semibold">
+                  {tr("3 residents notified nearby")}
+                </div>
               )}
             </div>
 
@@ -231,7 +272,9 @@ function DriverHome() {
               className="mt-3 flex items-center gap-1 text-sm font-semibold text-ink"
             >
               {expanded ? tr("Hide stops") : tr("View all stops")}
-              <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+              />
             </button>
             <AnimatePresence>
               {expanded && (
@@ -246,18 +289,29 @@ function DriverHome() {
                       const done = i < live.completedStops;
                       const current = i === live.completedStops;
                       return (
-                        <div key={i} className="flex items-center gap-3 py-2 border-b border-neutral-100">
-                          <div className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ${
-                            done ? "bg-brand text-white" :
-                            current ? "bg-ink text-white" :
-                            "bg-neutral-100 text-neutral-400"
-                          }`}>
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 py-2 border-b border-neutral-100"
+                        >
+                          <div
+                            className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ${
+                              done
+                                ? "bg-brand text-white"
+                                : current
+                                  ? "bg-ink text-white"
+                                  : "bg-neutral-100 text-neutral-400"
+                            }`}
+                          >
                             {done ? <CheckIcon className="w-3 h-3" /> : i + 1}
                           </div>
-                          <div className={`flex-1 text-sm ${done ? "text-neutral-400 line-through" : current ? "font-semibold text-ink" : "text-neutral-600"}`}>
+                          <div
+                            className={`flex-1 text-sm ${done ? "text-neutral-400 line-through" : current ? "font-semibold text-ink" : "text-neutral-600"}`}
+                          >
                             {tr("Stop")} {i + 1} · {live.truck.wardName.split("—")[0].trim()}
                           </div>
-                          <div className="text-xs text-neutral-400">~{(8 + i * 0.25).toFixed(2).replace(".", ":")} AM</div>
+                          <div className="text-xs text-neutral-400">
+                            ~{(8 + i * 0.25).toFixed(2).replace(".", ":")} AM
+                          </div>
                         </div>
                       );
                     })}
@@ -269,11 +323,18 @@ function DriverHome() {
             {/* Stats */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-neutral-200 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Today")}</div>
-                <div className="text-2xl font-bold text-ink">{live.completedStops}<span className="text-base text-neutral-400">/{live.truck.totalStops}</span></div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                  {tr("Today")}
+                </div>
+                <div className="text-2xl font-bold text-ink">
+                  {live.completedStops}
+                  <span className="text-base text-neutral-400">/{live.truck.totalStops}</span>
+                </div>
               </div>
               <div className="rounded-2xl border border-neutral-200 p-3">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{tr("Progress")}</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                  {tr("Progress")}
+                </div>
                 <div className="text-2xl font-bold text-ink">{progress.toFixed(0)}%</div>
               </div>
             </div>
@@ -281,14 +342,27 @@ function DriverHome() {
             {/* Route info */}
             <div className="mt-3 p-4 rounded-2xl bg-neutral-50">
               <div className="text-xs font-semibold text-neutral-500">{live.truck.wardName}</div>
-              <div className="text-xs text-neutral-400 mt-0.5">{live.completedStops} {tr("of")} {live.truck.totalStops} {tr("stops completed")}</div>
+              <div className="text-xs text-neutral-400 mt-0.5">
+                {live.completedStops} {tr("of")} {live.truck.totalStops} {tr("stops completed")}
+              </div>
               <div className="mt-2 h-2 rounded-full bg-neutral-200 overflow-hidden">
-                <motion.div className="h-full bg-brand" animate={{ width: `${progress}%` }} transition={{ type: "spring", stiffness: 120 }} />
+                <motion.div
+                  className="h-full bg-brand"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ type: "spring", stiffness: 120 }}
+                />
               </div>
             </div>
 
             <button
-              onClick={async () => { setOnline(truckId, false); await serverSignOut(); logout(); navigate({ to: "/role" }); }}
+              onClick={async () => {
+                setOnline(truckId, false);
+                await serverSignOut();
+                logout();
+                queryClient.setQueryData(["server-session"], null);
+                queryClient.removeQueries({ queryKey: ["server-session"] });
+                navigate({ to: "/role" });
+              }}
               className="mt-4 w-full h-12 rounded-xl border border-neutral-200 text-neutral-600 font-semibold flex items-center justify-center gap-2"
             >
               <LogoutIcon className="w-4 h-4" /> {tr("Go offline & logout")}

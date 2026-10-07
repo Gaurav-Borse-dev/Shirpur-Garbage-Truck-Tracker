@@ -24,27 +24,27 @@ export function ChatBotButton() {
       >
         {/* Robot Head - Rectangle */}
         <rect x="4" y="5" width="16" height="13" rx="2" />
-        
+
         {/* Left Eye */}
         <circle cx="9" cy="10" r="2" fill="currentColor" />
-        
+
         {/* Right Eye */}
         <circle cx="15" cy="10" r="2" fill="currentColor" />
-        
+
         {/* Happy Mouth - Smile */}
         <path d="M 9 13 Q 12 14.5 15 13" strokeWidth="1.5" fill="none" />
-        
+
         {/* Left Antenna */}
         <line x1="8" y1="5" x2="6" y2="1" strokeWidth="2" />
         <circle cx="6" cy="1" r="1" fill="currentColor" />
-        
+
         {/* Right Antenna */}
         <line x1="16" y1="5" x2="18" y2="1" strokeWidth="2" />
         <circle cx="18" cy="1" r="1" fill="currentColor" />
-        
+
         {/* Chest Panel */}
         <rect x="7" y="14" width="10" height="4" rx="1" fill="none" />
-        
+
         {/* Buttons on chest */}
         <circle cx="10" cy="16" r="0.8" fill="currentColor" opacity="0.6" />
         <circle cx="12" cy="16" r="0.8" fill="currentColor" opacity="0.6" />

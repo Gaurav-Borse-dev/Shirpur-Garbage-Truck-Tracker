@@ -22,23 +22,37 @@ export function PerfOverlay() {
   const tone = fps >= 55 ? "#22C55E" : fps >= 40 ? "#EAB308" : "#EF4444";
 
   return (
-    <div className="fixed bottom-3 left-3 z-[1000] pointer-events-auto"
+    <div
+      className="fixed bottom-3 left-3 z-[1000] pointer-events-auto"
       role="status"
-      aria-live="polite">
+      aria-live="polite"
+    >
       {enabled ? (
         <div className="rounded-xl bg-neutral-900/92 backdrop-blur text-white text-[11px] font-mono shadow-lg px-3 py-2 w-[186px]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold tracking-wide">{tr("PERF")}</span>
-            <button onClick={toggle} className="text-neutral-400 hover:text-white" aria-label={tr("Hide performance overlay")}>
+            <button
+              onClick={toggle}
+              className="text-neutral-400 hover:text-white"
+              aria-label={tr("Hide performance overlay")}
+            >
               ✕
             </button>
           </div>
           <Row label={tr("FPS")} value={String(fps)} color={tone} />
           <Row label={tr("Commits/s")} value={String(commits)} />
           <Row label={tr("Renders/s")} value={String(renders)} />
-          <Row label={tr("Dropped")} value={String(droppedFrames)} color={droppedFrames > 5 ? "#EF4444" : undefined} />
+          <Row
+            label={tr("Dropped")}
+            value={String(droppedFrames)}
+            color={droppedFrames > 5 ? "#EF4444" : undefined}
+          />
           <Row label={tr("GPS delay")} value={`${latencyMs} ms`} />
-          <Row label={tr("Socket")} value={socketState === "live" ? tr("live") : tr("reconnect")} color={socketState === "live" ? "#22C55E" : "#EAB308"} />
+          <Row
+            label={tr("Socket")}
+            value={socketState === "live" ? tr("live") : tr("reconnect")}
+            color={socketState === "live" ? "#22C55E" : "#EAB308"}
+          />
           {memoryMb > 0 && <Row label={tr("JS heap")} value={`${memoryMb} MB`} />}
           <Row label={tr("Trucks")} value={`${activeTrucks}/${trucks}`} />
           <div className="mt-1.5 text-[9px] text-neutral-400 leading-tight">

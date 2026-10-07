@@ -7,10 +7,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const adminAlertsInput = z.object({
-  type: z.enum(["all", "geofence", "stop", "login"]).optional(),
-  limit: z.number().min(1).max(200).optional(),
-}).optional();
+const adminAlertsInput = z
+  .object({
+    type: z.enum(["all", "geofence", "stop", "login"]).optional(),
+    limit: z.number().min(1).max(200).optional(),
+  })
+  .optional();
 
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -52,10 +54,12 @@ export const getAdminAlerts = createServerFn({ method: "POST" })
     if (typeFilter === "all" || typeFilter === "geofence") {
       const { data: notifs } = await sb
         .from("notifications")
-        .select(`
+        .select(
+          `
           id, type, title, body, sent_at,
           truck:trucks!notifications_truck_id_fkey ( truck_code, ward )
-        `)
+        `,
+        )
         .gte("sent_at", since)
         .eq("type", "truck_nearby")
         .order("sent_at", { ascending: false })
@@ -81,11 +85,13 @@ export const getAdminAlerts = createServerFn({ method: "POST" })
     if (typeFilter === "all" || typeFilter === "stop") {
       const { data: stops } = await sb
         .from("collection_history")
-        .select(`
+        .select(
+          `
           id, completed_at, status, notes,
           truck:trucks!collection_history_truck_id_fkey ( truck_code, ward ),
           driver:drivers!collection_history_driver_id_fkey ( id, user_id )
-        `)
+        `,
+        )
         .gte("completed_at", since)
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
@@ -165,10 +171,12 @@ export const getResidentAlerts = createServerFn({ method: "GET" }).handler(async
 
   const { data: notifs } = await sb
     .from("notifications")
-    .select(`
+    .select(
+      `
       id, type, title, body, sent_at, read,
       truck:trucks!notifications_truck_id_fkey ( truck_code )
-    `)
+    `,
+    )
     .eq("recipient_id", profile.user_id)
     .gte("sent_at", since)
     .order("sent_at", { ascending: false })
@@ -179,10 +187,13 @@ export const getResidentAlerts = createServerFn({ method: "GET" }).handler(async
     // Map notification_type enum values to UI tones
     const nType = n.type as string;
     const tone: "success" | "warn" | "info" =
-      nType === "truck_nearby" || nType === "truck_arrived" ? "info" :
-      nType === "route_completed" ? "success" :
-      nType === "emergency" ? "warn" :
-      "info";
+      nType === "truck_nearby" || nType === "truck_arrived"
+        ? "info"
+        : nType === "route_completed"
+          ? "success"
+          : nType === "emergency"
+            ? "warn"
+            : "info";
 
     return {
       id: n.id,

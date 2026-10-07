@@ -12,8 +12,7 @@ export function getSchedule(): ScheduleDay[] {
   return days.map((d, i) => {
     const date = new Date(today);
     date.setDate(today.getDate() + (i - dow));
-    const status: ScheduleDay["status"] =
-      i < dow ? "completed" : i === dow ? "today" : "upcoming";
+    const status: ScheduleDay["status"] = i < dow ? "completed" : i === dow ? "today" : "upcoming";
     return {
       day: d,
       date: date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),

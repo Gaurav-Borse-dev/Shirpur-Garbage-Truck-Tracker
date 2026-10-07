@@ -103,8 +103,7 @@ const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 800;
 
 type PendingOp =
-  | { kind: "register"; token: string; platform: TokenPlatform }
-  | { kind: "revoke"; token?: string };
+  { kind: "register"; token: string; platform: TokenPlatform } | { kind: "revoke"; token?: string };
 
 function readQueue(): PendingOp[] {
   const s = storage();
@@ -125,7 +124,8 @@ function writeQueue(ops: PendingOp[]) {
 
 function enqueue(op: PendingOp) {
   const ops = readQueue().filter(
-    (o) => !(o.kind === op.kind && (o as { token?: string }).token === (op as { token?: string }).token),
+    (o) =>
+      !(o.kind === op.kind && (o as { token?: string }).token === (op as { token?: string }).token),
   );
   writeQueue([...ops, op]);
 }
@@ -157,8 +157,7 @@ async function runOp(op: PendingOp): Promise<boolean> {
       data: {
         token: op.token,
         platform: op.platform,
-        userAgent:
-          typeof navigator === "undefined" ? undefined : navigator.userAgent.slice(0, 300),
+        userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent.slice(0, 300),
       },
     });
     return res.ok;
@@ -182,8 +181,7 @@ export function installPushRetry() {
 }
 
 export type RegisterOutcome =
-  | { ok: true; platform: TokenPlatform }
-  | { ok: false; reason: "no_token" | "denied" | "failed" };
+  { ok: true; platform: TokenPlatform } | { ok: false; reason: "no_token" | "denied" | "failed" };
 
 /**
  * Registers this device for push. Requires notification permission on the web;

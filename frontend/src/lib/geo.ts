@@ -23,7 +23,9 @@ export function bearing(a: LatLng, b: LatLng): number {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-export function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
+export function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
 
 export function lerpLatLng(a: LatLng, b: LatLng, t: number): LatLng {
   return { lat: lerp(a.lat, b.lat, t), lng: lerp(a.lng, b.lng, t) };
@@ -59,7 +61,11 @@ export function smoothClosedPath(points: LatLng[], samplesPerSegment = 8): LatLn
       const t2 = t * t;
       const t3 = t2 * t;
       const c = (a: number, b: number, c2: number, d: number) =>
-        0.5 * (2 * b + (-a + c2) * t + (2 * a - 5 * b + 4 * c2 - d) * t2 + (-a + 3 * b - 3 * c2 + d) * t3);
+        0.5 *
+        (2 * b +
+          (-a + c2) * t +
+          (2 * a - 5 * b + 4 * c2 - d) * t2 +
+          (-a + 3 * b - 3 * c2 + d) * t3);
       out.push({
         lat: c(p0.lat, p1.lat, p2.lat, p3.lat),
         lng: c(p0.lng, p1.lng, p2.lng, p3.lng),

@@ -42,8 +42,8 @@ const TILE_STREETS = {
 type MapStyle = "satellite" | "hybrid" | "streets";
 const MAP_STYLE_OPTIONS: { id: MapStyle; icon: string; label: string }[] = [
   { id: "satellite", icon: "🛰", label: "Satellite" },
-  { id: "hybrid",    icon: "🛰", label: "Satellite + Labels" },
-  { id: "streets",   icon: "🗺", label: "Streets" },
+  { id: "hybrid", icon: "🛰", label: "Satellite + Labels" },
+  { id: "streets", icon: "🗺", label: "Streets" },
 ];
 
 /** Compact map-style switcher rendered as a Leaflet-aware overlay */
@@ -104,7 +104,6 @@ function MapLayerSwitcher() {
     };
   }, [map]);
 
-
   return (
     <div className="ct-layer-switcher">
       <button
@@ -113,7 +112,16 @@ function MapLayerSwitcher() {
         aria-label="Change map style"
         title="Map layers"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polygon points="12 2 22 8.5 12 15 2 8.5" />
           <polyline points="2 15.5 12 22 22 15.5" />
         </svg>
@@ -149,11 +157,7 @@ function navigationTruckSvgHTML(active = false, offline = false): string {
   return `
 <div class="ct-nav-truck-container" style="position:relative;width:100%;height:100%;">
   <!-- Headlight beam / direction cone -->
-  ${
-    active && !offline
-      ? `<div class="ct-headlight-beam"></div>`
-      : ""
-  }
+  ${active && !offline ? `<div class="ct-headlight-beam"></div>` : ""}
   <svg viewBox="0 0 44 64" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible">
     <!-- Outer glow / drop shadow -->
     <filter id="truck-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -199,9 +203,12 @@ function navigationTruckSvgHTML(active = false, offline = false): string {
 
 /** Quantized icon cache for smooth RAF updates without re-instantiating L.DivIcon */
 const ICON_CACHE = new Map<string, L.DivIcon>();
-function truckDivIcon(bearing: number, opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {}) {
+function truckDivIcon(
+  bearing: number,
+  opts: { size?: "lg" | "sm"; offline?: boolean; active?: boolean } = {},
+) {
   const size = opts.size ?? "sm";
-  const bucket = Math.round(((bearing % 360) + 360) % 360 / 5) * 5;
+  const bucket = Math.round((((bearing % 360) + 360) % 360) / 5) * 5;
   const key = `${size}|${opts.offline ? 1 : 0}|${opts.active ? 1 : 0}|${bucket}`;
   const cached = ICON_CACHE.get(key);
   if (cached) return cached;
@@ -235,7 +242,9 @@ const RESIDENT_ICON = L.divIcon({
   iconSize: [28, 28],
   iconAnchor: [14, 14],
 });
-function residentIcon() { return RESIDENT_ICON; }
+function residentIcon() {
+  return RESIDENT_ICON;
+}
 
 const ETA_ICON_CACHE = new Map<string, L.DivIcon>();
 function etaBadgeIcon(text: string, distanceStr?: string) {
@@ -311,10 +320,26 @@ function cityBadge(name: string) {
 
 /** Landmark points around Shirpur for navigation map POIs */
 const SHIRPUR_LANDMARKS: { name: string; pos: LatLng; color: string }[] = [
-  { name: "Shirpur Park", pos: { lat: SHIRPUR.lat + 0.006, lng: SHIRPUR.lng - 0.005 }, color: "#22C55E" },
-  { name: "Old Cotton Market", pos: { lat: SHIRPUR.lat + 0.010, lng: SHIRPUR.lng + 0.002 }, color: "#3B82F6" },
-  { name: "Municipal Office", pos: { lat: SHIRPUR.lat - 0.004, lng: SHIRPUR.lng + 0.001 }, color: "#0EA5E9" },
-  { name: "Gandhi Chowk", pos: { lat: SHIRPUR.lat - 0.002, lng: SHIRPUR.lng - 0.006 }, color: "#F97316" },
+  {
+    name: "Shirpur Park",
+    pos: { lat: SHIRPUR.lat + 0.006, lng: SHIRPUR.lng - 0.005 },
+    color: "#22C55E",
+  },
+  {
+    name: "Old Cotton Market",
+    pos: { lat: SHIRPUR.lat + 0.01, lng: SHIRPUR.lng + 0.002 },
+    color: "#3B82F6",
+  },
+  {
+    name: "Municipal Office",
+    pos: { lat: SHIRPUR.lat - 0.004, lng: SHIRPUR.lng + 0.001 },
+    color: "#0EA5E9",
+  },
+  {
+    name: "Gandhi Chowk",
+    pos: { lat: SHIRPUR.lat - 0.002, lng: SHIRPUR.lng - 0.006 },
+    color: "#F97316",
+  },
 ];
 
 /**
@@ -331,33 +356,48 @@ function DriverNavigationCameraController({
   active: boolean;
 }) {
   const map = useMap();
-  const lastPos = useRef<LatLng | null>(null);
+  const lastPanAt = useRef(0);
+  const lastTarget = useRef<LatLng | null>(null);
 
   useEffect(() => {
     if (!active) return;
-    if (
-      lastPos.current &&
-      Math.abs(lastPos.current.lat - position.lat) < 0.00005 &&
-      Math.abs(lastPos.current.lng - position.lng) < 0.00005
-    ) {
-      return;
-    }
-    lastPos.current = position;
+    const now = Date.now();
+    // Throttle camera smooth pan to at most once per 1100ms to avoid interrupting leaflet rendering
+    if (now - lastPanAt.current < 1100) return;
 
     // Offset camera slightly forward in direction of bearing so road ahead is visible
     const rad = (bearing * Math.PI) / 180;
-    const offsetLat = Math.cos(rad) * 0.0012;
-    const offsetLng = Math.sin(rad) * 0.0012;
+    const offsetLat = Math.cos(rad) * 0.0009;
+    const offsetLng = Math.sin(rad) * 0.0009;
 
     const targetCenter: [number, number] = [position.lat + offsetLat, position.lng + offsetLng];
-    map.panTo(targetCenter, { animate: true, duration: 0.8, easeLinearity: 0.25 });
+
+    if (
+      lastTarget.current &&
+      Math.abs(lastTarget.current.lat - targetCenter[0]) < 0.00008 &&
+      Math.abs(lastTarget.current.lng - targetCenter[1]) < 0.00008
+    ) {
+      return;
+    }
+
+    lastPanAt.current = now;
+    lastTarget.current = { lat: targetCenter[0], lng: targetCenter[1] };
+    map.panTo(targetCenter, { animate: true, duration: 0.6, easeLinearity: 0.4 });
   }, [position.lat, position.lng, bearing, active, map]);
 
   return null;
 }
 
 /** Recenter camera on target key change */
-function RecenterOnKey({ center, zoom, triggerKey }: { center: LatLng; zoom?: number; triggerKey: string }) {
+function RecenterOnKey({
+  center,
+  zoom,
+  triggerKey,
+}: {
+  center: LatLng;
+  zoom?: number;
+  triggerKey: string;
+}) {
   const map = useMap();
   useEffect(() => {
     map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true, duration: 0.7 });
@@ -434,6 +474,85 @@ function NavigationControls({
   );
 }
 
+function ResidentControls({
+  resident,
+  activePos,
+  speedKmh,
+  signalFresh,
+  lastFixSec,
+}: {
+  resident: LatLng;
+  activePos?: LatLng;
+  speedKmh?: number;
+  signalFresh?: boolean;
+  lastFixSec?: number;
+}) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    if (activePos) {
+      const bounds = L.latLngBounds([
+        [resident.lat, resident.lng],
+        [activePos.lat, activePos.lng],
+      ]);
+      map.fitBounds(bounds.pad(0.35), { animate: true, duration: 0.7 });
+    } else {
+      map.flyTo([resident.lat, resident.lng], 16, { animate: true, duration: 0.7 });
+    }
+  }, [map, resident, activePos]);
+
+  return (
+    <NavigationControls
+      onRecenter={handleRecenter}
+      speedKmh={speedKmh}
+      signalFresh={signalFresh}
+      lastFixSec={lastFixSec}
+    />
+  );
+}
+
+function DriverControls({
+  position,
+  bearing,
+  speedKmh,
+  signalFresh,
+  lastFixSec,
+}: {
+  position: LatLng;
+  bearing: number;
+  speedKmh?: number;
+  signalFresh?: boolean;
+  lastFixSec?: number;
+}) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    const rad = (bearing * Math.PI) / 180;
+    const offsetLat = Math.cos(rad) * 0.0009;
+    const offsetLng = Math.sin(rad) * 0.0009;
+    map.flyTo([position.lat + offsetLat, position.lng + offsetLng], 17, {
+      animate: true,
+      duration: 0.7,
+    });
+  }, [map, position, bearing]);
+
+  return (
+    <NavigationControls
+      onRecenter={handleRecenter}
+      speedKmh={speedKmh}
+      signalFresh={signalFresh}
+      lastFixSec={lastFixSec}
+    />
+  );
+}
+
+function AdminControls({ bounds }: { bounds: L.LatLngBoundsExpression }) {
+  const map = useMap();
+  const handleRecenter = useCallback(() => {
+    map.fitBounds(bounds, { animate: true, duration: 0.7 });
+  }, [map, bounds]);
+
+  return <NavigationControls onRecenter={handleRecenter} />;
+}
+
 type ResidentMapProps = {
   mode: "resident";
   resident: LatLng;
@@ -455,7 +574,9 @@ type Props = ResidentMapProps | DriverMapProps | AdminMapProps;
 
 export function TruckMap(props: Props) {
   const lang = useI18n((s) => s.lang);
-  useEffect(() => { startSimulation(); }, []);
+  useEffect(() => {
+    startSimulation();
+  }, []);
   const trucks = useTrucks((s) => s.trucks);
   const list = useMemo(() => Object.values(trucks), [trucks]);
 
@@ -464,19 +585,21 @@ export function TruckMap(props: Props) {
     const onlineTrucks = list.filter((t) => t.status !== "offline");
     const nearest =
       onlineTrucks.length === 0
-        ? undefined
+        ? list[0]
         : onlineTrucks.reduce((best, cur) =>
-            haversine(cur.position, props.resident) < haversine(best.position, props.resident) ? cur : best,
+            haversine(cur.position, props.resident) < haversine(best.position, props.resident)
+              ? cur
+              : best,
           );
     const active = props.activeTruckId ? trucks[props.activeTruckId] : nearest;
     const distanceM = active ? haversine(active.position, props.resident) : 0;
     const etaText = formatEta(distanceM, lang).toUpperCase();
     const distText = formatDistance(distanceM, lang);
 
-    // Calculate GPS fix freshness (fresh if updated within 20s)
+    // Calculate GPS fix freshness (fresh if updated within 25s)
     const now = Date.now();
     const fixAgeSec = active?.lastUpdate ? Math.round((now - active.lastUpdate) / 1000) : 0;
-    const signalFresh = fixAgeSec < 20;
+    const signalFresh = fixAgeSec < 25;
 
     return (
       <MapContainer
@@ -496,11 +619,7 @@ export function TruckMap(props: Props) {
       >
         <MapLayerSwitcher />
 
-        <RecenterOnKey
-          center={props.resident}
-          zoom={15}
-          triggerKey={active?.id ?? "none"}
-        />
+        <RecenterOnKey center={props.resident} zoom={15} triggerKey={active?.id ?? "none"} />
 
         {/* Soft Geofence Halo Ring */}
         <Circle
@@ -518,7 +637,12 @@ export function TruckMap(props: Props) {
 
         {/* Landmark POIs */}
         {SHIRPUR_LANDMARKS.map((lm) => (
-          <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
+          <Marker
+            key={lm.name}
+            position={[lm.pos.lat, lm.pos.lng]}
+            icon={landmarkIcon(lm.name, lm.color)}
+            interactive={false}
+          />
         ))}
 
         {/* OSRM Navigation Route Line with Dual-Casing Outline */}
@@ -528,7 +652,11 @@ export function TruckMap(props: Props) {
 
         {/* Resident Location Marker & Home Label */}
         <Marker position={[props.resident.lat, props.resident.lng]} icon={residentIcon()} />
-        <Marker position={[props.resident.lat, props.resident.lng]} icon={homeIcon(lang)} interactive={false} />
+        <Marker
+          position={[props.resident.lat, props.resident.lng]}
+          icon={homeIcon(lang)}
+          interactive={false}
+        />
 
         {/* Idle Trucks Roster */}
         {list
@@ -552,8 +680,9 @@ export function TruckMap(props: Props) {
           </>
         )}
 
-        <NavigationControls
-          onRecenter={() => {}}
+        <ResidentControls
+          resident={props.resident}
+          activePos={active?.position}
           speedKmh={active ? active.speedMps * 3.6 : 0}
           signalFresh={signalFresh}
           lastFixSec={fixAgeSec}
@@ -570,7 +699,7 @@ export function TruckMap(props: Props) {
     const speedKmh = truck.speedMps * 3.6;
     const now = Date.now();
     const fixAgeSec = Math.round((now - truck.lastUpdate) / 1000);
-    const signalFresh = fixAgeSec < 20;
+    const signalFresh = fixAgeSec < 25;
 
     return (
       <MapContainer
@@ -599,10 +728,16 @@ export function TruckMap(props: Props) {
         {/* Driver Vehicle Marker */}
         <Marker
           position={[truck.position.lat, truck.position.lng]}
-          icon={truckDivIcon(truck.bearing, { size: "lg", active: true, offline: truck.status === "offline" })}
+          icon={truckDivIcon(truck.bearing, {
+            size: "lg",
+            active: true,
+            offline: truck.status === "offline",
+          })}
         />
 
-        <NavigationControls
+        <DriverControls
+          position={truck.position}
+          bearing={truck.bearing}
           speedKmh={speedKmh}
           signalFresh={signalFresh}
           lastFixSec={fixAgeSec}
@@ -629,9 +764,18 @@ export function TruckMap(props: Props) {
     >
       <MapLayerSwitcher />
 
-      <Marker position={[SHIRPUR.lat, SHIRPUR.lng]} icon={cityBadge("Shirpur")} interactive={false} />
+      <Marker
+        position={[SHIRPUR.lat, SHIRPUR.lng]}
+        icon={cityBadge("Shirpur")}
+        interactive={false}
+      />
       {SHIRPUR_LANDMARKS.map((lm) => (
-        <Marker key={lm.name} position={[lm.pos.lat, lm.pos.lng]} icon={landmarkIcon(lm.name, lm.color)} interactive={false} />
+        <Marker
+          key={lm.name}
+          position={[lm.pos.lat, lm.pos.lng]}
+          icon={landmarkIcon(lm.name, lm.color)}
+          interactive={false}
+        />
       ))}
 
       {highlighted && (
@@ -640,7 +784,12 @@ export function TruckMap(props: Props) {
 
       {/* Fleet Routes */}
       {list.map((t) => (
-        <PolyRoute key={t.id} truck={t} showRoute={!!props.showRoutes} highlight={props.highlightId === t.id} />
+        <PolyRoute
+          key={t.id}
+          truck={t}
+          showRoute={!!props.showRoutes}
+          highlight={props.highlightId === t.id}
+        />
       ))}
 
       {/* Fleet Markers */}
@@ -653,14 +802,17 @@ export function TruckMap(props: Props) {
         />
       ))}
 
-      <NavigationControls />
+      <AdminControls bounds={bounds} />
     </MapContainer>
   );
 }
 
 /** Dual-cased navigation polyline with glow for satellite visibility */
 function NavigationPolyline({ positions, active }: { positions: LatLng[]; active?: boolean }) {
-  const coords = useMemo(() => positions.map((p) => [p.lat, p.lng] as [number, number]), [positions]);
+  const coords = useMemo(
+    () => positions.map((p) => [p.lat, p.lng] as [number, number]),
+    [positions],
+  );
   if (coords.length < 2) return null;
 
   return (
@@ -749,13 +901,23 @@ const AdminTruckMarker = memo(
         </Tooltip>
         <Popup>
           <div style={{ minWidth: 190, padding: 4 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{truck.truck.id} · {truck.truck.name}</div>
-            <div style={{ color: "#64748B", fontSize: 12, marginTop: 2 }}>{truck.truck.driverName}</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {truck.truck.id} · {truck.truck.name}
+            </div>
+            <div style={{ color: "#64748B", fontSize: 12, marginTop: 2 }}>
+              {truck.truck.driverName}
+            </div>
             <div style={{ color: "#64748B", fontSize: 12 }}>{truck.truck.wardName}</div>
             <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600 }}>
               {translate("Stops", lang)}: {truck.completedStops}/{truck.truck.totalStops}
             </div>
-            <div style={{ fontSize: 12, textTransform: "capitalize", color: truck.status === "offline" ? "#EF4444" : "#22C55E" }}>
+            <div
+              style={{
+                fontSize: 12,
+                textTransform: "capitalize",
+                color: truck.status === "offline" ? "#EF4444" : "#22C55E",
+              }}
+            >
               {translate("Status", lang)}: {truck.status}
             </div>
           </div>
@@ -773,16 +935,26 @@ const AdminTruckMarker = memo(
     Math.round(prev.truck.bearing / 5) === Math.round(next.truck.bearing / 5),
 );
 
-const PolyRoute = memo(function PolyRoute({ truck, showRoute, highlight }: { truck: LiveTruck; showRoute: boolean; highlight: boolean }) {
-  const positions = useMemo(
-    () => (truck.path ?? truck.truck.route),
-    [truck.path, truck.truck.route],
-  );
-  if (!showRoute && !highlight) return null;
-  return <NavigationPolyline positions={positions} active={highlight} />;
-}, (prev, next) =>
-  prev.showRoute === next.showRoute &&
-  prev.highlight === next.highlight &&
-  prev.truck.status === next.truck.status &&
-  prev.truck.truck.route === next.truck.truck.route,
+const PolyRoute = memo(
+  function PolyRoute({
+    truck,
+    showRoute,
+    highlight,
+  }: {
+    truck: LiveTruck;
+    showRoute: boolean;
+    highlight: boolean;
+  }) {
+    const positions = useMemo(
+      () => truck.path ?? truck.truck.route,
+      [truck.path, truck.truck.route],
+    );
+    if (!showRoute && !highlight) return null;
+    return <NavigationPolyline positions={positions} active={highlight} />;
+  },
+  (prev, next) =>
+    prev.showRoute === next.showRoute &&
+    prev.highlight === next.highlight &&
+    prev.truck.status === next.truck.status &&
+    prev.truck.truck.route === next.truck.truck.route,
 );

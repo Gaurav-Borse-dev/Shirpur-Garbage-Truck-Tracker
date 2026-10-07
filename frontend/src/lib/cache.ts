@@ -10,7 +10,10 @@ type Entry<T> = { v: number; at: number; data: T };
 export function writeCache<T>(key: string, data: T) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(PREFIX + key, JSON.stringify({ v: VERSION, at: Date.now(), data } as Entry<T>));
+    window.localStorage.setItem(
+      PREFIX + key,
+      JSON.stringify({ v: VERSION, at: Date.now(), data } as Entry<T>),
+    );
   } catch {}
 }
 

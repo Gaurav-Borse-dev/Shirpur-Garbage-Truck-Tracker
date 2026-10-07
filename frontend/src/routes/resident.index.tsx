@@ -58,24 +58,48 @@ function useResidentLocation(): { location: LatLng; gpsAvailable: boolean } {
 }
 
 /* ── zone config ── */
-const ZONE_STYLE: Record<ZoneState, {
-  bg: string; text: string; icon: string; pillBg: string; pillText: string; pulse: boolean;
-}> = {
+const ZONE_STYLE: Record<
+  ZoneState,
+  {
+    bg: string;
+    text: string;
+    icon: string;
+    pillBg: string;
+    pillText: string;
+    pulse: boolean;
+  }
+> = {
   Arriving: {
-    bg: "bg-emerald-600", text: "text-white", icon: "🚛",
-    pillBg: "bg-[#DCFCE7]", pillText: "text-[#15803D]", pulse: true,
+    bg: "bg-emerald-600",
+    text: "text-white",
+    icon: "🚛",
+    pillBg: "bg-[#DCFCE7]",
+    pillText: "text-[#15803D]",
+    pulse: true,
   },
   Nearby: {
-    bg: "bg-amber-500", text: "text-slate-900", icon: "🚚",
-    pillBg: "bg-[#FEF9C3]", pillText: "text-[#854D0E]", pulse: true,
+    bg: "bg-amber-500",
+    text: "text-slate-900",
+    icon: "🚚",
+    pillBg: "bg-[#FEF9C3]",
+    pillText: "text-[#854D0E]",
+    pulse: true,
   },
   Leaving: {
-    bg: "bg-red-500", text: "text-white", icon: "📍",
-    pillBg: "bg-[#FEE2E2]", pillText: "text-[#991B1B]", pulse: false,
+    bg: "bg-red-500",
+    text: "text-white",
+    icon: "📍",
+    pillBg: "bg-[#FEE2E2]",
+    pillText: "text-[#991B1B]",
+    pulse: false,
   },
   EnRoute: {
-    bg: "bg-slate-800", text: "text-white", icon: "🗺️",
-    pillBg: "bg-neutral-100", pillText: "text-neutral-600", pulse: false,
+    bg: "bg-slate-800",
+    text: "text-white",
+    icon: "🗺️",
+    pillBg: "bg-neutral-100",
+    pillText: "text-neutral-600",
+    pulse: false,
   },
 };
 
@@ -96,7 +120,9 @@ function ResidentHome() {
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const nearest = useMemo(() => {
-    const cands = Object.values(trucks).filter((t) => t.truck.city === city && t.status !== "offline");
+    const cands = Object.values(trucks).filter(
+      (t) => t.truck.city === city && t.status !== "offline",
+    );
     if (cands.length === 0) return Object.values(trucks).filter((t) => t.truck.city === city)[0];
     return cands.reduce((best, cur) =>
       haversine(cur.position, resident) < haversine(best.position, resident) ? cur : best,
@@ -105,7 +131,7 @@ function ResidentHome() {
 
   const distance = nearest ? haversine(nearest.position, resident) : 0;
   // Backend (OSRM) road-network ETA; falls back to the straight-line estimate.
-  const backendEta = useTruckEta(nearest?.truck.id, resident);
+  const backendEta = useTruckEta(nearest?.truck.id, resident, nearest?.position);
   const etaLabel = backendEta ? fmt.duration(backendEta.durationS) : fmt.eta(distance);
   const distanceLabel = backendEta ? fmt.distance(backendEta.distanceM) : fmt.distance(distance);
   const insideArriving = distance < radius * 0.3;
@@ -131,7 +157,7 @@ function ResidentHome() {
     if (zone !== prevZone.current) {
       const now = Date.now();
       const can = (key: string) => {
-        if ((now - (lastNotifAt.current[key] ?? 0)) < 60_000) return false;
+        if (now - (lastNotifAt.current[key] ?? 0) < 60_000) return false;
         lastNotifAt.current[key] = now;
         return true;
       };
@@ -147,7 +173,11 @@ function ResidentHome() {
           link: "/resident",
         });
         playNotificationSound("truck_nearby");
-        fireBrowserNotif(notifEnabled, tr("Truck nearby"), `${nearest.truck.id} · ${fmt.distance(distance)}`);
+        fireBrowserNotif(
+          notifEnabled,
+          tr("Truck nearby"),
+          `${nearest.truck.id} · ${fmt.distance(distance)}`,
+        );
       }
       if (zone === "Arriving" && can("arriving")) {
         const title = tr("Truck is almost here!");
@@ -179,7 +209,12 @@ function ResidentHome() {
       {/* Map */}
       <div className="absolute inset-0">
         <ClientOnly fallback={<MapSkeleton />}>
-          <TruckMap mode="resident" resident={resident} radius={radius} activeTruckId={nearest?.id} />
+          <TruckMap
+            mode="resident"
+            resident={resident}
+            radius={radius}
+            activeTruckId={nearest?.id}
+          />
         </ClientOnly>
       </div>
 
@@ -226,15 +261,21 @@ function ResidentHome() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className={`text-[10px] uppercase tracking-wider font-bold ${zs.text} opacity-80 flex items-center gap-1.5`}>
-                      {zs.pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
+                    <div
+                      className={`text-[10px] uppercase tracking-wider font-bold ${zs.text} opacity-80 flex items-center gap-1.5`}
+                    >
+                      {zs.pulse && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                      )}
                       {currentZone === "EnRoute" && tr("Truck En Route")}
                       {currentZone === "Nearby" && tr("Truck Nearby")}
                       {currentZone === "Arriving" && tr("Truck Arriving!")}
                       {currentZone === "Leaving" && tr("Truck Passed")}
                     </div>
                     <div className={`text-sm font-bold ${zs.text} truncate mt-0.5`}>
-                      {currentZone === "Arriving" ? tr("Go outside now!") : `${distanceLabel} ${tr("away")} · ${etaLabel}`}
+                      {currentZone === "Arriving"
+                        ? tr("Go outside now!")
+                        : `${distanceLabel} ${tr("away")} · ${etaLabel}`}
                     </div>
                   </div>
                 </div>
@@ -264,9 +305,7 @@ function ResidentHome() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {tr("ETA")}
             </div>
-            <div className="text-xl font-bold text-white leading-tight mt-0.5">
-              {etaLabel}
-            </div>
+            <div className="text-xl font-bold text-white leading-tight mt-0.5">{etaLabel}</div>
             <div className="text-[11px] text-slate-400 mt-0.5">{distanceLabel}</div>
             {/* Mini progress bar */}
             <div className="mt-2 h-1 rounded-full bg-slate-700 overflow-hidden">
@@ -296,15 +335,15 @@ function ResidentHome() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-ink text-[17px] truncate">
-                  {nearest.truck.name}
-                </div>
+                <div className="font-bold text-ink text-[17px] truncate">{nearest.truck.name}</div>
                 <div className="text-xs text-neutral-500 truncate mt-0.5">
                   {tr("Route")} {nearest.truck.id} · {nearest.truck.wardName.split("—")[0].trim()}
                 </div>
               </div>
               <div className={`ct-pill ${zs.pillBg} ${zs.pillText} shrink-0`}>
-                {zs.pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse mr-1" />}
+                {zs.pulse && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse mr-1" />
+                )}
                 {tr(currentZone === "EnRoute" ? "En Route" : currentZone)}
               </div>
             </div>
@@ -312,17 +351,24 @@ function ResidentHome() {
             {/* Row 2: Distance / ETA / Speed cards */}
             <div className="mt-4 rounded-2xl bg-neutral-50 grid grid-cols-3 overflow-hidden">
               <div className="p-3">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Distance")}</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
+                  {tr("Distance")}
+                </div>
                 <div className="text-lg font-bold text-ink mt-0.5">{distanceLabel}</div>
               </div>
               <div className="p-3 border-l border-neutral-200/70">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("ETA")}</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
+                  {tr("ETA")}
+                </div>
                 <div className="text-lg font-bold text-ink mt-0.5">{etaLabel}</div>
               </div>
               <div className="p-3 border-l border-neutral-200/70">
-                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">{tr("Speed")}</div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">
+                  {tr("Speed")}
+                </div>
                 <div className="text-lg font-bold text-ink mt-0.5">
-                  {speedKmh > 0 ? `${speedKmh}` : "—"}<span className="text-xs text-neutral-400 ml-0.5">km/h</span>
+                  {speedKmh > 0 ? `${speedKmh}` : "—"}
+                  <span className="text-xs text-neutral-400 ml-0.5">km/h</span>
                 </div>
               </div>
             </div>
@@ -331,7 +377,9 @@ function ResidentHome() {
             <div className="mt-3 p-3 rounded-xl bg-neutral-50">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-neutral-500 font-medium">{tr("Route Progress")}</span>
-                <span className="text-ink font-bold">{nearest.completedStops}/{nearest.truck.totalStops} {tr("stops")}</span>
+                <span className="text-ink font-bold">
+                  {nearest.completedStops}/{nearest.truck.totalStops} {tr("stops")}
+                </span>
               </div>
               <div className="mt-1.5 h-2 rounded-full bg-neutral-200 overflow-hidden">
                 <motion.div
@@ -345,7 +393,10 @@ function ResidentHome() {
             {/* Ward / service info */}
             <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
               <ClockIcon className="w-4 h-4 shrink-0" />
-              <span className="truncate">{tr("Municipal waste collection service")} · {nearest.truck.wardName.split("—")[0].trim()}</span>
+              <span className="truncate">
+                {tr("Municipal waste collection service")} ·{" "}
+                {nearest.truck.wardName.split("—")[0].trim()}
+              </span>
             </div>
 
             {/* Notification toggle row */}
@@ -356,7 +407,12 @@ function ResidentHome() {
                 on={notifEnabled}
                 onChange={(v) => {
                   setNotif(v);
-                  if (v && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+                  if (
+                    v &&
+                    typeof window !== "undefined" &&
+                    "Notification" in window &&
+                    Notification.permission === "default"
+                  ) {
                     Notification.requestPermission().catch(() => {});
                   }
                 }}
@@ -370,15 +426,15 @@ function ResidentHome() {
                 insideArriving
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 animate-pulse"
                   : insideNearby
-                  ? "bg-ink text-white shadow-lg shadow-black/20"
-                  : "bg-neutral-100 text-neutral-400"
+                    ? "bg-ink text-white shadow-lg shadow-black/20"
+                    : "bg-neutral-100 text-neutral-400"
               }`}
             >
               {insideArriving
                 ? `🚛 ${tr("Truck is here! Go outside")}`
                 : insideNearby
-                ? tr("I'm Coming")
-                : `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`}
+                  ? tr("I'm Coming")
+                  : `${tr("Truck is")} ${fmt.distance(distance)} ${tr("away")}`}
             </button>
           </div>
         </BottomSheet>
@@ -423,7 +479,9 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 function fireBrowserNotif(enabled: boolean, title: string, body: string) {
   if (!enabled || typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission === "granted") {
-    try { new Notification(title, { body }); } catch {}
+    try {
+      new Notification(title, { body });
+    } catch {}
   }
 }
 

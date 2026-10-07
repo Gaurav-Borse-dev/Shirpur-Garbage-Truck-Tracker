@@ -103,10 +103,7 @@ export function NavigationMap(props: Props) {
         minZoom: 8,
       });
 
-      map.addControl(
-        new maplibregl.AttributionControl({ compact: true }),
-        "bottom-left",
-      );
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
 
       map.on("load", () => {
         registerTruckSprites(map);
@@ -120,7 +117,9 @@ export function NavigationMap(props: Props) {
       });
 
       // Disable follow on user interaction
-      map.on("dragstart", () => { followEnabledRef.current = false; });
+      map.on("dragstart", () => {
+        followEnabledRef.current = false;
+      });
 
       mapRef.current = map;
     } catch (err) {
@@ -145,7 +144,8 @@ export function NavigationMap(props: Props) {
         ? props.truckId
         : props.mode === "admin"
           ? props.highlightId
-          : props.activeTruckId ?? findNearest(truckList, props.mode === "resident" ? props.resident : null);
+          : (props.activeTruckId ??
+            findNearest(truckList, props.mode === "resident" ? props.resident : null));
 
     const geojson = trucksToGeoJSON(truckList, activeTruckId);
     const dataStr = JSON.stringify(geojson);
@@ -253,8 +253,12 @@ export function NavigationMap(props: Props) {
     };
 
     map.on("click", "trucks-layer", handler);
-    map.on("mouseenter", "trucks-layer", () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", "trucks-layer", () => { map.getCanvas().style.cursor = ""; });
+    map.on("mouseenter", "trucks-layer", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "trucks-layer", () => {
+      map.getCanvas().style.cursor = "";
+    });
 
     return () => {
       map.off("click", "trucks-layer", handler);
@@ -399,10 +403,7 @@ function initSources(map: MaplibreMap) {
   });
 }
 
-function trucksToGeoJSON(
-  trucks: LiveTruck[],
-  activeId?: string,
-): GeoJSON.FeatureCollection {
+function trucksToGeoJSON(trucks: LiveTruck[], activeId?: string): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: trucks.map((t) => {
@@ -436,7 +437,11 @@ function updateRoute(map: MaplibreMap, truck?: LiveTruck) {
   if (!source) return;
 
   if (!truck || truck.truck.route.length === 0) {
-    source.setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] }, properties: {} });
+    source.setData({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: [] },
+      properties: {},
+    });
     return;
   }
 
@@ -459,7 +464,7 @@ function updateResident(map: MaplibreMap, resident: LatLng, radius: number) {
   for (let i = 0; i <= steps; i++) {
     const angle = (i / steps) * Math.PI * 2;
     coords.push([
-      resident.lng + radiusDeg * Math.cos(angle) / Math.cos(resident.lat * Math.PI / 180),
+      resident.lng + (radiusDeg * Math.cos(angle)) / Math.cos((resident.lat * Math.PI) / 180),
       resident.lat + radiusDeg * Math.sin(angle),
     ]);
   }
@@ -502,8 +507,17 @@ function MapControls({ mode, onRecenter }: { mode: string; onRecenter: () => voi
         aria-label="Zoom in"
         onClick={() => map?.zoomIn({ duration: 300 })}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
       <button
@@ -511,14 +525,31 @@ function MapControls({ mode, onRecenter }: { mode: string; onRecenter: () => voi
         aria-label="Zoom out"
         onClick={() => map?.zoomOut({ duration: 300 })}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
       <div className="ct-map-control-divider" />
       <button className="ct-map-control-btn" aria-label="Recenter" onClick={onRecenter}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
         </svg>
       </button>
       {mode !== "admin" && (
@@ -527,7 +558,15 @@ function MapControls({ mode, onRecenter }: { mode: string; onRecenter: () => voi
           aria-label="Reset north"
           onClick={() => map?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
             <polygon points="12,2 20,20 12,16 4,20" fill="none" />
           </svg>
         </button>
