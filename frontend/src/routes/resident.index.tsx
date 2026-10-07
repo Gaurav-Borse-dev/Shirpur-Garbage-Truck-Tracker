@@ -36,26 +36,9 @@ export const Route = createFileRoute("/resident/")({
   component: ResidentHome,
 });
 
-type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
+import { useResidentLocation } from "@/store/resident-location";
 
-/** Use real device geolocation, falling back to city center. */
-function useResidentLocation(): { location: LatLng; gpsAvailable: boolean } {
-  const [location, setLocation] = useState<LatLng>(SHIRPUR);
-  const [gpsAvailable, setGpsAvailable] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGpsAvailable(true);
-      },
-      () => setGpsAvailable(false),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
-  return { location, gpsAvailable };
-}
+type ZoneState = "EnRoute" | "Nearby" | "Arriving" | "Leaving";
 
 /* ── zone config ── */
 const ZONE_STYLE: Record<
@@ -108,8 +91,7 @@ function ResidentHome() {
   const tr = useT();
   const fmt = useFormat();
   const session = useAuth((s) => s.session)!;
-  const city = session.role === "resident" ? session.city : "Shirpur";
-  const { location: resident, gpsAvailable } = useResidentLocation();
+  const { location: resident, isGpsReady: gpsAvailable } = useResidentLocation();
   const radius = useSettings((s) => s.alertRadius);
   const notifEnabled = useSettings((s) => s.notificationsEnabled);
   const setNotif = useSettings((s) => s.setNotifications);
@@ -120,14 +102,18 @@ function ResidentHome() {
   useTrucks((s) => s.tick);
   const trucks = useTrucks((s) => s.trucks);
   const nearest = useMemo(() => {
-    const cands = Object.values(trucks).filter(
-      (t) => t.truck.city === city && t.status !== "offline",
-    );
-    if (cands.length === 0) return Object.values(trucks).filter((t) => t.truck.city === city)[0];
-    return cands.reduce((best, cur) =>
+    const onlineTrucks = Object.values(trucks).filter((t) => t.status !== "offline");
+    if (onlineTrucks.length > 0) {
+      return onlineTrucks.reduce((best, cur) =>
+        haversine(cur.position, resident) < haversine(best.position, resident) ? cur : best,
+      );
+    }
+    const all = Object.values(trucks);
+    if (all.length === 0) return null;
+    return all.reduce((best, cur) =>
       haversine(cur.position, resident) < haversine(best.position, resident) ? cur : best,
     );
-  }, [trucks, city, resident]);
+  }, [trucks, resident]);
 
   const distance = nearest ? haversine(nearest.position, resident) : 0;
   // Backend (OSRM) road-network ETA; falls back to the straight-line estimate.

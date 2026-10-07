@@ -113,10 +113,10 @@ function handlePosition(
   const acc = typeof accuracy === "number" && accuracy > 0 ? accuracy : 30;
 
   // ── Adaptive noise filter ──
-  // Moving: reject fixes worse than 15m accuracy
-  // Stopped / first fix: allow up to 40m
+  // Moving: reject fixes worse than 35m accuracy
+  // Stopped / first fix / testing: allow up to 120m (Kalman filter weights by variance)
   const isMoving = prevPos !== null && (typeof speed === "number" ? speed > 0.5 : false);
-  const noiseThreshold = isMoving ? 15 : 40;
+  const noiseThreshold = isMoving ? 35 : 120;
   if (acc > noiseThreshold && prevPos !== null) {
     console.debug(`[gps] Rejected noisy fix accuracy=${acc}m threshold=${noiseThreshold}m`);
     return;
@@ -276,6 +276,42 @@ function startWebGeolocation(truckId: string): { ok: boolean; error?: string } {
     return { ok: false, error: "Geolocation is not available on this device" };
   }
 
+  // 1. Immediately request current position without waiting for watchPosition interval
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      handlePosition(
+        truckId,
+        pos.coords.latitude,
+        pos.coords.longitude,
+        pos.coords.heading,
+        pos.coords.speed,
+        pos.timestamp,
+        pos.coords.accuracy,
+      );
+    },
+    (err) => {
+      console.warn("[gps] Immediate geolocation error, trying low accuracy:", err.message);
+      // Fallback with low accuracy
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          handlePosition(
+            truckId,
+            pos.coords.latitude,
+            pos.coords.longitude,
+            pos.coords.heading,
+            pos.coords.speed,
+            pos.timestamp,
+            pos.coords.accuracy,
+          );
+        },
+        () => {},
+        { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 },
+      );
+    },
+    { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 },
+  );
+
+  // 2. Continuous watch with high accuracy
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       handlePosition(
@@ -291,7 +327,7 @@ function startWebGeolocation(truckId: string): { ok: boolean; error?: string } {
     (err) => {
       console.warn("[gps] Web geolocation position error:", err.message);
     },
-    { enableHighAccuracy: true, maximumAge: 500, timeout: 8000 },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
   );
 
   keepalive = window.setInterval(() => {

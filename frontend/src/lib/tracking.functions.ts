@@ -29,21 +29,36 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     }
 
     let driverId: string | null = null;
+    let driverUserId: string | null = null;
     if (user.phone) {
-      const cleanPhone = user.phone.trim().replace(/\D/g, "");
+      const cleanPhone = user.phone.trim().replace(/\D/g, "").slice(-10);
       const { data: profile } = await db
         .from("profiles")
         .select("user_id")
-        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone}`)
+        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.+91${cleanPhone}`)
         .maybeSingle();
 
       if (profile?.user_id) {
+        driverUserId = profile.user_id;
         const { data: driver } = await db
           .from("drivers")
           .select("id")
           .eq("user_id", profile.user_id)
           .maybeSingle();
         if (driver) driverId = driver.id;
+      }
+    }
+
+    // Fallback: If not found by phone, find driver assigned to this truck
+    if (!driverId) {
+      const { data: driverByTruck } = await db
+        .from("drivers")
+        .select("id, user_id")
+        .eq("assigned_truck_id", truckId)
+        .maybeSingle();
+      if (driverByTruck) {
+        driverId = driverByTruck.id;
+        driverUserId = driverByTruck.user_id;
       }
     }
 
@@ -61,6 +76,20 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     if (error) {
       console.error("[gps] ingest failed:", error.message);
       return { accepted: false as const, reason: "ingest_error" };
+    }
+
+    // Ensure truck status and driver duty state in DB are active
+    const nowIso = new Date().toISOString();
+    await db.from("trucks").update({ status: "collecting" }).eq("id", truckId);
+    if (driverId) {
+      await db
+        .from("drivers")
+        .update({
+          on_duty: true,
+          duty_state: "on_duty",
+          last_heartbeat: nowIso,
+        })
+        .eq("id", driverId);
     }
 
     return (result ?? { accepted: true, reason: "ok" }) as {
@@ -120,17 +149,39 @@ export const completeRouteStop = createServerFn({ method: "POST" })
     };
   });
 
-function parseWkbPoint(hex: string): { lat: number; lng: number } | null {
-  if (!hex || hex.length < 50) return null;
-  try {
-    const buf = Buffer.from(hex, "hex");
-    const isLE = buf[0] === 1;
-    const lng = isLE ? buf.readDoubleLE(9) : buf.readDoubleBE(9);
-    const lat = isLE ? buf.readDoubleLE(17) : buf.readDoubleBE(17);
-    return { lat, lng };
-  } catch {
-    return null;
+function parseLocation(loc: any): { lat: number; lng: number } | null {
+  if (!loc) return null;
+  if (typeof loc === "object") {
+    if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+      return { lat: Number(loc.coordinates[1]), lng: Number(loc.coordinates[0]) };
+    }
+    if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+      return { lat: loc.lat, lng: loc.lng };
+    }
   }
+  if (typeof loc === "string") {
+    if (loc.length >= 50) {
+      try {
+        const buf = Buffer.from(loc, "hex");
+        const isLE = buf[0] === 1;
+        const lng = isLE ? buf.readDoubleLE(9) : buf.readDoubleBE(9);
+        const lat = isLE ? buf.readDoubleLE(17) : buf.readDoubleBE(17);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    // Also try JSON parse in case stringified GeoJSON
+    try {
+      const parsed = JSON.parse(loc);
+      if (parsed?.coordinates?.length >= 2) {
+        return { lat: Number(parsed.coordinates[1]), lng: Number(parsed.coordinates[0]) };
+      }
+    } catch {}
+  }
+  return null;
 }
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -173,19 +224,20 @@ export const getNearbyTrucks = createServerFn({ method: "POST" })
       };
     }
 
-    // Fallback: If no trucks currently collecting (all offline), read real last known positions
+    // Fallback: If no trucks returned by RPC, read directly from truck_live_location table
     const { data: locRows } = await db
       .from("truck_live_location")
-      .select("*, trucks(truck_code, status)")
+      .select("*, trucks!inner(truck_code, status)")
       .order("fixed_at", { ascending: false });
 
     if (locRows && locRows.length > 0) {
+      const isGlobalScope = data.radiusM >= 100000;
       const mapped = locRows
         .map((r: any) => {
-          const coords = parseWkbPoint(r.location);
+          const coords = parseLocation(r.location);
           if (!coords) return null;
           const dist = haversineM(data.lat, data.lng, coords.lat, coords.lng);
-          if (dist > data.radiusM) return null;
+          if (!isGlobalScope && dist > data.radiusM) return null;
           return {
             truckId: r.trucks?.truck_code ?? "UNKNOWN",
             truckCode: r.trucks?.truck_code ?? "UNKNOWN",

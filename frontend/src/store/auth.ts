@@ -110,7 +110,7 @@ export async function detectRoleAsync(phone: string): Promise<{
     return { role: "admin" };
   }
   let driver = useAuth.getState().findDriverByPhone(clean);
-  if (!driver && !useAuth.getState().dbDriversLoaded) {
+  if (!driver) {
     await loadDriversFromDb();
     driver = useAuth.getState().findDriverByPhone(clean);
   }

@@ -51,8 +51,8 @@ export function startLiveTracking(scope: LiveScope): () => void {
 
   const query =
     "all" in scope
-      ? { lat: 21.3483, lng: 74.8827, radiusM: 100000, limit: 50 }
-      : { lat: scope.lat, lng: scope.lng, radiusM: Math.round(scope.radiusM), limit: 50 };
+      ? { lat: 21.3483, lng: 74.8827, radiusM: 5000000, limit: 50 }
+      : { lat: scope.lat, lng: scope.lng, radiusM: Math.max(Math.round(scope.radiusM), 50000), limit: 50 };
 
   let stopped = false;
   let inFlight = false;

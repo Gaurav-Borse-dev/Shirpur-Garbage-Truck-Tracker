@@ -391,15 +391,28 @@ function DriverNavigationCameraController({
 /** Recenter camera on target key change */
 function RecenterOnKey({
   center,
+  targetPos,
   zoom,
   triggerKey,
 }: {
   center: LatLng;
+  targetPos?: LatLng;
   zoom?: number;
   triggerKey: string;
 }) {
   const map = useMap();
   useEffect(() => {
+    if (targetPos) {
+      const dist = haversine(center, targetPos);
+      if (dist < 30000) {
+        const bounds = L.latLngBounds([
+          [center.lat, center.lng],
+          [targetPos.lat, targetPos.lng],
+        ]);
+        map.fitBounds(bounds.pad(0.35), { animate: true, duration: 0.7 });
+        return;
+      }
+    }
     map.flyTo([center.lat, center.lng], zoom ?? map.getZoom(), { animate: true, duration: 0.7 });
   }, [triggerKey]); // eslint-disable-line
   return null;
@@ -619,7 +632,12 @@ export function TruckMap(props: Props) {
       >
         <MapLayerSwitcher />
 
-        <RecenterOnKey center={props.resident} zoom={15} triggerKey={active?.id ?? "none"} />
+        <RecenterOnKey
+          center={props.resident}
+          targetPos={active?.position}
+          zoom={15}
+          triggerKey={`${props.resident.lat.toFixed(4)},${props.resident.lng.toFixed(4)}-${active?.id ?? "none"}`}
+        />
 
         {/* Soft Geofence Halo Ring */}
         <Circle

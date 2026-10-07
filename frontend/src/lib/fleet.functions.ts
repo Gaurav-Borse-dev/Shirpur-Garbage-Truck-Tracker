@@ -369,3 +369,81 @@ export const clearAllDrivers = createServerFn({ method: "POST" }).handler(async 
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };
 });
+
+const setDutyInput = z.object({
+  truckCode: z.string().min(1).max(20),
+  online: z.boolean(),
+});
+
+/**
+ * Called when a driver toggles the online/offline switch.
+ * Sets `on_duty` + `duty_state` in the DB so admin panel shows correct status.
+ * Also updates the `trucks` table status to `collecting` or `offline`.
+ * Does NOT require admin — driver session is verified via session cookie.
+ */
+export const setDriverDuty = createServerFn({ method: "POST" })
+  .validator((data: unknown) => setDutyInput.parse(data))
+  .handler(async ({ data }) => {
+    const { getUser } = await import("./session.server");
+    const { admin } = await import("./tracking.server");
+
+    const user = await getUser();
+    if (!user || (user.role !== "driver" && user.role !== "admin")) {
+      return { ok: false as const, error: "unauthorized" };
+    }
+
+    const sb = await admin();
+
+    // Resolve truck UUID
+    const { data: truck } = await sb
+      .from("trucks")
+      .select("id")
+      .eq("truck_code", data.truckCode)
+      .maybeSingle();
+
+    if (!truck) return { ok: false as const, error: `Truck ${data.truckCode} not found` };
+
+    // Update truck status
+    const truckStatus = data.online ? "collecting" : "offline";
+    await sb
+      .from("trucks")
+      .update({ status: truckStatus })
+      .eq("id", truck.id);
+
+    // Update driver on_duty in the drivers table
+    const dutyState = data.online ? "on_duty" : "offline";
+    let updatedDriver = false;
+    if (user.phone) {
+      const cleanPhone = user.phone.trim().replace(/\D/g, "").slice(-10);
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("user_id")
+        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.+91${cleanPhone}`)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        await sb
+          .from("drivers")
+          .update({
+            on_duty: data.online,
+            duty_state: dutyState,
+            ...(data.online ? { duty_started_at: new Date().toISOString() } : {}),
+          })
+          .eq("user_id", profile.user_id);
+        updatedDriver = true;
+      }
+    }
+
+    if (!updatedDriver) {
+      await sb
+        .from("drivers")
+        .update({
+          on_duty: data.online,
+          duty_state: dutyState,
+          ...(data.online ? { duty_started_at: new Date().toISOString() } : {}),
+        })
+        .eq("assigned_truck_id", truck.id);
+    }
+
+    return { ok: true as const };
+  });

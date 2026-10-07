@@ -20,6 +20,7 @@ import { serverSignOut } from "@/lib/auth.functions";
 import { installNativeTokenBridge, registerThisDevice } from "@/lib/push-client";
 import { SHIRPUR } from "@/lib/trucks";
 import { ingestDriverGps } from "@/lib/tracking.functions";
+import { setDriverDuty } from "@/lib/fleet.functions";
 
 export const Route = createFileRoute("/driver")({
   head: () => ({
@@ -74,15 +75,30 @@ function DriverHome() {
   useEffect(() => {
     installNativeTokenBridge();
     void registerThisDevice({ requirePermission: false });
-  }, []);
+    if (truckId && !useTrucks.getState().trucks[truckId]) {
+      useTrucks.getState().ingestFixes([
+        {
+          truckId,
+          lat: SHIRPUR.lat,
+          lng: SHIRPUR.lng,
+          status: "offline",
+          ts: Date.now(),
+        },
+      ]);
+    }
+  }, [truckId]);
   const onDuty = useTrucks((s) => s.trucks[truckId]?.status) !== "offline";
   useEffect(() => {
     if (!LIVE_BACKEND) return;
     if (onDuty) {
       emitDriverDuty(truckId, "start");
+      // Update DB duty state immediately so admin sees the driver as active
+      void setDriverDuty({ data: { truckCode: truckId, online: true } });
       void startDriverLocation(truckId);
     } else {
       emitDriverDuty(truckId, "stop");
+      // Mark driver offline in DB immediately
+      void setDriverDuty({ data: { truckCode: truckId, online: false } });
       void stopDriverLocation();
     }
     return () => {

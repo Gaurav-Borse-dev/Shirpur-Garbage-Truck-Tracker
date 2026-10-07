@@ -8,6 +8,7 @@ import { useBookings } from "@/store/bookings";
 import { MapIcon, CalendarIcon, BellIcon, UserIcon } from "@/components/icons";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useSettings } from "@/store/settings";
+import { useResidentLocation } from "@/store/resident-location";
 import { SHIRPUR } from "@/lib/trucks";
 import type { LatLng } from "@/lib/geo";
 import { useT } from "@/lib/i18n";
@@ -27,27 +28,17 @@ function ResidentRoute() {
 function ResidentLayout() {
   const session = useAuth((s) => s.session);
   const isResident = session?.role === "resident";
-  // Use real device geolocation for the realtime subscription radius
   const radiusM = useSettings((s) => s.alertRadius);
-  const [location, setLocation] = useState<LatLng>(SHIRPUR);
-  useEffect(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
-      (pos) =>
-        setLocation({
-          lat: Number(pos.coords.latitude.toFixed(5)),
-          lng: Number(pos.coords.longitude.toFixed(5)),
-        }),
-      () => {}, // Keep SHIRPUR fallback
-      { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
-  const subLat = Number(location.lat.toFixed(4));
-  const subLng = Number(location.lng.toFixed(4));
+  const { location } = useResidentLocation();
+
   useRealtime(
     isResident
-      ? { role: "resident", lat: subLat, lng: subLng, radiusM: Math.max(radiusM, 2000) }
+      ? {
+          role: "resident",
+          lat: Number(location.lat.toFixed(5)),
+          lng: Number(location.lng.toFixed(5)),
+          radiusM: Math.max(radiusM, 50000),
+        }
       : null,
   );
   useBookingNotifications(isResident ? session.phone : "");

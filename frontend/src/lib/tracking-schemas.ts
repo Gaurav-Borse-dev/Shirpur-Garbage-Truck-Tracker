@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const gpsInput = z.object({
-  truckCode: z.string().regex(/^GBR-\d{2}$/),
+  truckCode: z.string().min(1).max(20),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   heading: z.number().min(0).max(360).optional(),
@@ -12,12 +12,12 @@ export const gpsInput = z.object({
 export const nearbyInput = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  radiusM: z.number().int().min(100).max(100000),
+  radiusM: z.number().int().min(100).max(10000000),
   limit: z.number().int().min(1).max(50).optional(),
 });
 
 export const etaInput = z.object({
-  truckCode: z.string().regex(/^GBR-\d{2}$/),
+  truckCode: z.string().min(1).max(20),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   truckLat: z.number().min(-90).max(90).optional(),
