@@ -5,8 +5,13 @@
  * uses @capacitor/geolocation which persists through screen-lock via the
  * Android foreground service. Falls back to navigator.geolocation for web.
  *
- * Fixes update the local driver view with zero latency and are emitted to the
- * backend every 2-3s so residents see accurate, on-time truck movement.
+ * GPS pipeline:
+ *  1. Raw fix arrives from device sensor
+ *  2. Adaptive noise filter (15m moving / 40m stopped)
+ *  3. Kalman filter smooths lat/lng using accuracy as measurement variance
+ *  4. OSRM road snapping aligns position to nearest road asynchronously
+ *  5. Local truck store gets zero-latency smoothed fix
+ *  6. Server ingest receives Kalman+snapped position every 2-3s
  */
 import { SOCKET_ENABLED } from "@/lib/backend";
 import { emitDriverGps } from "@/lib/realtime";
@@ -14,6 +19,8 @@ import { ingestDriverGps } from "@/lib/tracking.functions";
 import { useOffline, type PendingAction } from "@/store/offline";
 import { useTrucks } from "@/store/trucks";
 import { bearing, haversine, type LatLng } from "@/lib/geo";
+import { kalmanUpdate, type KalmanState } from "@/lib/gps-kalman";
+import { snapToRoad } from "@/lib/gps-road-snap";
 
 export type GpsPayload = {
   truckId: string;
@@ -38,6 +45,9 @@ let usingCapacitor = false;
 let prevPos: LatLng | null = null;
 let prevBearing = 180;
 let prevTimestamp = 0;
+
+// Kalman filter state per truck
+const kalmanStates = new Map<string, KalmanState>();
 
 /** Detect whether we're running inside Capacitor native shell. */
 async function isCapacitorNative(): Promise<boolean> {
@@ -83,8 +93,12 @@ function send(p: GpsPayload) {
 }
 
 /**
- * Ingest position from device sensor with noise filtering, heading deduction,
- * immediate local state update, and throttled server delivery.
+ * Ingest position from device sensor:
+ * 1. Adaptive noise filter (strict when moving, relaxed when stationary)
+ * 2. Kalman filter for smooth lat/lng
+ * 3. Async OSRM road snapping (non-blocking — fires after local update)
+ * 4. Zero-latency local state update with Kalman-smoothed position
+ * 5. Throttled server delivery (2-4s) with snapped position when available
  */
 function handlePosition(
   truckId: string,
@@ -96,31 +110,46 @@ function handlePosition(
   accuracy?: number | null,
 ) {
   const now = timestamp ?? Date.now();
-  const currentPos: LatLng = {
-    lat: Number(lat.toFixed(6)),
-    lng: Number(lng.toFixed(6)),
-  };
+  const acc = typeof accuracy === "number" && accuracy > 0 ? accuracy : 30;
 
-  // Noise filter: reject wildly inaccurate GPS fixes (> 60m radius) if we already have a previous lock
-  if (typeof accuracy === "number" && accuracy > 60 && prevPos !== null) {
-    console.debug("[gps] Rejected noisy fix with accuracy", accuracy);
+  // ── Adaptive noise filter ──
+  // Moving: reject fixes worse than 15m accuracy
+  // Stopped / first fix: allow up to 40m
+  const isMoving = prevPos !== null && (typeof speed === "number" ? speed > 0.5 : false);
+  const noiseThreshold = isMoving ? 15 : 40;
+  if (acc > noiseThreshold && prevPos !== null) {
+    console.debug(`[gps] Rejected noisy fix accuracy=${acc}m threshold=${noiseThreshold}m`);
     return;
   }
+
+  // ── Kalman filter ──
+  const prevKalman = kalmanStates.get(truckId) ?? null;
+  const kalman = kalmanUpdate(prevKalman, lat, lng, acc, now);
+  kalmanStates.set(truckId, kalman);
+
+  const smoothLat = kalman.lat;
+  const smoothLng = kalman.lng;
+  const currentPos: LatLng = {
+    lat: Number(smoothLat.toFixed(6)),
+    lng: Number(smoothLng.toFixed(6)),
+  };
 
   const distM = prevPos ? haversine(prevPos, currentPos) : 0;
   const timeDeltaS = prevTimestamp > 0 ? Math.max(0.2, (now - prevTimestamp) / 1000) : 1;
 
-  // Determine realistic bearing
+  // ── Heading (EWMA smoothed) ──
   let computedHeading = prevBearing;
   if (typeof heading === "number" && !isNaN(heading) && heading > 0) {
-    computedHeading = heading;
-    prevBearing = heading;
+    // Exponential moving average on heading for stability
+    computedHeading = prevBearing + 0.4 * (heading - prevBearing);
+    prevBearing = computedHeading;
   } else if (distM > 1.2 && prevPos) {
-    computedHeading = bearing(prevPos, currentPos);
+    const rawBearing = bearing(prevPos, currentPos);
+    computedHeading = prevBearing + 0.4 * (rawBearing - prevBearing);
     prevBearing = computedHeading;
   }
 
-  // Determine realistic speed
+  // ── Speed ──
   let computedSpeed = 0;
   if (typeof speed === "number" && !isNaN(speed) && speed >= 0) {
     computedSpeed = speed;
@@ -131,7 +160,7 @@ function handlePosition(
   prevPos = currentPos;
   prevTimestamp = now;
 
-  // 1. Zero-latency local update on driver's screen:
+  // 1. Zero-latency local update with Kalman-smoothed position
   useTrucks.getState().ingestFixes([
     {
       truckId,
@@ -144,21 +173,48 @@ function handlePosition(
     },
   ]);
 
-  // 2. Queue for server delivery:
+  // 2. Build payload for server (will be updated with snapped position async)
   latest = {
     truckId,
     lat: currentPos.lat,
     lng: currentPos.lng,
     heading: computedHeading,
     speed: computedSpeed,
-    accuracyM: typeof accuracy === "number" ? accuracy : undefined,
+    accuracyM: acc,
     ts: now,
   };
+
+  // 3. Async OSRM road snapping (non-blocking — runs in background)
+  //    Updates latest payload with road-snapped coordinates before next send
+  void snapToRoad(currentPos.lat, currentPos.lng, truckId).then((snapped) => {
+    if (snapped.snapped && latest && latest.ts === now) {
+      // Update local store with snapped position for instant visual accuracy
+      useTrucks.getState().ingestFixes([
+        {
+          truckId,
+          lat: snapped.lat,
+          lng: snapped.lng,
+          heading: computedHeading,
+          speed: computedSpeed,
+          status: "collecting",
+          ts: now,
+        },
+      ]);
+      // Upgrade latest payload with snapped position for server delivery
+      latest = {
+        ...latest,
+        lat: snapped.lat,
+        lng: snapped.lng,
+        accuracyM: Math.min(acc, snapped.distanceM + 5), // snapping improves accuracy
+      };
+    }
+  });
 
   if (Date.now() - lastSentAt >= MIN_INTERVAL_MS) {
     send(latest);
   }
 }
+
 
 /** Start streaming real device GPS for this truck. Idempotent. */
 export async function startDriverLocation(
@@ -178,7 +234,7 @@ export async function startDriverLocation(
       }
 
       const id = await Geolocation.watchPosition(
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 500 },
         (position, err) => {
           if (err || !position?.coords) return;
           handlePosition(
@@ -235,7 +291,7 @@ function startWebGeolocation(truckId: string): { ok: boolean; error?: string } {
     (err) => {
       console.warn("[gps] Web geolocation position error:", err.message);
     },
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
+    { enableHighAccuracy: true, maximumAge: 500, timeout: 8000 },
   );
 
   keepalive = window.setInterval(() => {
@@ -268,6 +324,8 @@ export async function stopDriverLocation() {
   latest = null;
   prevPos = null;
   prevTimestamp = 0;
+  prevBearing = 180;
+  kalmanStates.clear();
   usingCapacitor = false;
 }
 
