@@ -1,16 +1,18 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/MobileFrame";
 import { ClientOnly } from "@/components/ClientOnly";
 import { TruckMap } from "@/components/TruckMap";
 import { BottomSheet } from "@/components/BottomSheet";
-import { ChevronDown, CheckIcon, LogoutIcon } from "@/components/icons";
+import { ChevronDown, CheckIcon, LogoutIcon, MapIcon, UserIcon } from "@/components/icons";
 import { useAuth } from "@/store/auth";
-import { useTrucks } from "@/store/trucks";
+import { useTrucks, type LiveTruck } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
+import { useI18n } from "@/store/i18n";
+import { LANGS } from "@/components/LanguageSwitcher";
 import { useRealtime } from "@/hooks/useRealtime";
 import { LIVE_BACKEND } from "@/lib/backend";
 import { startDriverLocation, stopDriverLocation } from "@/lib/driver-location";
@@ -68,6 +70,16 @@ function DriverHome() {
 
   const [stopStatus, setStopStatus] = useState<StopStatus>("enroute");
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"nav" | "profile">("nav");
+
+  async function handleLogout() {
+    setOnline(truckId, false);
+    await serverSignOut();
+    logout();
+    queryClient.setQueryData(["server-session"], null);
+    queryClient.removeQueries({ queryKey: ["server-session"] });
+    navigate({ to: "/role" });
+  }
 
   useRealtime(isDriver ? { role: "driver", truckId } : null);
   // Mobile wrapper path: the native shell supplies the FCM token, so no VAPID
@@ -138,11 +150,13 @@ function DriverHome() {
   return (
     <MobileFrame>
       <div className="flex-1 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <ClientOnly fallback={<div className="absolute inset-0 bg-neutral-100" />}>
-            <TruckMap mode="driver" truckId={truckId} />
-          </ClientOnly>
-        </div>
+        {activeTab === "nav" ? (
+          <>
+            <div className="absolute inset-0">
+              <ClientOnly fallback={<div className="absolute inset-0 bg-neutral-100" />}>
+                <TruckMap mode="driver" truckId={truckId} />
+              </ClientOnly>
+            </div>
 
         {/* Navigation Top Panel */}
         <div className="absolute top-3 left-3 right-3 z-[500] pointer-events-none flex flex-col gap-2">
@@ -371,21 +385,280 @@ function DriverHome() {
             </div>
 
             <button
-              onClick={async () => {
-                setOnline(truckId, false);
-                await serverSignOut();
-                logout();
-                queryClient.setQueryData(["server-session"], null);
-                queryClient.removeQueries({ queryKey: ["server-session"] });
-                navigate({ to: "/role" });
-              }}
+              onClick={handleLogout}
               className="mt-4 w-full h-12 rounded-xl border border-neutral-200 text-neutral-600 font-semibold flex items-center justify-center gap-2"
             >
               <LogoutIcon className="w-4 h-4" /> {tr("Go offline & logout")}
             </button>
           </div>
         </BottomSheet>
+          </>
+        ) : (
+          <DriverProfileView
+            session={session}
+            truckId={truckId}
+            live={live}
+            online={online}
+            setOnline={setOnline}
+            onLogout={handleLogout}
+          />
+        )}
       </div>
+      <DriverBottomNav activeTab={activeTab} onSelect={setActiveTab} />
     </MobileFrame>
+  );
+}
+
+function DriverProfileView({
+  session,
+  truckId,
+  live,
+  online,
+  setOnline,
+  onLogout,
+}: {
+  session: { role: "driver"; phone: string; driverName: string; truckId: string };
+  truckId: string;
+  live: LiveTruck;
+  online: boolean;
+  setOnline: (id: string, online: boolean) => void;
+  onLogout: () => void;
+}) {
+  const tr = useT();
+  const lang = useI18n((s) => s.lang);
+  const setLang = useI18n((s) => s.setLang);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
+
+  const approvedDriver = useAuth((s) => s.findDriverByPhone(session.phone));
+  const driverId = approvedDriver?.dbId
+    ? `DRV-${approvedDriver.dbId.slice(0, 6).toUpperCase()}`
+    : `DRV-${truckId}`;
+
+  const initials =
+    (session.driverName || "Driver")
+      .split(" ")
+      .filter(Boolean)
+      .map((p) => p[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "D";
+
+  useEffect(() => {
+    if (!langOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!langRef.current?.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLangOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [langOpen]);
+
+  return (
+    <div className="absolute inset-0 overflow-y-auto bg-white">
+      {/* Header */}
+      <div className="px-6 pt-8 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-ink text-white grid place-items-center font-bold text-xl">
+          {initials}
+        </div>
+        <div>
+          <div className="font-bold text-ink text-lg">{session.driverName}</div>
+          <div className="text-xs text-neutral-500">
+            {tr("Driver")} · {truckId}
+          </div>
+        </div>
+      </div>
+
+      {/* Online / Offline Duty Status Card */}
+      <div className="px-6 mt-6">
+        <div className="p-4 rounded-2xl border border-neutral-200 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+              {tr("Duty Status")}
+            </div>
+            <div className="text-sm font-bold text-ink mt-0.5 flex items-center gap-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-neutral-400"}`}
+              />
+              <span>{online ? tr("Online") : tr("Offline")}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOnline(truckId, !online)}
+            className={`w-12 h-7 rounded-full relative transition-colors ${online ? "bg-brand" : "bg-neutral-300"}`}
+            aria-label={online ? tr("Online") : tr("Offline")}
+          >
+            <motion.span
+              layout
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className={`absolute top-0.5 ${online ? "right-0.5" : "left-0.5"} w-6 h-6 rounded-full bg-white shadow`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Driver & Vehicle Info */}
+      <div className="px-6 mt-6 space-y-1">
+        <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider pb-1">
+          {tr("Driver & Vehicle Info")}
+        </div>
+        <DriverRow label={tr("Driver Name")} value={session.driverName} />
+        <DriverRow label={tr("Driver ID")} value={driverId} />
+        <DriverRow
+          label={tr("Status")}
+          value={online ? tr("Online") : tr("Offline")}
+        />
+        <DriverRow label={tr("Mobile Number")} value={`+91 ${session.phone}`} />
+        <DriverRow label={tr("Vehicle Number")} value={live.truck.id} />
+        <DriverRow label={tr("Assigned Ward")} value={live.truck.wardName} />
+        <DriverRow label={tr("Vehicle Type")} value={live.truck.name} />
+      </div>
+
+      {/* Settings & Preferences */}
+      <div className="px-6 mt-6 space-y-1">
+        <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider pb-1">
+          {tr("SETTINGS")}
+        </div>
+        <DriverRow label={tr("Notifications")} value={tr("Enabled")} />
+
+        {/* Language Row with Dropdown */}
+        <div ref={langRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setLangOpen((v) => !v)}
+            className="w-full flex items-center justify-between py-3 border-b border-neutral-100 text-left hover:bg-neutral-50 transition-colors"
+            aria-expanded={langOpen}
+            aria-label={tr("Language")}
+          >
+            <div className="text-sm text-ink">{tr("Language")}</div>
+            <div className="text-sm text-neutral-500 flex items-center gap-1.5 font-medium">
+              <span>{LANGS.find((l) => l.code === lang)?.native ?? "English"}</span>
+              <svg
+                viewBox="0 0 20 20"
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${langOpen ? "rotate-180" : ""}`}
+                fill="currentColor"
+              >
+                <path
+                  d="M5.5 7.5l4.5 4.5 4.5-4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </button>
+
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in">
+              <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                {tr("Language")}
+              </div>
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => {
+                    setLang(l.code);
+                    setLangOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${
+                    lang === l.code ? "text-brand font-semibold" : "text-ink"
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-neutral-100 grid place-items-center text-[10px] font-bold">
+                    {l.flag}
+                  </span>
+                  <span className="flex-1 text-left">{l.native}</span>
+                  {lang === l.code && (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-4 h-4 text-brand"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DriverRow label={tr("Help & Support")} value="›" />
+        <DriverRow label={tr("About CleanTrack")} value="v1.0" />
+      </div>
+
+      {/* Logout */}
+      <div className="px-6 mt-8 pb-10">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full h-12 rounded-xl border border-red-200 text-red-600 font-semibold flex items-center justify-center gap-2 hover:bg-red-50 transition-colors"
+        >
+          <LogoutIcon className="w-4 h-4" /> {tr("Logout")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DriverRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-neutral-100">
+      <div className="text-sm text-ink">{label}</div>
+      <div className="text-sm text-neutral-500 font-medium">{value}</div>
+    </div>
+  );
+}
+
+function DriverBottomNav({
+  activeTab,
+  onSelect,
+}: {
+  activeTab: "nav" | "profile";
+  onSelect: (tab: "nav" | "profile") => void;
+}) {
+  const tr = useT();
+  const items = [
+    { id: "nav" as const, label: tr("Navigation"), Icon: MapIcon },
+    { id: "profile" as const, label: tr("Profile"), Icon: UserIcon },
+  ];
+
+  return (
+    <nav className="border-t border-neutral-200 bg-white relative z-[700] select-none">
+      <div className="grid grid-cols-2">
+        {items.map(({ id, label, Icon }) => {
+          const active = activeTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSelect(id)}
+              className="flex flex-col items-center gap-1 py-2.5 transition-colors"
+            >
+              <Icon className={`w-5 h-5 ${active ? "text-ink" : "text-neutral-400"}`} />
+              <span
+                className={`text-[11px] ${active ? "text-ink font-semibold" : "text-neutral-400"}`}
+              >
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { serverSignOut } from "@/lib/auth.functions";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { useI18n } from "@/store/i18n";
 import { getMyBookings } from "@/lib/booking.functions";
+import { LANGS } from "@/components/LanguageSwitcher";
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,
@@ -21,8 +22,30 @@ function ProfilePage() {
   const queryClient = useQueryClient();
   const radius = useSettings((s) => s.alertRadius);
   const setRadius = useSettings((s) => s.setAlertRadius);
+  const lang = useI18n((s) => s.lang);
+  const setLang = useI18n((s) => s.setLang);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState(radius);
   const dirty = draft !== radius;
+
+  useEffect(() => {
+    if (!langOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!langRef.current?.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLangOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [langOpen]);
 
   const phone = session.role === "resident" ? session.phone : "—";
   const initials = phone.slice(-2);
@@ -108,7 +131,71 @@ function ProfilePage() {
           <div className="text-sm text-ink">{tr("Notifications")}</div>
           <div className="text-sm text-neutral-500">{tr("Manage")} ›</div>
         </button>
-        <Row label={tr("Language")} value={tr("English")} />
+        <div ref={langRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setLangOpen((v) => !v)}
+            className="w-full flex items-center justify-between py-3 border-b border-neutral-100 text-left hover:bg-neutral-50 transition-colors"
+            aria-expanded={langOpen}
+            aria-label={tr("Language")}
+          >
+            <div className="text-sm text-ink">{tr("Language")}</div>
+            <div className="text-sm text-neutral-500 flex items-center gap-1.5">
+              <span>{LANGS.find((l) => l.code === lang)?.native ?? "English"}</span>
+              <svg
+                viewBox="0 0 20 20"
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${langOpen ? "rotate-180" : ""}`}
+                fill="currentColor"
+              >
+                <path
+                  d="M5.5 7.5l4.5 4.5 4.5-4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </button>
+
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in">
+              <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                {tr("Language")}
+              </div>
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => {
+                    setLang(l.code);
+                    setLangOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${
+                    lang === l.code ? "text-brand font-semibold" : "text-ink"
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-neutral-100 grid place-items-center text-[10px] font-bold">
+                    {l.flag}
+                  </span>
+                  <span className="flex-1 text-left">{l.native}</span>
+                  {lang === l.code && (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-4 h-4 text-brand"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <Row label={tr("Help & Support")} value="›" />
         <Row label={tr("About CleanTrack")} value="v1.0" />
       </div>
@@ -131,9 +218,34 @@ function ProfilePage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-neutral-100">
+    <div
+      onClick={onClick}
+      className={`flex items-center justify-between py-3 border-b border-neutral-100 ${
+        onClick ? "cursor-pointer hover:bg-neutral-50 transition-colors" : ""
+      }`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="text-sm text-ink">{label}</div>
       <div className="text-sm text-neutral-500">{value}</div>
     </div>

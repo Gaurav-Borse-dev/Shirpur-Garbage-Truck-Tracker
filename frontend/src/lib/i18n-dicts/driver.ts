@@ -29,6 +29,16 @@ export const hi: Record<string, string> = {
   Stops: "स्टॉप",
   Status: "स्थिति",
   Home: "घर",
+  "Driver Name": "चालक का नाम",
+  "Driver ID": "चालक आईडी",
+  "Vehicle Number": "वाहन क्रमांक",
+  "Assigned Ward": "आवंटित वार्ड",
+  "Vehicle Type": "वाहन प्रकार",
+  "Mobile Number": "मोबाइल नंबर",
+  "Duty Status": "ड्यूटी स्थिति",
+  "Driver & Vehicle Info": "चालक और वाहन जानकारी",
+  Navigation: "नेविगेशन",
+  Enabled: "सक्षम",
 };
 
 export const mr: Record<string, string> = {
@@ -61,4 +71,14 @@ export const mr: Record<string, string> = {
   Stops: "थांबे",
   Status: "स्थिती",
   Home: "घर",
+  "Driver Name": "चालकाचे नाव",
+  "Driver ID": "चालक आयडी",
+  "Vehicle Number": "वाहन क्रमांक",
+  "Assigned Ward": "नेमून दिलेला प्रभाग",
+  "Vehicle Type": "वाहनाचा प्रकार",
+  "Mobile Number": "मोबाईल नंबर",
+  "Duty Status": "ड्युटी स्थिती",
+  "Driver & Vehicle Info": "चालक आणि वाहन माहिती",
+  Navigation: "नेव्हिगेशन",
+  Enabled: "सक्षम",
 };

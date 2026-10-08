@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n, type Lang } from "@/store/i18n";
 import { useT } from "@/lib/i18n";
 
-const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
+export const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
   { code: "en", label: "English", native: "English", flag: "EN" },
   { code: "hi", label: "Hindi", native: "हिन्दी", flag: "HI" },
   { code: "mr", label: "Marathi", native: "मराठी", flag: "MR" },
