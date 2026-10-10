@@ -7,7 +7,7 @@ import { haversine } from "@/lib/geo";
 import { bumpRender } from "@/store/perf";
 import { formatEta, formatDistance } from "@/lib/format";
 import { useI18n } from "@/store/i18n";
-import { translate } from "@/lib/i18n";
+import { translate, useLang } from "@/lib/i18n";
 import { SHIRPUR } from "@/lib/trucks";
 
 // ── High-Quality Map Tile Layer Definitions ──
@@ -586,7 +586,7 @@ type AdminMapProps = {
 type Props = ResidentMapProps | DriverMapProps | AdminMapProps;
 
 export function TruckMap(props: Props) {
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
   useEffect(() => {
     startSimulation();
   }, []);
@@ -903,7 +903,7 @@ const AdminTruckMarker = memo(
     onClick?: (id: string) => void;
   }) {
     bumpRender();
-    const lang = useI18n((s) => s.lang);
+    const lang = useLang();
     return (
       <Marker
         position={[truck.position.lat, truck.position.lng]}

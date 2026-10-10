@@ -38,9 +38,23 @@ export function translate(key: string, lang: Lang): string {
   return DICTS[lang][key] ?? key;
 }
 
+/**
+ * Returns a translation function that automatically selects the correct
+ * language based on the current user's role.
+ *
+ * - Admin routes → always English
+ * - Driver routes → driver-specific language preference
+ * - Resident routes → resident-specific language preference
+ * - /role page (no role yet) → generic lang (defaults to resident preference)
+ */
 export function useT() {
-  const lang = useI18n((s) => s.lang);
   const role = useAuth((s) => s.session?.role);
+  const getLang = useI18n((s) => s.getLang);
+
+  // Subscribe to the specific role lang so React re-renders on change
+  const residentLang = useI18n((s) => s.residentLang);
+  const driverLang = useI18n((s) => s.driverLang);
+
   let pathname = "";
   try {
     pathname = useLocation({ select: (l) => l.pathname });
@@ -56,12 +70,17 @@ export function useT() {
     return (key: string) => key;
   }
 
+  // Pick the right language for the current role
+  const lang = role === "driver" ? driverLang : residentLang;
+
   return (key: string) => translate(key, lang);
 }
 
 export function useLang(): Lang {
-  const lang = useI18n((s) => s.lang);
   const role = useAuth((s) => s.session?.role);
+  const residentLang = useI18n((s) => s.residentLang);
+  const driverLang = useI18n((s) => s.driverLang);
+
   let pathname = "";
   try {
     pathname = useLocation({ select: (l) => l.pathname });
@@ -76,5 +95,5 @@ export function useLang(): Lang {
     return "en";
   }
 
-  return lang;
+  return role === "driver" ? driverLang : residentLang;
 }

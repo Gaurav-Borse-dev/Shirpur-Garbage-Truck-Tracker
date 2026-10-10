@@ -1,4 +1,5 @@
 import { useI18n, type Lang } from "@/store/i18n";
+import { useLang } from "@/lib/i18n";
 
 const LOCALE: Record<Lang, string> = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" };
 
@@ -63,7 +64,7 @@ export function formatDate(d: Date | number | string, lang: Lang) {
 
 /** Hook giving all formatters bound to the active language. */
 export function useFormat() {
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
   return {
     lang,
     number: (n: number, o?: Intl.NumberFormatOptions) => formatNumber(n, lang, o),

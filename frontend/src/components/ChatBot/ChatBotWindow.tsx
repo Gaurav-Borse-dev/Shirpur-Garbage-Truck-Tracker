@@ -1,5 +1,5 @@
-﻿import { useChatBot } from "@/store/chatbot";
-import { useI18n } from "@/store/i18n";
+import { useChatBot } from "@/store/chatbot";
+import { useLang } from "@/lib/i18n";
 import { GREETINGS } from "@/lib/chatbot.utils";
 import { ChatMessage } from "./ChatMessage";
 import { CategoryGrid } from "./CategoryGrid";
@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 
 export function ChatBotWindow() {
   const { isOpen, close, view } = useChatBot();
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
 
   if (!isOpen) return null;
 

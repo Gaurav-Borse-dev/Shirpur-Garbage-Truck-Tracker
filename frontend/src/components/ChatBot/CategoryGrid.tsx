@@ -1,10 +1,10 @@
-﻿import { useChatBot } from "@/store/chatbot";
-import { useI18n } from "@/store/i18n";
+import { useChatBot } from "@/store/chatbot";
+import { useLang } from "@/lib/i18n";
 import { CHATBOT_CATEGORIES, getLabel } from "@/lib/chatbot.utils";
 
 export function CategoryGrid() {
   const { selectCategory } = useChatBot();
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
 
   return (
     <div className="grid grid-cols-2 gap-3 p-4 w-full auto-rows-max">

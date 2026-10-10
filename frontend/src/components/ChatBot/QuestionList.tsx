@@ -1,11 +1,11 @@
-﻿import { useChatBot } from "@/store/chatbot";
-import { useI18n } from "@/store/i18n";
+import { useChatBot } from "@/store/chatbot";
+import { useLang } from "@/lib/i18n";
 import { CATEGORY_QUESTIONS, getLabel } from "@/lib/chatbot.utils";
 import { ChevronLeft } from "lucide-react";
 
 export function QuestionList() {
   const { selectedCategory, selectQuestion, setView } = useChatBot();
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
 
   if (!selectedCategory) return null;
 

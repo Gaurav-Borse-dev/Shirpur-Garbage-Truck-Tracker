@@ -9,7 +9,7 @@ export const LANGS: { code: Lang; label: string; native: string; flag: string }[
 ];
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const lang = useI18n((s) => s.lang);
+  const lang = useI18n((s) => s.residentLang);
   const setLang = useI18n((s) => s.setLang);
   const t = useT();
 

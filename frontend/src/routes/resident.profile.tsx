@@ -22,7 +22,7 @@ function ProfilePage() {
   const queryClient = useQueryClient();
   const radius = useSettings((s) => s.alertRadius);
   const setRadius = useSettings((s) => s.setAlertRadius);
-  const lang = useI18n((s) => s.lang);
+  const lang = useI18n((s) => s.residentLang);
   const setLang = useI18n((s) => s.setLang);
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -169,7 +169,7 @@ function ProfilePage() {
                   key={l.code}
                   type="button"
                   onClick={() => {
-                    setLang(l.code);
+                    setLang(l.code, "resident");
                     setLangOpen(false);
                   }}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${

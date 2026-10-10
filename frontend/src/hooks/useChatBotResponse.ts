@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useChatBot } from "@/store/chatbot";
-import { useI18n } from "@/store/i18n";
+import { useLang } from "@/lib/i18n";
 
 export function useChatBotResponse() {
   const { selectedQuestion, setLoading, addMessage } = useChatBot();
-  const lang = useI18n((s) => s.lang);
+  const lang = useLang();
   const isProcessingRef = useRef(false);
 
   useEffect(() => {
