@@ -92,6 +92,12 @@ function send(p: GpsPayload) {
   });
 }
 
+/** Shortest-arc angle difference, handling 0/360 wrapping. */
+function angleDiff(from: number, to: number): number {
+  let d = ((to - from + 540) % 360) - 180;
+  return d;
+}
+
 /**
  * Ingest position from device sensor:
  * 1. Adaptive noise filter (strict when moving, relaxed when stationary)
@@ -113,10 +119,10 @@ function handlePosition(
   const acc = typeof accuracy === "number" && accuracy > 0 ? accuracy : 30;
 
   // ── Adaptive noise filter ──
-  // Moving: reject fixes worse than 35m accuracy
-  // Stopped / first fix / testing: allow up to 120m (Kalman filter weights by variance)
+  // Moving: reject fixes worse than 50m accuracy (was 35m — too strict for many phones)
+  // Stopped / first fix / testing: allow up to 150m (Kalman filter weights by variance)
   const isMoving = prevPos !== null && (typeof speed === "number" ? speed > 0.5 : false);
-  const noiseThreshold = isMoving ? 35 : 120;
+  const noiseThreshold = isMoving ? 50 : 150;
   if (acc > noiseThreshold && prevPos !== null) {
     console.debug(`[gps] Rejected noisy fix accuracy=${acc}m threshold=${noiseThreshold}m`);
     return;
@@ -137,15 +143,15 @@ function handlePosition(
   const distM = prevPos ? haversine(prevPos, currentPos) : 0;
   const timeDeltaS = prevTimestamp > 0 ? Math.max(0.2, (now - prevTimestamp) / 1000) : 1;
 
-  // ── Heading (EWMA smoothed) ──
+  // ── Heading (EWMA smoothed with proper angle wrapping) ──
   let computedHeading = prevBearing;
-  if (typeof heading === "number" && !isNaN(heading) && heading > 0) {
-    // Exponential moving average on heading for stability
-    computedHeading = prevBearing + 0.4 * (heading - prevBearing);
+  if (typeof heading === "number" && !isNaN(heading) && heading >= 0) {
+    // EWMA with shortest-arc wrapping (handles 350° → 10° correctly)
+    computedHeading = (prevBearing + 0.4 * angleDiff(prevBearing, heading) + 360) % 360;
     prevBearing = computedHeading;
   } else if (distM > 1.2 && prevPos) {
     const rawBearing = bearing(prevPos, currentPos);
-    computedHeading = prevBearing + 0.4 * (rawBearing - prevBearing);
+    computedHeading = (prevBearing + 0.4 * angleDiff(prevBearing, rawBearing) + 360) % 360;
     prevBearing = computedHeading;
   }
 
@@ -210,6 +216,7 @@ function handlePosition(
     }
   });
 
+  // Send to server — more aggressive: every fix if enough time elapsed
   if (Date.now() - lastSentAt >= MIN_INTERVAL_MS) {
     send(latest);
   }

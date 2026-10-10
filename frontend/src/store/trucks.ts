@@ -305,22 +305,40 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         }
 
         const elapsed = now - lt.fix.receivedAt;
-        const progress = Math.min(1.25, elapsed / Math.max(800, lt.fix.intervalMs));
+        const intervalMs = Math.max(800, lt.fix.intervalMs);
+
+        // If no new fix for >10s, the driver is likely stopped or connection lost
+        // — freeze position instead of endlessly extrapolating
+        if (elapsed > 10000) {
+          next[id] = lt;
+          continue;
+        }
+
+        const progress = Math.min(2.0, elapsed / intervalMs);
 
         let pos: LatLng;
         if (progress <= 1.0) {
           // Precise linear interpolation along ground vector
           pos = lerpLatLng(lt.fix.fromPos, lt.fix.pos, progress);
         } else {
-          // Slight dead-reckoning extrapolation (up to 25% of interval) along bearing
-          const extraM = lt.speedMps * dtS * 0.5;
-          const rad = (lt.bearing * Math.PI) / 180;
-          const kmLat = 1 / 110.574;
-          const kmLng = 1 / (111.32 * Math.cos((lt.position.lat * Math.PI) / 180));
-          pos = {
-            lat: lt.position.lat + Math.cos(rad) * (extraM / 1000) * kmLat,
-            lng: lt.position.lng + Math.sin(rad) * (extraM / 1000) * kmLng,
-          };
+          // Dead-reckoning extrapolation along current bearing when speed > 0.3 m/s
+          // This keeps the truck moving smoothly between GPS fixes
+          if (lt.fix.speedMps > 0.3) {
+            const extrapolationTime = (elapsed - intervalMs) / 1000; // seconds past interpolation
+            const extraM = lt.fix.speedMps * extrapolationTime * 0.7; // damped to 70%
+            const maxExtraM = lt.fix.speedMps * 3; // max 3 seconds of extrapolation
+            const clampedExtraM = Math.min(extraM, maxExtraM);
+            const rad = (lt.fix.bearing * Math.PI) / 180;
+            const kmLat = 1 / 110.574;
+            const kmLng = 1 / (111.32 * Math.cos((lt.fix.pos.lat * Math.PI) / 180));
+            pos = {
+              lat: lt.fix.pos.lat + Math.cos(rad) * (clampedExtraM / 1000) * kmLat,
+              lng: lt.fix.pos.lng + Math.sin(rad) * (clampedExtraM / 1000) * kmLng,
+            };
+          } else {
+            // Stopped — hold at last known position
+            pos = lt.fix.pos;
+          }
         }
 
         // Smooth shortest-arc angle rotation
@@ -329,7 +347,7 @@ export const useTrucks = create<TrucksState>((set, get) => ({
         let trail = lt.trail;
         const lastTrailPt = trail[trail.length - 1];
         if (!lastTrailPt || haversine(lastTrailPt, pos) > 2.5) {
-          trail = trail.length > 24 ? trail.slice(-23) : trail.slice();
+          trail = trail.length > 40 ? trail.slice(-39) : trail.slice();
           trail.push(pos);
         }
 
