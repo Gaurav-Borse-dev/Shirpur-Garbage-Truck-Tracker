@@ -7,8 +7,10 @@
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=3072 vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:backend": "npm --prefix backend run build",
     "preview": "vite preview",
-    "start": "node .output/server/index.mjs",
+    "start": "node start.mjs",
+    "start:backend": "npm --prefix backend run start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "clean": "node -e \"const fs=require('fs');['.output','.vinxi','.tanstack','.nitro','.vite','backend/.output'].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true});console.log('Removed',d)}catch{}})\""
