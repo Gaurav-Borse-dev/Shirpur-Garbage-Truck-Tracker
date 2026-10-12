@@ -9,6 +9,6 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20.18.0
+        value: 22.14.0
       - key: HOST
         value: 0.0.0.0
