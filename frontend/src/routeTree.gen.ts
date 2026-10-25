@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as OtpRouteImport } from './routes/otp'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResidentRouteImport } from './routes/resident'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -23,6 +24,7 @@ import { Route as AdminAssignmentsRouteImport } from './routes/admin.assignments
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
 import { Route as AdminMapRouteImport } from './routes/admin.map'
+import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminWardsRouteImport } from './routes/admin.wards'
 import { Route as LoginAdminRouteImport } from './routes/login.admin'
 import { Route as LoginDriverRouteImport } from './routes/login.driver'
@@ -31,6 +33,7 @@ import { Route as ResidentIndexRouteImport } from './routes/resident.index'
 import { Route as ResidentAlertsRouteImport } from './routes/resident.alerts'
 import { Route as ResidentBookingRouteImport } from './routes/resident.booking'
 import { Route as ResidentNotificationsRouteImport } from './routes/resident.notifications'
+import { Route as ResidentPrivacyRouteImport } from './routes/resident.privacy'
 import { Route as ResidentProfileRouteImport } from './routes/resident.profile'
 import { Route as ResidentScheduleRouteImport } from './routes/resident.schedule'
 
@@ -57,6 +60,11 @@ const DriverRoute = DriverRouteImport.update({
 const OtpRoute = OtpRouteImport.update({
   id: '/otp',
   path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResidentRoute = ResidentRouteImport.update({
@@ -104,6 +112,11 @@ const AdminMapRoute = AdminMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminWardsRoute = AdminWardsRouteImport.update({
   id: '/wards',
   path: '/wards',
@@ -144,6 +157,11 @@ const ResidentNotificationsRoute = ResidentNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => ResidentRoute,
 } as any)
+const ResidentPrivacyRoute = ResidentPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => ResidentRoute,
+} as any)
 const ResidentProfileRoute = ResidentProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -161,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
+  '/privacy': typeof PrivacyRoute
   '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -169,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
@@ -176,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
   '/resident/notifications': typeof ResidentNotificationsRoute
+  '/resident/privacy': typeof ResidentPrivacyRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -186,6 +207,7 @@ export interface FileRoutesByTo {
   '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
+  '/privacy': typeof PrivacyRoute
   '/role': typeof RoleRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -193,6 +215,7 @@ export interface FileRoutesByTo {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
@@ -200,6 +223,7 @@ export interface FileRoutesByTo {
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
   '/resident/notifications': typeof ResidentNotificationsRoute
+  '/resident/privacy': typeof ResidentPrivacyRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin': typeof AdminIndexRoute
@@ -212,6 +236,7 @@ export interface FileRoutesById {
   '/devices': typeof DevicesRoute
   '/driver': typeof DriverRoute
   '/otp': typeof OtpRoute
+  '/privacy': typeof PrivacyRoute
   '/resident': typeof ResidentRouteWithChildren
   '/role': typeof RoleRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -220,6 +245,7 @@ export interface FileRoutesById {
   '/admin/bookings': typeof AdminBookingsRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/map': typeof AdminMapRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/wards': typeof AdminWardsRoute
   '/login/admin': typeof LoginAdminRoute
   '/login/driver': typeof LoginDriverRoute
@@ -227,6 +253,7 @@ export interface FileRoutesById {
   '/resident/alerts': typeof ResidentAlertsRoute
   '/resident/booking': typeof ResidentBookingRoute
   '/resident/notifications': typeof ResidentNotificationsRoute
+  '/resident/privacy': typeof ResidentPrivacyRoute
   '/resident/profile': typeof ResidentProfileRoute
   '/resident/schedule': typeof ResidentScheduleRoute
   '/admin/': typeof AdminIndexRoute
@@ -240,6 +267,7 @@ export interface FileRouteTypes {
     | '/devices'
     | '/driver'
     | '/otp'
+    | '/privacy'
     | '/resident'
     | '/role'
     | '/sitemap.xml'
@@ -248,6 +276,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/reports'
     | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
@@ -255,6 +284,7 @@ export interface FileRouteTypes {
     | '/resident/alerts'
     | '/resident/booking'
     | '/resident/notifications'
+    | '/resident/privacy'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -265,6 +295,7 @@ export interface FileRouteTypes {
     | '/devices'
     | '/driver'
     | '/otp'
+    | '/privacy'
     | '/role'
     | '/sitemap.xml'
     | '/admin/alerts'
@@ -272,6 +303,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/reports'
     | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
@@ -279,6 +311,7 @@ export interface FileRouteTypes {
     | '/resident/alerts'
     | '/resident/booking'
     | '/resident/notifications'
+    | '/resident/privacy'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin'
@@ -290,6 +323,7 @@ export interface FileRouteTypes {
     | '/devices'
     | '/driver'
     | '/otp'
+    | '/privacy'
     | '/resident'
     | '/role'
     | '/sitemap.xml'
@@ -298,6 +332,7 @@ export interface FileRouteTypes {
     | '/admin/bookings'
     | '/admin/drivers'
     | '/admin/map'
+    | '/admin/reports'
     | '/admin/wards'
     | '/login/admin'
     | '/login/driver'
@@ -305,6 +340,7 @@ export interface FileRouteTypes {
     | '/resident/alerts'
     | '/resident/booking'
     | '/resident/notifications'
+    | '/resident/privacy'
     | '/resident/profile'
     | '/resident/schedule'
     | '/admin/'
@@ -317,6 +353,7 @@ export interface RootRouteChildren {
   DevicesRoute: typeof DevicesRoute
   DriverRoute: typeof DriverRoute
   OtpRoute: typeof OtpRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResidentRoute: typeof ResidentRouteWithChildren
   RoleRoute: typeof RoleRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -360,6 +397,13 @@ declare module '@tanstack/react-router' {
       path: '/otp'
       fullPath: '/otp'
       preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resident': {
@@ -425,6 +469,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMapRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/wards': {
       id: '/admin/wards'
       path: '/wards'
@@ -481,6 +532,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResidentNotificationsRouteImport
       parentRoute: typeof ResidentRoute
     }
+    '/resident/privacy': {
+      id: '/resident/privacy'
+      path: '/privacy'
+      fullPath: '/resident/privacy'
+      preLoaderRoute: typeof ResidentPrivacyRouteImport
+      parentRoute: typeof ResidentRoute
+    }
     '/resident/profile': {
       id: '/resident/profile'
       path: '/profile'
@@ -504,6 +562,7 @@ interface AdminRouteChildren {
   AdminBookingsRoute: typeof AdminBookingsRoute
   AdminDriversRoute: typeof AdminDriversRoute
   AdminMapRoute: typeof AdminMapRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminWardsRoute: typeof AdminWardsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -514,6 +573,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminBookingsRoute: AdminBookingsRoute,
   AdminDriversRoute: AdminDriversRoute,
   AdminMapRoute: AdminMapRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminWardsRoute: AdminWardsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -524,6 +584,7 @@ interface ResidentRouteChildren {
   ResidentAlertsRoute: typeof ResidentAlertsRoute
   ResidentBookingRoute: typeof ResidentBookingRoute
   ResidentNotificationsRoute: typeof ResidentNotificationsRoute
+  ResidentPrivacyRoute: typeof ResidentPrivacyRoute
   ResidentProfileRoute: typeof ResidentProfileRoute
   ResidentScheduleRoute: typeof ResidentScheduleRoute
   ResidentIndexRoute: typeof ResidentIndexRoute
@@ -533,6 +594,7 @@ const ResidentRouteChildren: ResidentRouteChildren = {
   ResidentAlertsRoute: ResidentAlertsRoute,
   ResidentBookingRoute: ResidentBookingRoute,
   ResidentNotificationsRoute: ResidentNotificationsRoute,
+  ResidentPrivacyRoute: ResidentPrivacyRoute,
   ResidentProfileRoute: ResidentProfileRoute,
   ResidentScheduleRoute: ResidentScheduleRoute,
   ResidentIndexRoute: ResidentIndexRoute,
@@ -548,6 +610,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevicesRoute: DevicesRoute,
   DriverRoute: DriverRoute,
   OtpRoute: OtpRoute,
+  PrivacyRoute: PrivacyRoute,
   ResidentRoute: ResidentRouteWithChildren,
   RoleRoute: RoleRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

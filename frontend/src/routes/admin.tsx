@@ -12,6 +12,7 @@ import {
   LogoutIcon,
   ClockIcon,
   CalendarIcon,
+  DownloadIcon,
 } from "@/components/icons";
 import { useBookings } from "@/store/bookings";
 import { useRealtime } from "@/hooks/useRealtime";
@@ -63,6 +64,7 @@ function AdminLayout() {
       badge: pendingBookings,
     },
     { to: "/admin/alerts", label: tr("Alerts & Logs"), Icon: BellIcon },
+    { to: "/admin/reports", label: tr("Daily Reports"), Icon: DownloadIcon },
   ];
 
   return (

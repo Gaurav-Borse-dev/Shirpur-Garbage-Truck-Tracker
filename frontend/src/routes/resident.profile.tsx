@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { serverSignOut } from "@/lib/auth.functions";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/store/auth";
 import { useSettings } from "@/store/settings";
@@ -196,7 +196,26 @@ function ProfilePage() {
             </div>
           )}
         </div>
-        <Row label={tr("Help & Support")} value="›" />
+        <Row
+          label={tr("Help & Support")}
+          value={
+            <a
+              href="mailto:trucktracker27@gmail.com"
+              className="text-xs sm:text-sm text-emerald-700 hover:text-emerald-800 hover:underline font-medium break-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              trucktracker27@gmail.com
+            </a>
+          }
+          onClick={() => {
+            window.location.href = "mailto:trucktracker27@gmail.com";
+          }}
+        />
+        <Row
+          label={tr("Privacy Policy")}
+          value="›"
+          onClick={() => navigate({ to: "/resident/privacy" })}
+        />
         <Row label={tr("About CleanTrack")} value="v1.0" />
       </div>
 
@@ -224,7 +243,7 @@ function Row({
   onClick,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   onClick?: () => void;
 }) {
   return (

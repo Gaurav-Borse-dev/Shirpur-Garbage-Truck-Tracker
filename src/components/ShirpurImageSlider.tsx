@@ -1,47 +1,43 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
-import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
-import cleanTrackImg from "@/assets/clean-track.jpg";
-import smartImg from "@/assets/smart.jpg";
+import buildingImg from "@/assets/shirpur-nagarparishad-building.jpg";
+import compactorFleetImg from "@/assets/shirpur-compactor-fleet.jpg";
+import intraCollectionImg from "@/assets/shirpur-intra-collection.jpg";
+import segregatedTruckImg from "@/assets/shirpur-segregated-truck.jpg";
+import compactorLoadingImg from "@/assets/shirpur-compactor-loading.jpg";
 
 interface Slide {
   id: string;
   src: string;
-  title: string;
-  subtitle: string;
-  badge: string;
+  alt: string;
 }
 
 const SLIDES: Slide[] = [
   {
-    id: "clean-shirpur",
-    src: cleanShirpurImg || "/clean-shirpur.jpg",
-    title: "Clean Shirpur Campaign",
-    subtitle: "Keeping our city streets green & spotless",
-    badge: "Shirpur Nagarparishad",
+    id: "building",
+    src: buildingImg,
+    alt: "Shirpur Warwade Nagarparishad Headquarters",
   },
   {
-    id: "swachh-shirpur",
-    src: swachhShirpurImg || "/swachh-shirpur.jpg",
-    title: "Swachh Bharat Shirpur",
-    subtitle: "Segregated waste collection across all wards",
-    badge: "Swachh Abhiyan",
+    id: "compactor-fleet",
+    src: compactorFleetImg,
+    alt: "Shirpur Sanitation Fleet and Workers",
   },
   {
-    id: "clean-track",
-    src: cleanTrackImg || "/clean-track.jpg",
-    title: "CleanTrack Live Fleet",
-    subtitle: "Real-time municipal waste truck monitoring",
-    badge: "Smart Tracking",
+    id: "intra-collection",
+    src: intraCollectionImg,
+    alt: "Shirpur Tata Intra Door-to-Door Waste Collection",
   },
   {
-    id: "smart-shirpur",
-    src: smartImg || "/smart.jpg",
-    title: "Smart Sanitation Fleet",
-    subtitle: "Automated waste management & clean city drive",
-    badge: "Municipal Sanitation",
+    id: "segregated-truck",
+    src: segregatedTruckImg,
+    alt: "Shirpur Segregated Dry and Wet Waste Vehicle",
+  },
+  {
+    id: "compactor-loading",
+    src: compactorLoadingImg,
+    alt: "Shirpur Waste Compactor Truck in Action",
   },
 ];
 
@@ -68,10 +64,28 @@ export function ShirpurImageSlider() {
   };
 
   return (
-    <section className="w-full py-3 px-4 max-w-6xl mx-auto select-none">
+    <section className="w-full py-6 px-4 max-w-6xl mx-auto select-none">
       {/* Slider Container */}
       <div
-        className="relative overflow-hidden rounded-2xl shadow-lg border border-neutral-100 bg-neutral-900 group aspect-[16/11] min-h-[220px] max-h-[360px]"
+        className="
+    relative
+    overflow-hidden
+    rounded-3xl
+    shadow-lg
+    border-4
+    border-emerald-400
+    bg-neutral-900
+    group
+    aspect-[16/10]
+    min-h-[220px]
+    max-h-[420px]
+    sm:max-h-[500px]
+    md:max-h-[600px]
+    h-[260px]
+    sm:h-[300px]
+    md:h-[360px]
+"
+
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
@@ -80,34 +94,25 @@ export function ShirpurImageSlider() {
         <AnimatePresence initial={false} mode="wait">
           <motion.div
             key={SLIDES[currentIndex].id}
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0"
           >
-            {/* Background Image */}
             <img
               src={SLIDES[currentIndex].src}
-              alt={SLIDES[currentIndex].title}
-              className="w-full h-full object-cover object-center"
+              alt={SLIDES[currentIndex].alt}
+              className="
+ absolute
+ inset-0
+ w-full
+ h-full
+ object-cover
+ object-center
+ bg-neutral-900
+ "
             />
-
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-
-            {/* Content Text Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white z-10 flex flex-col justify-end">
-              <span className="inline-block self-start px-2.5 py-0.5 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-emerald-600/90 text-white rounded-full backdrop-blur-md">
-                {SLIDES[currentIndex].badge}
-              </span>
-              <h3 className="text-base sm:text-xl font-bold tracking-tight text-white drop-shadow-sm">
-                {SLIDES[currentIndex].title}
-              </h3>
-              <p className="text-xs sm:text-sm text-neutral-200 mt-0.5 line-clamp-1 opacity-90">
-                {SLIDES[currentIndex].subtitle}
-              </p>
-            </div>
           </motion.div>
         </AnimatePresence>
 
@@ -117,8 +122,18 @@ export function ShirpurImageSlider() {
           className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/40 hover:bg-black/70 text-white grid place-items-center backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Previous Slide"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </button>
 
@@ -127,7 +142,12 @@ export function ShirpurImageSlider() {
           className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/40 hover:bg-black/70 text-white grid place-items-center backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Next Slide"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
           </svg>
         </button>

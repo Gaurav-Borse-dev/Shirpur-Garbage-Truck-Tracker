@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/MobileFrame";
@@ -425,6 +425,7 @@ function DriverProfileView({
   onLogout: () => void;
 }) {
   const tr = useT();
+  const navigate = useNavigate();
   const lang = useI18n((s) => s.driverLang);
   const setLang = useI18n((s) => s.setLang);
   const [langOpen, setLangOpen] = useState(false);
@@ -597,7 +598,26 @@ function DriverProfileView({
           )}
         </div>
 
-        <DriverRow label={tr("Help & Support")} value="›" />
+        <DriverRow
+          label={tr("Help & Support")}
+          value={
+            <a
+              href="mailto:trucktracker27@gmail.com"
+              className="text-xs sm:text-sm text-emerald-700 hover:text-emerald-800 hover:underline font-medium break-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              trucktracker27@gmail.com
+            </a>
+          }
+          onClick={() => {
+            window.location.href = "mailto:trucktracker27@gmail.com";
+          }}
+        />
+        <DriverRow
+          label={tr("Privacy Policy")}
+          value="›"
+          onClick={() => navigate({ to: "/privacy" })}
+        />
         <DriverRow label={tr("About CleanTrack")} value="v1.0" />
       </div>
 
@@ -615,9 +635,22 @@ function DriverProfileView({
   );
 }
 
-function DriverRow({ label, value }: { label: string; value: string }) {
+function DriverRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: ReactNode;
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-neutral-100">
+    <div
+      onClick={onClick}
+      className={`flex items-center justify-between py-3 border-b border-neutral-100 ${
+        onClick ? "cursor-pointer hover:bg-neutral-50 transition-colors" : ""
+      }`}
+    >
       <div className="text-sm text-ink">{label}</div>
       <div className="text-sm text-neutral-500 font-medium">{value}</div>
     </div>

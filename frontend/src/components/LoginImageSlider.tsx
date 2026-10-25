@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import bannerImg from "@/assets/banner.png";
-import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
-import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
-import cleanTrackImg from "@/assets/clean-track.jpg";
-import smartImg from "@/assets/smart.jpg";
-import greenShirpurImg from "@/assets/greenshirpur.jpg";
+import buildingImg from "@/assets/shirpur-nagarparishad-building.jpg";
+import compactorFleetImg from "@/assets/shirpur-compactor-fleet.jpg";
+import intraCollectionImg from "@/assets/shirpur-intra-collection.jpg";
+import segregatedTruckImg from "@/assets/shirpur-segregated-truck.jpg";
+import compactorLoadingImg from "@/assets/shirpur-compactor-loading.jpg";
 
 interface Slide {
   id: string;
@@ -15,12 +14,31 @@ interface Slide {
 }
 
 const SLIDES: Slide[] = [
-  { id: "banner", src: bannerImg, caption: "स्वच्छ शिरपूर · सुंदर शिरपूर" },
-  { id: "clean-shirpur", src: cleanShirpurImg, caption: "Clean Shirpur Campaign" },
-  { id: "swachh-shirpur", src: swachhShirpurImg, caption: "Swachh Bharat Shirpur" },
-  { id: "green-shirpur", src: greenShirpurImg, caption: "Green Shirpur" },
-  { id: "clean-track", src: cleanTrackImg, caption: "CleanTrack Live Fleet" },
-  { id: "smart-shirpur", src: smartImg, caption: "Smart Sanitation Fleet" },
+  {
+    id: "building",
+    src: buildingImg,
+    caption: "शिरपूर-वरवाडे नगरपरिषद · Municipal Headquarters",
+  },
+  {
+    id: "compactor-fleet",
+    src: compactorFleetImg,
+    caption: "स्वच्छता मित्र व कचरा संकलन पथक · Sanitation Fleet",
+  },
+  {
+    id: "intra-collection",
+    src: intraCollectionImg,
+    caption: "घरोघरी कचरा संकलन वाहन · Door-to-Door Collection",
+  },
+  {
+    id: "segregated-truck",
+    src: segregatedTruckImg,
+    caption: "ओला व सुका कचरा वर्गीकरण · Segregated Waste Pickup",
+  },
+  {
+    id: "compactor-loading",
+    src: compactorLoadingImg,
+    caption: "हायड्रॉलिक कॉम्पॅक्टर कचरा वाहन · Waste Compactor in Action",
+  },
 ];
 
 const INTERVAL_MS = 10_000; // 10 seconds
@@ -56,8 +74,8 @@ export function LoginImageSlider() {
 
   return (
     <div className="w-full select-none">
-      {/* Slider container with increased size to fill vacant space */}
-      <div className="relative overflow-hidden rounded-2xl bg-neutral-900 aspect-[16/11] min-h-[220px] max-h-[290px] shadow-lg border border-neutral-200/80">
+      {/* Slider container optimized for 16:10 real photo aspect ratios */}
+      <div className="relative overflow-hidden rounded-2xl bg-neutral-900 aspect-[16/10] min-h-[220px] max-h-[300px] shadow-lg border border-neutral-200/80">
         <AnimatePresence initial={false} mode="wait" custom={direction}>
           <motion.div
             key={slide.id}

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { serverSignOut } from "@/lib/auth.functions";
 import { useState } from "react";
 
@@ -96,7 +97,17 @@ function ProfilePage() {
           <div className="text-sm text-neutral-500">{tr("Manage")} ›</div>
         </button>
         <Row label={tr("Language")} value={tr("English")} />
-        <Row label={tr("Help & Support")} value="›" />
+        <Row
+          label={tr("Help & Support")}
+          value={
+            <a
+              href="mailto:trucktracker27@gmail.com"
+              className="text-xs sm:text-sm text-emerald-700 hover:text-emerald-800 hover:underline font-medium break-all"
+            >
+              trucktracker27@gmail.com
+            </a>
+          }
+        />
         <Row label={tr("About CleanTrack")} value="v1.0" />
       </div>
 
@@ -118,7 +129,7 @@ function ProfilePage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-neutral-100">
       <div className="text-sm text-ink">{label}</div>

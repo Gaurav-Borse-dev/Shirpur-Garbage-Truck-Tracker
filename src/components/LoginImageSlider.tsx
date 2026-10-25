@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import bannerImg from "@/assets/banner.jpg";
-import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
-import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
-import cleanTrackImg from "@/assets/clean-track.jpg";
-import smartImg from "@/assets/smart.jpg";
+import buildingImg from "@/assets/shirpur-nagarparishad-building.jpg";
+import compactorFleetImg from "@/assets/shirpur-compactor-fleet.jpg";
+import intraCollectionImg from "@/assets/shirpur-intra-collection.jpg";
+import segregatedTruckImg from "@/assets/shirpur-segregated-truck.jpg";
+import compactorLoadingImg from "@/assets/shirpur-compactor-loading.jpg";
 
 interface Slide {
   id: string;
@@ -14,11 +14,31 @@ interface Slide {
 }
 
 const SLIDES: Slide[] = [
-  { id: "banner", src: bannerImg, caption: "स्वच्छ शिरपूर · सुंदर शिरपूर" },
-  { id: "clean-shirpur", src: cleanShirpurImg, caption: "Clean Shirpur Campaign" },
-  { id: "swachh-shirpur", src: swachhShirpurImg, caption: "Swachh Bharat Shirpur" },
-  { id: "clean-track", src: cleanTrackImg, caption: "CleanTrack Live Fleet" },
-  { id: "smart-shirpur", src: smartImg, caption: "Smart Sanitation Fleet" },
+  {
+    id: "building",
+    src: buildingImg,
+    caption: "शिरपूर-वरवाडे नगरपरिषद · Municipal Headquarters",
+  },
+  {
+    id: "compactor-fleet",
+    src: compactorFleetImg,
+    caption: "स्वच्छता मित्र व कचरा संकलन पथक · Sanitation Fleet",
+  },
+  {
+    id: "intra-collection",
+    src: intraCollectionImg,
+    caption: "घरोघरी कचरा संकलन वाहन · Door-to-Door Collection",
+  },
+  {
+    id: "segregated-truck",
+    src: segregatedTruckImg,
+    caption: "ओला व सुका कचरा वर्गीकरण · Segregated Waste Pickup",
+  },
+  {
+    id: "compactor-loading",
+    src: compactorLoadingImg,
+    caption: "हायड्रॉलिक कॉम्पॅक्टर कचरा वाहन · Waste Compactor in Action",
+  },
 ];
 
 const INTERVAL_MS = 10_000; // 10 seconds
@@ -29,7 +49,7 @@ const INTERVAL_MS = 10_000; // 10 seconds
  */
 export function LoginImageSlider() {
   const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
 
   const goNext = useCallback(() => {
     setDirection(1);
@@ -44,6 +64,7 @@ export function LoginImageSlider() {
     [index],
   );
 
+  // Auto-advance every 10 seconds
   useEffect(() => {
     const timer = setInterval(goNext, INTERVAL_MS);
     return () => clearInterval(timer);
@@ -53,7 +74,8 @@ export function LoginImageSlider() {
 
   return (
     <div className="w-full select-none">
-      <div className="relative overflow-hidden rounded-2xl bg-neutral-900 aspect-[16/11] min-h-[220px] max-h-[290px] shadow-lg border border-neutral-200/80">
+      {/* Slider container optimized for 16:10 real photo aspect ratios */}
+      <div className="relative overflow-hidden rounded-2xl bg-neutral-900 aspect-[16/10] min-h-[220px] max-h-[300px] shadow-lg border border-neutral-200/80">
         <AnimatePresence initial={false} mode="wait" custom={direction}>
           <motion.div
             key={slide.id}
@@ -64,6 +86,7 @@ export function LoginImageSlider() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-0 w-full h-full"
           >
+            {/* Image with subtle zoom */}
             <motion.img
               src={slide.src}
               alt={slide.caption}
@@ -73,7 +96,11 @@ export function LoginImageSlider() {
               transition={{ duration: 7, ease: "easeOut" }}
               draggable={false}
             />
+
+            {/* Bottom gradient overlay for caption readability */}
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
+
+            {/* Caption */}
             <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5 z-10">
               <p className="text-white text-[11px] sm:text-xs font-semibold drop-shadow-sm truncate">
                 {slide.caption}
@@ -82,21 +109,21 @@ export function LoginImageSlider() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Dot indicators (top-right) */}
         <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full">
           {SLIDES.map((s, i) => (
             <button
               key={s.id}
               onClick={() => goTo(i)}
               className={`rounded-full transition-all duration-300 cursor-pointer ${
-                i === index
-                  ? "w-4 h-1.5 bg-white"
-                  : "w-1.5 h-1.5 bg-white/40 hover:bg-white/60"
+                i === index ? "w-4 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40 hover:bg-white/60"
               }`}
               aria-label={`Go to slide ${i + 1}`}
             />
           ))}
         </div>
 
+        {/* Progress bar at bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-[3px] z-20">
           <motion.div
             key={`progress-${index}`}

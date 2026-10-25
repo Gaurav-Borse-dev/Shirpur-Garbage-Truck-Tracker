@@ -1,43 +1,43 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import banner from "@/assets/banner.png";
-import cleanShirpurImg from "@/assets/clean-shirpur.jpg";
-import swachhShirpurImg from "@/assets/swachh-shirpur.jpg";
-import cleanTrackImg from "@/assets/clean-track.jpg";
-import smartImg from "@/assets/smart.jpg";
-import greenShirpurImg from "../assets/greenshirpur.jpg";
+import buildingImg from "@/assets/shirpur-nagarparishad-building.jpg";
+import compactorFleetImg from "@/assets/shirpur-compactor-fleet.jpg";
+import intraCollectionImg from "@/assets/shirpur-intra-collection.jpg";
+import segregatedTruckImg from "@/assets/shirpur-segregated-truck.jpg";
+import compactorLoadingImg from "@/assets/shirpur-compactor-loading.jpg";
 
 interface Slide {
   id: string;
   src: string;
+  alt: string;
 }
 
 const SLIDES: Slide[] = [
   {
-    id: "banner",
-    src: banner,
-  },
-
-  {
-    id: "clean-shirpur",
-    src: cleanShirpurImg,
+    id: "building",
+    src: buildingImg,
+    alt: "Shirpur Warwade Nagarparishad Headquarters",
   },
   {
-    id: "swachh-shirpur",
-    src: swachhShirpurImg,
+    id: "compactor-fleet",
+    src: compactorFleetImg,
+    alt: "Shirpur Sanitation Fleet and Workers",
   },
   {
-    id: "green-shirpur",
-    src: greenShirpurImg,
+    id: "intra-collection",
+    src: intraCollectionImg,
+    alt: "Shirpur Tata Intra Door-to-Door Waste Collection",
   },
   {
-    id: "clean-track",
-    src: cleanTrackImg,
+    id: "segregated-truck",
+    src: segregatedTruckImg,
+    alt: "Shirpur Segregated Dry and Wet Waste Vehicle",
   },
   {
-    id: "smart-shirpur",
-    src: smartImg,
+    id: "compactor-loading",
+    src: compactorLoadingImg,
+    alt: "Shirpur Waste Compactor Truck in Action",
   },
 ];
 
@@ -76,7 +76,7 @@ export function ShirpurImageSlider() {
     border-emerald-400
     bg-neutral-900
     group
-    aspect-[16/11]
+    aspect-[16/10]
     min-h-[220px]
     max-h-[420px]
     sm:max-h-[500px]
@@ -84,7 +84,6 @@ export function ShirpurImageSlider() {
     h-[260px]
     sm:h-[300px]
     md:h-[360px]
-
 "
 
         onMouseEnter={() => setIsPaused(true)}
@@ -103,15 +102,15 @@ export function ShirpurImageSlider() {
           >
             <img
               src={SLIDES[currentIndex].src}
-              alt="CleanTrack Shirpur"
+              alt={SLIDES[currentIndex].alt}
               className="
  absolute
  inset-0
  w-full
  h-full
- object-contain
+ object-cover
  object-center
- bg-white
+ bg-neutral-900
  "
             />
           </motion.div>

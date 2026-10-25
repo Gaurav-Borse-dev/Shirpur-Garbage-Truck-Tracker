@@ -11,6 +11,7 @@ export const hi: Record<string, string> = {
   English: "अंग्रेज़ी",
   Hindi: "हिन्दी",
   Marathi: "मराठी",
+  "Privacy Policy": "गोपनीयता नीति",
 
   // Role / Login page
   "Shirpur Garbage Truck Tracker": "शिरपुर कचरा गाड़ी ट्रैकर",
@@ -114,6 +115,7 @@ export const mr: Record<string, string> = {
   English: "इंग्रजी",
   Hindi: "हिंदी",
   Marathi: "मराठी",
+  "Privacy Policy": "गोपनीयता धोरण",
 
   // Role / Login page
   "Shirpur Garbage Truck Tracker": "शिरपूर कचरा गाडी ट्रॅकर",
