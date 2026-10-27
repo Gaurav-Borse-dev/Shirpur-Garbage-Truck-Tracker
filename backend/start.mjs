@@ -4,6 +4,15 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Load .env automatically if present
+const envPath = resolve(__dirname, ".env");
+if (existsSync(envPath) && typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile(envPath);
+  } catch {}
+}
+
 const outputPath = resolve(__dirname, ".output/server/index.mjs");
 
 if (!existsSync(outputPath)) {

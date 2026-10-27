@@ -101,16 +101,43 @@ export const setFirebaseSession = createServerFn({ method: "POST" })
 
     console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
 
-    // Admin role is reserved strictly for 9999999999
-    if (data.role === "admin" && clean === ADMIN_PHONE) {
+    let isDbDriver = false;
+    try {
+      const { admin } = await import("./tracking.server");
+      const sb = await admin();
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("user_id")
+        .or(`phone.eq.${clean},phone.eq.91${clean},phone.eq.+91${clean}`)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        const { data: driverRow } = await sb
+          .from("drivers")
+          .select("id")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+        if (driverRow) isDbDriver = true;
+      }
+    } catch (err) {
+      console.warn("[firebase-auth] Could not check driver table", err);
+    }
+
+    // Role determination is strictly authoritative on the server — never trust client-proclaimed role
+    let finalRole: "admin" | "driver" | "resident" = "resident";
+
+    if (clean === ADMIN_PHONE) {
+      finalRole = "admin";
       await setUser({ role: "admin", username: "admin", phone: clean });
-    } else if (data.role === "driver") {
+    } else if (isDbDriver) {
+      finalRole = "driver";
       await setUser({ role: "driver", phone: clean });
     } else {
+      finalRole = "resident";
       await setUser({ role: "resident", phone: clean });
     }
 
-    return { ok: true as const };
+    return { ok: true as const, resolvedRole: finalRole };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */

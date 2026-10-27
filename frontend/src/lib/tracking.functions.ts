@@ -450,6 +450,16 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
  */
 export const getDailyDriverReport = createServerFn({ method: "GET" }).handler(async () => {
   try {
+    const { getUser } = await import("./session.server");
+    const user = await getUser();
+    if (!user || user.role !== "admin") {
+      return {
+        drivers: [],
+        reportDate: new Date().toISOString().slice(0, 10),
+        error: "unauthorized",
+      };
+    }
+
     const { admin } = await import("./tracking.server");
     const db = await admin();
 

@@ -126,16 +126,21 @@ export const setFirebaseSession = createServerFn({ method: "POST" })
       console.warn("[firebase-auth] Could not check driver table", err);
     }
 
-    // Admin role is reserved strictly for 9999999999
-    if (data.role === "admin" && clean === ADMIN_PHONE) {
+    // Role determination is strictly authoritative on the server — never trust client-proclaimed role
+    let finalRole: "admin" | "driver" | "resident" = "resident";
+
+    if (clean === ADMIN_PHONE) {
+      finalRole = "admin";
       await setUser({ role: "admin", username: "admin", phone: clean });
-    } else if (data.role === "driver" || isDbDriver) {
+    } else if (isDbDriver) {
+      finalRole = "driver";
       await setUser({ role: "driver", phone: clean });
     } else {
+      finalRole = "resident";
       await setUser({ role: "resident", phone: clean });
     }
 
-    return { ok: true as const, resolvedRole: isDbDriver ? ("driver" as const) : data.role };
+    return { ok: true as const, resolvedRole: finalRole };
   });
 
 /** Returns the server-verified session, or null. Never trusts client state. */

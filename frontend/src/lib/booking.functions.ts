@@ -49,8 +49,13 @@ export const createBooking = createServerFn({ method: "POST" })
     const user = await getUser();
     if (!user || !user.phone) return { ok: false as const, error: "Sign in to submit a booking." };
 
+    const today = new Date().toISOString().slice(0, 10);
+    if (data.fromDate < today) {
+      return { ok: false as const, error: "From date cannot be in the past." };
+    }
+
     if (data.fromDate > data.toDate) {
-      return { ok: false as const, error: "From date must be before To date." };
+      return { ok: false as const, error: "From date must be before or equal to To date." };
     }
 
     const sb = await db();

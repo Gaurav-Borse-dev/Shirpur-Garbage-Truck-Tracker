@@ -4,16 +4,19 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=3072 vite dev",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "dev": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "build:all": "npm --prefix frontend run build && npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
     "build:backend": "npm --prefix backend run build",
-    "preview": "vite preview",
+    "preview": "npm --prefix frontend run preview",
     "start": "node start.mjs",
+    "start:frontend": "npm --prefix frontend run start",
     "start:backend": "npm --prefix backend run start",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "clean": "node -e \"const fs=require('fs');['.output','.vinxi','.tanstack','.nitro','.vite','backend/.output'].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true});console.log('Removed',d)}catch{}})\""
+    "clean": "node -e \"const fs=require('fs');['.output','.vinxi','.tanstack','.nitro','.vite','frontend/.output','backend/.output'].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true});console.log('Removed',d)}catch{}})\""
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

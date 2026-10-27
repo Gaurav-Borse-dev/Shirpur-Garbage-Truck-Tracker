@@ -77,8 +77,8 @@ async function getUserLanguage(userId: string): Promise<string> {
     const { data, error } = await (supabaseAdmin as any)
       .from("profiles")
       .select("language")
-      .eq("id", userId)
-      .single();
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle();
 
     if (error || !data) {
       console.error("Error fetching user language:", error);
@@ -117,50 +117,42 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export async function getTruckLocation(userId: string): Promise<ChatbotResponse> {
   try {
-    // Get user profile
-    const { data: profile, error: profileError } = await (supabaseAdmin as any)
+    const { data: profile } = await (supabaseAdmin as any)
       .from("profiles")
-      .select("area, language")
-      .eq("id", userId)
-      .single();
+      .select("language")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle();
 
-    if (profileError || !profile?.area) {
-      return {
-        text: getTranslation("truck.not.found", profile?.language || "en"),
-        data: null,
-      };
-    }
+    const language = profile?.language || "en";
 
-    // Get truck for this area
-    const { data: truck, error: truckError } = await (supabaseAdmin as any)
+    // Query active trucks with actual schema columns
+    const { data: trucks } = await (supabaseAdmin as any)
       .from("trucks")
-      .select("truck_number, current_latitude, current_longitude, route_name, status")
-      .eq("assigned_area", profile.area)
-      .single();
+      .select("id, truck_code, ward, status")
+      .order("truck_code", { ascending: true });
 
-    if (truckError || !truck) {
+    const activeTruck = (trucks || []).find((t: any) => t.status === "collecting") || trucks?.[0];
+
+    if (!activeTruck) {
       return {
-        text: getTranslation("truck.not.found", profile.language || "en"),
+        text: getTranslation("truck.not.found", language),
         data: null,
       };
     }
 
-    const language = profile.language || "en";
-    const statusKey = `truck.status.${truck.status}`;
+    const statusKey = `truck.status.${activeTruck.status}`;
     const statusText = getTranslation(statusKey, language);
 
-    let responseText = `${getTranslation("truck.location", language)} ${truck.truck_number}.\n`;
-    responseText += `${getTranslation("truck.at", language)} ${truck.route_name || "unknown"}.\n`;
+    let responseText = `${getTranslation("truck.location", language)} ${activeTruck.truck_code}.\n`;
+    responseText += `${getTranslation("truck.at", language)} ${activeTruck.ward || "Shirpur"}.\n`;
     responseText += `${getTranslation("truck.status", language)}: ${statusText}`;
 
     return {
       text: responseText,
       data: {
-        truckNumber: truck.truck_number,
-        routeName: truck.route_name,
-        status: truck.status,
-        latitude: truck.current_latitude,
-        longitude: truck.current_longitude,
+        truckCode: activeTruck.truck_code,
+        ward: activeTruck.ward,
+        status: activeTruck.status,
       },
     };
   } catch (error) {
@@ -174,62 +166,34 @@ export async function getTruckLocation(userId: string): Promise<ChatbotResponse>
 
 export async function getTruckETA(userId: string): Promise<ChatbotResponse> {
   try {
-    // Get user location
-    const { data: profile, error: profileError } = await (supabaseAdmin as any)
+    const { data: profile } = await (supabaseAdmin as any)
       .from("profiles")
-      .select("latitude, longitude, area, language")
-      .eq("id", userId)
-      .single();
+      .select("language")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle();
 
-    if (profileError || !profile?.latitude || !profile?.longitude) {
-      return {
-        text: getTranslation("error.generic", profile?.language || "en"),
-        data: null,
-      };
-    }
+    const language = profile?.language || "en";
 
-    // Get truck location
-    const { data: truck, error: truckError } = await (supabaseAdmin as any)
+    const { data: trucks } = await (supabaseAdmin as any)
       .from("trucks")
-      .select("current_latitude, current_longitude, truck_number, status")
-      .eq("assigned_area", profile.area)
-      .single();
+      .select("id, truck_code, ward, status")
+      .eq("status", "collecting")
+      .limit(1);
 
-    if (truckError || !truck) {
+    const truck = trucks?.[0];
+    if (!truck) {
       return {
-        text: getTranslation("truck.not.found", profile.language || "en"),
+        text: getTranslation("truck.not.found", language),
         data: null,
       };
     }
 
-    // Calculate distance and ETA
-    const distance = calculateDistance(
-      profile.latitude,
-      profile.longitude,
-      truck.current_latitude,
-      truck.current_longitude,
-    );
-
-    const etaMinutes = Math.round((distance / 20) * 60);
-    const passed = distance < 0.1 && truck.status === "completed";
-    const language = profile.language || "en";
-
-    let responseText = "";
-    if (passed) {
-      responseText = getTranslation("truck.passed", language);
-    } else if (distance < 0.5) {
-      responseText = getTranslation("truck.approaching", language);
-    } else {
-      responseText = `${getTranslation("truck.distance", language)}: ${distance.toFixed(1)} km\n${getTranslation("truck.eta", language)}: ${etaMinutes} minutes`;
-    }
+    const responseText = `${getTranslation("truck.approaching", language)}\n${getTranslation("truck.location", language)} ${truck.truck_code} (${truck.ward || "Shirpur"}).`;
 
     return {
       text: responseText,
       data: {
-        distance,
-        etaMinutes,
-        passed,
-        truckNumber: truck.truck_number,
+        truckCode: truck.truck_code,
         status: truck.status,
       },
     };
@@ -244,44 +208,36 @@ export async function getTruckETA(userId: string): Promise<ChatbotResponse> {
 
 export async function getTruckStatus(userId: string): Promise<ChatbotResponse> {
   try {
-    const { data: profile, error: profileError } = await (supabaseAdmin as any)
+    const { data: profile } = await (supabaseAdmin as any)
       .from("profiles")
-      .select("area, language")
-      .eq("id", userId)
-      .single();
+      .select("language")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle();
 
-    if (profileError || !profile?.area) {
-      return {
-        text: getTranslation("error.generic", profile?.language || "en"),
-        data: null,
-      };
-    }
+    const language = profile?.language || "en";
 
-    const { data: truck, error: truckError } = await (supabaseAdmin as any)
+    const { data: trucks } = await (supabaseAdmin as any)
       .from("trucks")
-      .select("truck_number, status, last_updated")
-      .eq("assigned_area", profile.area)
-      .single();
+      .select("truck_code, status, ward")
+      .limit(1);
 
-    if (truckError || !truck) {
+    const truck = trucks?.[0];
+    if (!truck) {
       return {
-        text: getTranslation("truck.not.found", profile.language || "en"),
+        text: getTranslation("truck.not.found", language),
         data: null,
       };
     }
 
-    const language = profile.language || "en";
     const statusKey = `truck.status.${truck.status}`;
     const statusText = getTranslation(statusKey, language);
-
-    const responseText = `${getTranslation("truck.status", language)}: ${statusText}`;
+    const responseText = `${truck.truck_code}: ${statusText} (${truck.ward || "Shirpur"})`;
 
     return {
       text: responseText,
       data: {
-        truckNumber: truck.truck_number,
+        truckCode: truck.truck_code,
         status: truck.status,
-        lastUpdated: truck.last_updated,
       },
     };
   } catch (error) {
@@ -295,44 +251,32 @@ export async function getTruckStatus(userId: string): Promise<ChatbotResponse> {
 
 export async function getTruckRoute(userId: string): Promise<ChatbotResponse> {
   try {
-    const { data: profile, error: profileError } = await (supabaseAdmin as any)
+    const { data: profile } = await (supabaseAdmin as any)
       .from("profiles")
-      .select("area, language")
-      .eq("id", userId)
-      .single();
+      .select("language")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle();
 
-    if (profileError || !profile?.area) {
+    const language = profile?.language || "en";
+
+    const { data: routes } = await (supabaseAdmin as any)
+      .from("routes")
+      .select("name, ward, status")
+      .limit(5);
+
+    if (!routes || routes.length === 0) {
       return {
-        text: getTranslation("error.generic", profile?.language || "en"),
+        text: getTranslation("truck.not.found", language),
         data: null,
       };
     }
 
-    const { data: truck, error: truckError } = await (supabaseAdmin as any)
-      .from("trucks")
-      .select("route_name, stops")
-      .eq("assigned_area", profile.area)
-      .single();
-
-    if (truckError || !truck) {
-      return {
-        text: getTranslation("truck.not.found", profile.language || "en"),
-        data: null,
-      };
-    }
-
-    const language = profile.language || "en";
-    const stops = truck.stops || [];
-
-    let responseText = `${getTranslation("truck.route", language)}: ${truck.route_name || "Not available"}\n`;
-    responseText += `${getTranslation("truck.stops", language)}: ${stops.length > 0 ? stops.join(", ") : "No stops available"}`;
+    const routeNames = routes.map((r: any) => `${r.name} (${r.ward})`).join("\n• ");
+    const responseText = `${getTranslation("truck.route", language)}:\n• ${routeNames}`;
 
     return {
       text: responseText,
-      data: {
-        routeName: truck.route_name,
-        stops: stops,
-      },
+      data: { routes },
     };
   } catch (error) {
     console.error("Error getting route:", error);

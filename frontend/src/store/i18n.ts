@@ -24,9 +24,11 @@ const LS_DRIVER = "language_driver";
 const LS_LEGACY = "language";
 
 function readLang(key: string): Lang | null {
-  if (typeof window === "undefined") return null;
-  const v = localStorage.getItem(key);
-  if (v === "hi" || v === "mr" || v === "en") return v;
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
+  try {
+    const v = localStorage.getItem(key);
+    if (v === "hi" || v === "mr" || v === "en") return v;
+  } catch {}
   return null;
 }
 
@@ -45,17 +47,19 @@ export const useI18n = create<I18nState>((set, get) => ({
   },
 
   setLang: (lang, role) => {
-    if (typeof window !== "undefined") {
-      if (role === "driver") {
-        localStorage.setItem(LS_DRIVER, lang);
-      } else if (role === "resident") {
-        localStorage.setItem(LS_RESIDENT, lang);
-      } else {
-        // No role specified (e.g. /role page) – write to both stores
-        localStorage.setItem(LS_RESIDENT, lang);
-        localStorage.setItem(LS_DRIVER, lang);
-        localStorage.setItem(LS_LEGACY, lang);
-      }
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      try {
+        if (role === "driver") {
+          localStorage.setItem(LS_DRIVER, lang);
+        } else if (role === "resident") {
+          localStorage.setItem(LS_RESIDENT, lang);
+        } else {
+          // No role specified (e.g. /role page) – write to both stores
+          localStorage.setItem(LS_RESIDENT, lang);
+          localStorage.setItem(LS_DRIVER, lang);
+          localStorage.setItem(LS_LEGACY, lang);
+        }
+      } catch {}
     }
 
     if (role === "driver") {

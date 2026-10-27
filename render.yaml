@@ -12,3 +12,18 @@ services:
         value: 22.14.0
       - key: HOST
         value: 0.0.0.0
+
+  - type: web
+    name: shirpur-garbage-frontend
+    env: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: HOST
+        value: 0.0.0.0
+
