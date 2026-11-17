@@ -33,54 +33,116 @@ const sendOtpInput = z.object({
   phone: z.string().regex(/^\d{10}$/),
 });
 
+const loginPhoneInput = z.object({
+  phone: z.string().regex(/^\d{10}$/),
+});
+
 /**
- * sendOtp — Determines the authentication flow for the given phone number.
- *
- * - Admin phone (9999999999): Returns `useFirebase: false` for instant static OTP (123456).
- * - All other logins (driver and resident): Returns `useFirebase: true` for real SMS OTP via Firebase.
+ * loginWithPhone — Directly authenticates the user by phone number without OTP.
+ * Resolves role securely on the server (admin for 9999999999, driver for registered drivers, resident for all others).
+ */
+export const loginWithPhone = createServerFn({ method: "POST" })
+  .validator((data: unknown) => loginPhoneInput.parse(data))
+  .handler(async ({ data }) => {
+    const { setUser } = await import("./session.server");
+    const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
+
+    let isDbDriver = false;
+    let driverInfo: { name: string; truckId: string } | null = null;
+    try {
+      const { admin } = await import("./tracking.server");
+      const sb = await admin();
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("user_id, full_name")
+        .or(`phone.eq.${clean},phone.eq.91${clean},phone.eq.+91${clean}`)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        const { data: driverRow } = await sb
+          .from("drivers")
+          .select("id, assigned_truck_id")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+        if (driverRow) {
+          isDbDriver = true;
+          driverInfo = {
+            name: profile.full_name || "Driver",
+            truckId: driverRow.assigned_truck_id || "",
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[auth] Could not check driver table", err);
+    }
+
+    let finalRole: "admin" | "driver" | "resident" = "resident";
+
+    if (clean === ADMIN_PHONE) {
+      finalRole = "admin";
+      await setUser({ role: "admin", username: "admin", phone: clean });
+    } else if (isDbDriver) {
+      finalRole = "driver";
+      await setUser({ role: "driver", phone: clean });
+    } else {
+      finalRole = "resident";
+      await setUser({ role: "resident", phone: clean });
+    }
+
+    return { ok: true as const, resolvedRole: finalRole, driverInfo };
+  });
+
+/**
+ * sendOtp — Compatibility helper. Since OTP is removed across resident & driver,
+ * returns immediate success.
  */
 export const sendOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => sendOtpInput.parse(data))
   .handler(async ({ data }) => {
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-
-    if (clean === ADMIN_PHONE) {
-      console.log(`[otp] Admin phone ${clean} — bypass mode (123456)`);
-      return { ok: true as const, sent: true, useFirebase: false };
-    }
-
-    // All real numbers (driver and resident) use Firebase Phone Auth for real SMS OTP
-    console.log(`[otp] Real Firebase Phone Auth requested for ******${clean.slice(-4)}`);
-    return { ok: true as const, sent: true, useFirebase: true };
+    console.log(`[otp] Instant sign-in requested for ******${clean.slice(-4)}`);
+    return { ok: true as const, sent: true, useFirebase: false };
   });
 
 /**
- * verifyOtp — OTP verification strictly for admin bypass flow (9999999999 with 123456).
- * Drivers and residents authenticate via Firebase and use setFirebaseSession.
+ * verifyOtp — Compatibility helper. Accepts code or allows direct verification.
  */
 export const verifyOtp = createServerFn({ method: "POST" })
   .validator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
-    const code = data.code.trim();
 
-    if (clean !== ADMIN_PHONE) {
-      return {
-        ok: false as const,
-        error: "Real SMS OTP verification is required for this mobile number.",
-      };
-    }
-
-    if (code === "123456") {
+    if (clean === ADMIN_PHONE) {
       await setUser({ role: "admin", username: "admin", phone: clean });
-      return { ok: true as const };
+      return { ok: true as const, resolvedRole: "admin" as const };
     }
 
-    return {
-      ok: false as const,
-      error: "Incorrect code. Please enter 123456 for admin.",
-    };
+    let isDbDriver = false;
+    try {
+      const { admin } = await import("./tracking.server");
+      const sb = await admin();
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("user_id")
+        .or(`phone.eq.${clean},phone.eq.91${clean},phone.eq.+91${clean}`)
+        .maybeSingle();
+
+      if (profile?.user_id) {
+        const { data: driverRow } = await sb
+          .from("drivers")
+          .select("id")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+        if (driverRow) isDbDriver = true;
+      }
+    } catch (err) {
+      console.warn("[auth] Could not check driver table", err);
+    }
+
+    const finalRole: "driver" | "resident" = isDbDriver ? "driver" : "resident";
+    await setUser({ role: finalRole, phone: clean });
+    return { ok: true as const, resolvedRole: finalRole };
   });
 
 /**

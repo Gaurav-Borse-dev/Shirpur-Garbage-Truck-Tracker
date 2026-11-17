@@ -19,6 +19,10 @@ export const hi: Record<string, string> = {
     "स्वच्छ और हरित शिरपुर के लिए स्मार्ट कचरा संग्रहण प्रणाली",
   "Welcome!": "स्वागत है!",
   "Enter your mobile number to continue": "आगे बढ़ने के लिए अपना मोबाइल नंबर दर्ज करें",
+  "Sign In": "साइन इन करें",
+  "Signing in…": "साइन इन हो रहा है…",
+  "Please enter a valid 10-digit mobile number": "कृपया वैध 10 अंकों का मोबाइल नंबर दर्ज करें",
+  "Unable to sign in. Please try again.": "साइन इन करने में असमर्थ। कृपया पुनः प्रयास करें।",
   "Send OTP": "ओटीपी भेजें",
   "Sending OTP…": "ओटीपी भेजा जा रहा है…",
   "We will detect your role and redirect you to your dashboard":
@@ -123,6 +127,10 @@ export const mr: Record<string, string> = {
     "स्वच्छ आणि सुंदर शिरपूरसाठी स्मार्ट कचरा संकलन प्रणाली",
   "Welcome!": "स्वागत आहे!",
   "Enter your mobile number to continue": "पुढे जाण्यासाठी तुमचा मोबाईल नंबर टाका",
+  "Sign In": "साइन इन करा",
+  "Signing in…": "साइन इन होत आहे…",
+  "Please enter a valid 10-digit mobile number": "कृपया वैध 10 अंकी मोबाईल नंबर टाका",
+  "Unable to sign in. Please try again.": "साइन इन करण्यात अडचण येत आहे. कृपया पुन्हा प्रयत्न करा.",
   "Send OTP": "ओटीपी पाठवा",
   "Sending OTP…": "ओटीपी पाठवत आहे…",
   "We will detect your role and redirect you to your dashboard":
