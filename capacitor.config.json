@@ -3,7 +3,7 @@
   "appName": "CleanTrack",
   "server": {
     "androidScheme": "https",
-    "url": "https://street-scan-track.shirpur.app"
+    "url": "https://cleantruck.live"
   },
   "plugins": {
     "Geolocation": {
