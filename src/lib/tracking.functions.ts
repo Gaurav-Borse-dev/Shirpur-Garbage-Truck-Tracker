@@ -29,21 +29,36 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     }
 
     let driverId: string | null = null;
+    let driverUserId: string | null = null;
     if (user.phone) {
-      const cleanPhone = user.phone.trim().replace(/\D/g, "");
+      const cleanPhone = user.phone.trim().replace(/\D/g, "").slice(-10);
       const { data: profile } = await db
         .from("profiles")
         .select("user_id")
-        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone}`)
+        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.+91${cleanPhone}`)
         .maybeSingle();
 
       if (profile?.user_id) {
+        driverUserId = profile.user_id;
         const { data: driver } = await db
           .from("drivers")
           .select("id")
           .eq("user_id", profile.user_id)
           .maybeSingle();
         if (driver) driverId = driver.id;
+      }
+    }
+
+    // Fallback: If not found by phone, find driver assigned to this truck
+    if (!driverId) {
+      const { data: driverByTruck } = await db
+        .from("drivers")
+        .select("id, user_id")
+        .eq("assigned_truck_id", truckId)
+        .maybeSingle();
+      if (driverByTruck) {
+        driverId = driverByTruck.id;
+        driverUserId = driverByTruck.user_id;
       }
     }
 
@@ -61,6 +76,20 @@ export const ingestDriverGps = createServerFn({ method: "POST" })
     if (error) {
       console.error("[gps] ingest failed:", error.message);
       return { accepted: false as const, reason: "ingest_error" };
+    }
+
+    // Ensure truck status and driver duty state in DB are active
+    const nowIso = new Date().toISOString();
+    await db.from("trucks").update({ status: "collecting" }).eq("id", truckId);
+    if (driverId) {
+      await db
+        .from("drivers")
+        .update({
+          on_duty: true,
+          duty_state: "on_duty",
+          last_heartbeat: nowIso,
+        })
+        .eq("id", driverId);
     }
 
     return (result ?? { accepted: true, reason: "ok" }) as {
@@ -120,17 +149,39 @@ export const completeRouteStop = createServerFn({ method: "POST" })
     };
   });
 
-function parseWkbPoint(hex: string): { lat: number; lng: number } | null {
-  if (!hex || hex.length < 50) return null;
-  try {
-    const buf = Buffer.from(hex, "hex");
-    const isLE = buf[0] === 1;
-    const lng = isLE ? buf.readDoubleLE(9) : buf.readDoubleBE(9);
-    const lat = isLE ? buf.readDoubleLE(17) : buf.readDoubleBE(17);
-    return { lat, lng };
-  } catch {
-    return null;
+function parseLocation(loc: any): { lat: number; lng: number } | null {
+  if (!loc) return null;
+  if (typeof loc === "object") {
+    if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+      return { lat: Number(loc.coordinates[1]), lng: Number(loc.coordinates[0]) };
+    }
+    if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+      return { lat: loc.lat, lng: loc.lng };
+    }
   }
+  if (typeof loc === "string") {
+    if (loc.length >= 50) {
+      try {
+        const buf = Buffer.from(loc, "hex");
+        const isLE = buf[0] === 1;
+        const lng = isLE ? buf.readDoubleLE(9) : buf.readDoubleBE(9);
+        const lat = isLE ? buf.readDoubleLE(17) : buf.readDoubleBE(17);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    // Also try JSON parse in case stringified GeoJSON
+    try {
+      const parsed = JSON.parse(loc);
+      if (parsed?.coordinates?.length >= 2) {
+        return { lat: Number(parsed.coordinates[1]), lng: Number(parsed.coordinates[0]) };
+      }
+    } catch {}
+  }
+  return null;
 }
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -173,19 +224,20 @@ export const getNearbyTrucks = createServerFn({ method: "POST" })
       };
     }
 
-    // Fallback: If no trucks currently collecting (all offline), read real last known positions
+    // Fallback: If no trucks returned by RPC, read directly from truck_live_location table
     const { data: locRows } = await db
       .from("truck_live_location")
-      .select("*, trucks(truck_code, status)")
+      .select("*, trucks!inner(truck_code, status)")
       .order("fixed_at", { ascending: false });
 
     if (locRows && locRows.length > 0) {
+      const isGlobalScope = data.radiusM >= 100000;
       const mapped = locRows
         .map((r: any) => {
-          const coords = parseWkbPoint(r.location);
+          const coords = parseLocation(r.location);
           if (!coords) return null;
           const dist = haversineM(data.lat, data.lng, coords.lat, coords.lng);
-          if (dist > data.radiusM) return null;
+          if (!isGlobalScope && dist > data.radiusM) return null;
           return {
             truckId: r.trucks?.truck_code ?? "UNKNOWN",
             truckCode: r.trucks?.truck_code ?? "UNKNOWN",
@@ -252,6 +304,23 @@ export const getTruckEta = createServerFn({ method: "POST" })
     };
   });
 
+function isAbortOrCancelError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err?.message || err?.cause?.message || err);
+  const name = err?.name || err?.cause?.name;
+  const code = err?.code || err?.cause?.code;
+  return (
+    name === "AbortError" ||
+    name === "DOMException" ||
+    code === "ECONNRESET" ||
+    code === "UND_ERR_ABORTED" ||
+    msg.includes("aborted") ||
+    msg.includes("AbortError") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("fetch failed")
+  );
+}
+
 /** Fetches the full truck fleet from the database. */
 export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -263,7 +332,9 @@ export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async ()
       .order("truck_code", { ascending: true });
 
     if (error || !rows?.length) {
-      console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+      if (!isAbortOrCancelError(error)) {
+        console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+      }
       return { trucks: null, error: error?.message ?? "empty" };
     }
 
@@ -280,7 +351,9 @@ export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async ()
       error: null,
     };
   } catch (err) {
-    console.error("[fleet] trucks fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[fleet] trucks fetch failed", err);
+    }
     return { trucks: null, error: "unavailable" };
   }
 });
@@ -302,7 +375,9 @@ export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async (
       .order("created_at", { ascending: true });
 
     if (error || !rows?.length) {
-      console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+      if (!isAbortOrCancelError(error)) {
+        console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+      }
       return { drivers: null, error: error?.message ?? "empty" };
     }
 
@@ -339,7 +414,9 @@ export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async (
       error: null,
     };
   } catch (err) {
-    console.error("[fleet] drivers fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[fleet] drivers fetch failed", err);
+    }
     return { drivers: null, error: "unavailable" };
   }
 });
@@ -380,7 +457,9 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
       complaintsToday: complaintsToday ?? 0,
     };
   } catch (err) {
-    console.error("[dashboard] stats fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[dashboard] stats fetch failed", err);
+    }
     return {
       residentsAlerted: 0,
       stopsCompleted: 0,
@@ -389,3 +468,116 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
     };
   }
 });
+
+/**
+ * Daily driver report for Excel export.
+ * Returns today's driver activity: name, phone, truck, login time,
+ * last heartbeat (offline time), distance covered, duty state.
+ * Data is only for the current day — the admin downloads a fresh report each day.
+ */
+export const getDailyDriverReport = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { getUser } = await import("./session.server");
+    const user = await getUser();
+    if (!user || user.role !== "admin") {
+      return {
+        drivers: [],
+        reportDate: new Date().toISOString().slice(0, 10),
+        error: "unauthorized",
+      };
+    }
+
+    const { admin } = await import("./tracking.server");
+    const db = await admin();
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Fetch all drivers with their truck info
+    const { data: rows, error } = await db
+      .from("drivers")
+      .select(
+        `
+        id, user_id, license_no, on_duty, duty_state,
+        assigned_truck_id, duty_started_at, last_heartbeat, trip_distance_m,
+        created_at, updated_at,
+        assigned_truck:trucks!drivers_assigned_truck_id_fkey ( truck_code, ward, status )
+      `,
+      )
+      .order("created_at", { ascending: true });
+
+    if (error || !rows?.length) {
+      if (!isAbortOrCancelError(error)) {
+        console.error("[report] drivers query failed", error?.message ?? "no rows");
+      }
+      return { drivers: [], reportDate: today, error: error?.message ?? "no_drivers" };
+    }
+
+    // Fetch profiles for names and phone numbers
+    const userIds = rows.map((r) => r.user_id);
+    const { data: profiles } = await db
+      .from("profiles")
+      .select("user_id, full_name, phone")
+      .in("user_id", userIds);
+
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [p.user_id, { name: p.full_name, phone: p.phone }]),
+    );
+
+    // Fetch today's collection stats per driver
+    const { data: collectionRows } = await db
+      .from("collection_history")
+      .select("driver_id, status")
+      .gte("completed_at", `${today}T00:00:00Z`)
+      .eq("status", "completed");
+
+    const stopsMap = new Map<string, number>();
+    for (const c of collectionRows ?? []) {
+      if (c.driver_id) {
+        stopsMap.set(c.driver_id, (stopsMap.get(c.driver_id) ?? 0) + 1);
+      }
+    }
+
+    const drivers = rows.map((r) => {
+      const profile = profileMap.get(r.user_id);
+      const truck = r.assigned_truck as {
+        truck_code: string;
+        ward: string | null;
+        status: string;
+      } | null;
+
+      // Determine login time: duty_started_at for today, or null
+      const dutyStarted = r.duty_started_at ? new Date(r.duty_started_at) : null;
+      const todayStart = new Date(`${today}T00:00:00Z`);
+      const loginTime =
+        dutyStarted && dutyStarted >= todayStart ? r.duty_started_at : null;
+
+      // Last heartbeat as "last active" / offline time proxy
+      const lastHeartbeat = r.last_heartbeat ?? null;
+
+      // Distance covered in km
+      const distanceKm = Math.round(((r.trip_distance_m ?? 0) / 1000) * 100) / 100;
+
+      return {
+        driverName: profile?.name ?? "Unknown",
+        driverPhone: profile?.phone ?? "",
+        truckCode: truck?.truck_code ?? "—",
+        ward: truck?.ward ?? "—",
+        truckStatus: truck?.status ?? "offline",
+        dutyState: r.duty_state as string,
+        onDuty: r.on_duty,
+        loginTime,
+        lastHeartbeat,
+        distanceKm,
+        stopsCompleted: stopsMap.get(r.id) ?? 0,
+      };
+    });
+
+    return { drivers, reportDate: today, error: null };
+  } catch (err) {
+    if (!isAbortOrCancelError(err)) {
+      console.error("[report] daily driver report failed", err);
+    }
+    return { drivers: [], reportDate: new Date().toISOString().slice(0, 10), error: "unavailable" };
+  }
+});
+

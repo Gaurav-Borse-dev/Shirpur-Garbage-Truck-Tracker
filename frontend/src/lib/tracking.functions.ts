@@ -304,6 +304,23 @@ export const getTruckEta = createServerFn({ method: "POST" })
     };
   });
 
+function isAbortOrCancelError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err?.message || err?.cause?.message || err);
+  const name = err?.name || err?.cause?.name;
+  const code = err?.code || err?.cause?.code;
+  return (
+    name === "AbortError" ||
+    name === "DOMException" ||
+    code === "ECONNRESET" ||
+    code === "UND_ERR_ABORTED" ||
+    msg.includes("aborted") ||
+    msg.includes("AbortError") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("fetch failed")
+  );
+}
+
 /** Fetches the full truck fleet from the database. */
 export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -315,7 +332,9 @@ export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async ()
       .order("truck_code", { ascending: true });
 
     if (error || !rows?.length) {
-      console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+      if (!isAbortOrCancelError(error)) {
+        console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+      }
       return { trucks: null, error: error?.message ?? "empty" };
     }
 
@@ -332,7 +351,9 @@ export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async ()
       error: null,
     };
   } catch (err) {
-    console.error("[fleet] trucks fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[fleet] trucks fetch failed", err);
+    }
     return { trucks: null, error: "unavailable" };
   }
 });
@@ -354,7 +375,9 @@ export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async (
       .order("created_at", { ascending: true });
 
     if (error || !rows?.length) {
-      console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+      if (!isAbortOrCancelError(error)) {
+        console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+      }
       return { drivers: null, error: error?.message ?? "empty" };
     }
 
@@ -391,7 +414,9 @@ export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async (
       error: null,
     };
   } catch (err) {
-    console.error("[fleet] drivers fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[fleet] drivers fetch failed", err);
+    }
     return { drivers: null, error: "unavailable" };
   }
 });
@@ -432,7 +457,9 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
       complaintsToday: complaintsToday ?? 0,
     };
   } catch (err) {
-    console.error("[dashboard] stats fetch failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[dashboard] stats fetch failed", err);
+    }
     return {
       residentsAlerted: 0,
       stopsCompleted: 0,
@@ -479,7 +506,9 @@ export const getDailyDriverReport = createServerFn({ method: "GET" }).handler(as
       .order("created_at", { ascending: true });
 
     if (error || !rows?.length) {
-      console.error("[report] drivers query failed", error?.message ?? "no rows");
+      if (!isAbortOrCancelError(error)) {
+        console.error("[report] drivers query failed", error?.message ?? "no rows");
+      }
       return { drivers: [], reportDate: today, error: error?.message ?? "no_drivers" };
     }
 
@@ -545,7 +574,9 @@ export const getDailyDriverReport = createServerFn({ method: "GET" }).handler(as
 
     return { drivers, reportDate: today, error: null };
   } catch (err) {
-    console.error("[report] daily driver report failed", err);
+    if (!isAbortOrCancelError(err)) {
+      console.error("[report] daily driver report failed", err);
+    }
     return { drivers: [], reportDate: new Date().toISOString().slice(0, 10), error: "unavailable" };
   }
 });
