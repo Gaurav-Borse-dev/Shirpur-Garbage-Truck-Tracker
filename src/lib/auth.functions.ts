@@ -89,6 +89,15 @@ export const loginWithPhone = createServerFn({ method: "POST" })
       await setUser({ role: "resident", phone: clean });
     }
 
+    // Save phone number permanently in residents table
+    try {
+      const { admin } = await import("./tracking.server");
+      const sb = await admin();
+      await sb.rpc("upsert_resident_phone", { p_phone: clean });
+    } catch (err) {
+      console.warn("[auth] Could not save resident phone", err);
+    }
+
     return { ok: true as const, resolvedRole: finalRole, driverInfo };
   });
 
@@ -161,8 +170,11 @@ export const setFirebaseSession = createServerFn({ method: "POST" })
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);
 
-    console.log(`[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`);
+    console.log(
+      `[firebase-auth] Setting session for ******${clean.slice(-4)} as ${data.role} (uid: ${data.firebaseUid.slice(0, 8)}...)`,
+    );
 
+    // Check if this phone belongs to an approved driver in the database
     let isDbDriver = false;
     try {
       const { admin } = await import("./tracking.server");

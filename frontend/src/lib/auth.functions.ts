@@ -89,6 +89,15 @@ export const loginWithPhone = createServerFn({ method: "POST" })
       await setUser({ role: "resident", phone: clean });
     }
 
+    // Save phone number permanently in residents table
+    try {
+      const { admin } = await import("./tracking.server");
+      const sb = await admin();
+      await sb.rpc("upsert_resident_phone", { p_phone: clean });
+    } catch (err) {
+      console.warn("[auth] Could not save resident phone", err);
+    }
+
     return { ok: true as const, resolvedRole: finalRole, driverInfo };
   });
 
