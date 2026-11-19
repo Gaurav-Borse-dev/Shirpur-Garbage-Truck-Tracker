@@ -66,13 +66,20 @@ function createSupabaseClient() {
   });
 }
 
-let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
+const globalScope = typeof globalThis !== "undefined" ? globalThis : (typeof window !== "undefined" ? window : global);
+
+function getSupabaseInstance() {
+  if (!(globalScope as any).__supabaseClientInstance) {
+    (globalScope as any).__supabaseClientInstance = createSupabaseClient();
+  }
+  return (globalScope as any).__supabaseClientInstance;
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
   get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
-    return Reflect.get(_supabase, prop, receiver);
+    const instance = getSupabaseInstance();
+    return Reflect.get(instance, prop, receiver);
   },
 });

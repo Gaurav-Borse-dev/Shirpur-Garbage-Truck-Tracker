@@ -14,7 +14,7 @@ const otpInput = z.object({
 
 /** Verifies the admin credentials on the server and issues an encrypted session cookie. */
 export const adminLogin = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => credentials.parse(data))
+  .validator((data: unknown) => credentials.parse(data))
   .handler(async ({ data }) => {
     const { setUser, secretMatches } = await import("./session.server");
     const expectedUser = process.env["ADMIN_USERNAME"] || "admin";
@@ -28,7 +28,7 @@ export const adminLogin = createServerFn({ method: "POST" })
 
 /** Verifies the one-time code on the server and issues an encrypted session cookie. */
 export const verifyOtp = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => otpInput.parse(data))
+  .validator((data: unknown) => otpInput.parse(data))
   .handler(async ({ data }) => {
     const { setUser } = await import("./session.server");
     const clean = data.phone.trim().replace(/\D/g, "").slice(-10);

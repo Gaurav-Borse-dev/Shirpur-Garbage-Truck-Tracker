@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MobileFrame } from "@/components/MobileFrame";
-import { ResidentPrivacyPage } from "./resident.privacy";
+import { PrivacyView } from "@/components/PrivacyView";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -17,21 +17,20 @@ export const Route = createFileRoute("/privacy")({
         content:
           "Privacy Policy, location usage, data protection and user rights for Shirpur Garbage Truck Tracker.",
       },
-      { property: "og:url", content: "https://street-scan-track.shirpur.app/privacy" },
+      { property: "og:url", content: "https://cleantruck.live/privacy" },
     ],
-    links: [{ rel: "canonical", href: "https://street-scan-track.shirpur.app/privacy" }],
+    links: [{ rel: "canonical", href: "https://cleantruck.live/privacy" }],
   }),
-  component: PublicPrivacyPage,
+  component: PublicPrivacyComponent,
 });
 
-function PublicPrivacyPage() {
+function PublicPrivacyComponent() {
+  const navigate = useNavigate();
   return (
     <MobileFrame>
       <div className="flex-1 relative overflow-hidden bg-neutral-50 h-full">
-        <ResidentPrivacyPage />
+        <PrivacyView onBack={() => navigate({ to: "/" })} />
       </div>
     </MobileFrame>
   );
 }
-
-export default PublicPrivacyPage;

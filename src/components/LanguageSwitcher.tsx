@@ -1,27 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { useI18n, type Lang } from "@/store/i18n";
+import { useI18n, LANGS } from "@/store/i18n";
 import { useT } from "@/lib/i18n";
 
-const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
-  { code: "en", label: "English", native: "English", flag: "EN" },
-  { code: "hi", label: "Hindi", native: "हिन्दी", flag: "HI" },
-  { code: "mr", label: "Marathi", native: "मराठी", flag: "MR" },
-];
-
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const lang = useI18n((s) => s.lang);
+  const lang = useI18n((s) => s.residentLang);
   const setLang = useI18n((s) => s.setLang);
-  const hydrateLang = useI18n((s) => s.hydrate);
   const t = useT();
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = LANGS.find((l) => l.code === lang) ?? LANGS[0];
 
   // Restore the saved language after mount so SSR markup and the first client
   // render always match (localStorage is unavailable on the server).
-  useEffect(() => {
-    hydrateLang();
-  }, [hydrateLang]);
 
   useEffect(() => {
     if (!open) return;
@@ -33,10 +24,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
   }, [open]);
 
   return (
-    <div
-      ref={ref}
-      className={`fixed top-3 right-3 z-[1000] pointer-events-auto ${className}`}
-    >
+    <div ref={ref} className={`fixed top-3 right-3 z-[1000] pointer-events-auto ${className}`}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={t("Language")}
@@ -46,8 +34,19 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
           {current.flag}
         </span>
         <span>{current.native}</span>
-        <svg viewBox="0 0 20 20" className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="currentColor">
-          <path d="M5.5 7.5l4.5 4.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <svg
+          viewBox="0 0 20 20"
+          className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="currentColor"
+        >
+          <path
+            d="M5.5 7.5l4.5 4.5 4.5-4.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       {open && (
@@ -71,7 +70,13 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
               </span>
               <span className="flex-1 text-left">{l.native}</span>
               {lang === l.code && (
-                <svg viewBox="0 0 24 24" className="w-4 h-4 text-brand" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4 text-brand"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               )}

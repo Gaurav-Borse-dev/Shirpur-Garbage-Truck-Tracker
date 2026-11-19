@@ -2,6 +2,12 @@ import { create } from "zustand";
 
 export type Lang = "en" | "hi" | "mr";
 
+export const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
+  { code: "en", label: "English", native: "English", flag: "EN" },
+  { code: "hi", label: "Hindi", native: "हिन्दी", flag: "HI" },
+  { code: "mr", label: "Marathi", native: "मराठी", flag: "MR" },
+];
+
 interface I18nState {
   /** Resident-specific language preference. */
   residentLang: Lang;

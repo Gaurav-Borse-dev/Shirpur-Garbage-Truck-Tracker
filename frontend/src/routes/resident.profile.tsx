@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { useI18n } from "@/store/i18n";
 import { getMyBookings } from "@/lib/booking.functions";
-import { LANGS } from "@/components/LanguageSwitcher";
+import { LANGS } from "@/store/i18n";
 
 export const Route = createFileRoute("/resident/profile")({
   component: ProfilePage,

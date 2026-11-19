@@ -12,7 +12,7 @@ import { useTrucks, type LiveTruck } from "@/store/trucks";
 import { useToast } from "@/components/Toast";
 import { useT } from "@/lib/i18n";
 import { useI18n } from "@/store/i18n";
-import { LANGS } from "@/components/LanguageSwitcher";
+import { LANGS } from "@/store/i18n";
 import { useRealtime } from "@/hooks/useRealtime";
 import { LIVE_BACKEND } from "@/lib/backend";
 import { startDriverLocation, stopDriverLocation } from "@/lib/driver-location";
