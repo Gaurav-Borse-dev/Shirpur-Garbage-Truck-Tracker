@@ -8,20 +8,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const addDriverInput = z.object({
-  name: z.string().min(1).max(100).trim(),
-  phone: z.string().transform((v) => v.trim().replace(/\D/g, "").slice(-10)).pipe(z.string().regex(/^\d{10}$/)),
+  name: z.string().min(1).max(100),
+  phone: z.string().min(10).max(15),
   licenseNo: z.string().min(1).max(40).default("N/A"),
-  truckCode: z.string().min(1).max(20).trim(),
+  truckCode: z.string().min(1).max(20),
 });
 
 const updateDriverInput = z.object({
   driverId: z.string().uuid(),
   name: z.string().min(1).max(100).optional(),
-  phone: z
-    .string()
-    .transform((v) => v.trim().replace(/\D/g, "").slice(-10))
-    .pipe(z.string().regex(/^\d{10}$/))
-    .optional(),
+  phone: z.string().min(10).max(15).optional(),
   truckCode: z.string().min(1).max(20).optional(),
   active: z.boolean().optional(),
 });

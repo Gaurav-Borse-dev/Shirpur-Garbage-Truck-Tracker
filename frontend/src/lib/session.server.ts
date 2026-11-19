@@ -29,18 +29,35 @@ export async function readSession() {
 }
 
 export async function getUser(): Promise<ServerSession | null> {
-  const session = await readSession();
-  return session.data.user ?? null;
+  try {
+    const session = await readSession();
+    return session?.data?.user ?? null;
+  } catch (err) {
+    console.warn("[session] Could not read user session", err);
+    return null;
+  }
 }
 
 export async function setUser(user: ServerSession) {
-  const session = await readSession();
-  await session.update({ user });
+  try {
+    const session = await readSession();
+    if (session?.update) {
+      await session.update({ user });
+    }
+  } catch (err) {
+    console.warn("[session] Could not update session", err);
+  }
 }
 
 export async function clearUser() {
-  const session = await readSession();
-  await session.clear();
+  try {
+    const session = await readSession();
+    if (session?.clear) {
+      await session.clear();
+    }
+  } catch (err) {
+    console.warn("[session] Could not clear session", err);
+  }
 }
 
 /** Constant-time-ish comparison over fixed-length digests. */
