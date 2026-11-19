@@ -61,14 +61,24 @@ export const loginWithPhone = createServerFn({ method: "POST" })
       if (profile?.user_id) {
         const { data: driverRow } = await sb
           .from("drivers")
-          .select("id, assigned_truck_id")
+          .select("id, assigned_truck_id, assigned_truck:trucks!drivers_assigned_truck_id_fkey ( truck_code )")
           .eq("user_id", profile.user_id)
           .maybeSingle();
         if (driverRow) {
           isDbDriver = true;
+          const assigned = driverRow.assigned_truck as { truck_code: string } | null;
+          let truckCode = assigned?.truck_code || "";
+          if (!truckCode && driverRow.assigned_truck_id) {
+            const { data: tRow } = await sb
+              .from("trucks")
+              .select("truck_code")
+              .eq("id", driverRow.assigned_truck_id)
+              .maybeSingle();
+            if (tRow?.truck_code) truckCode = tRow.truck_code;
+          }
           driverInfo = {
             name: profile.full_name || "Driver",
-            truckId: driverRow.assigned_truck_id || "",
+            truckId: truckCode || "GBR-01",
           };
         }
       }

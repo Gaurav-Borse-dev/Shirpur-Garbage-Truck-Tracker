@@ -30,11 +30,12 @@ function DriversPage() {
   const [confirmRemove, setConfirmRemove] = useState<ApprovedDriver | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
-  // Load drivers from database
+  // Load drivers from database with 3-second live polling
   const { data: dbDrivers } = useQuery({
     queryKey: ["fleet-drivers"],
     queryFn: () => getFleetDrivers(),
-    staleTime: 15_000,
+    staleTime: 2_000,
+    refetchInterval: 3_000,
   });
 
   // Map DB drivers to the ApprovedDriver shape the UI expects
@@ -68,7 +69,12 @@ function DriversPage() {
       void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
       push({ title: tr("Driver added successfully") });
     },
-    onError: () => push({ title: tr("Failed to add driver"), tone: "warning" }),
+    onError: (err: any) =>
+      push({
+        title: tr("Failed to add driver"),
+        subtitle: err?.message || tr("Please check connection or sign in again"),
+        tone: "warning",
+      }),
   });
 
   const updateMutation = useMutation({

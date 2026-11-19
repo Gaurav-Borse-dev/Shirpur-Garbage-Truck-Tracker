@@ -69,7 +69,12 @@ function DriversPage() {
       void qc.invalidateQueries({ queryKey: ["fleet-drivers"] });
       push({ title: tr("Driver added successfully") });
     },
-    onError: () => push({ title: tr("Failed to add driver"), tone: "warning" }),
+    onError: (err: any) =>
+      push({
+        title: tr("Failed to add driver"),
+        subtitle: err?.message || tr("Please check connection or sign in again"),
+        tone: "warning",
+      }),
   });
 
   const updateMutation = useMutation({
