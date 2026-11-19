@@ -306,7 +306,7 @@ export const getTruckEta = createServerFn({ method: "POST" })
 
 function isAbortOrCancelError(err: any): boolean {
   if (!err) return false;
-  const msg = String(err?.message || err?.cause?.message || err);
+  const msg = String(err?.message || err?.cause?.message || err?.details || err);
   const name = err?.name || err?.cause?.name;
   const code = err?.code || err?.cause?.code;
   return (
@@ -317,8 +317,18 @@ function isAbortOrCancelError(err: any): boolean {
     msg.includes("aborted") ||
     msg.includes("AbortError") ||
     msg.includes("ECONNRESET") ||
-    msg.includes("fetch failed")
+    msg.includes("fetch failed") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("network")
   );
+}
+
+/** Wraps a Supabase query promise with a hard timeout so SSR never hangs. */
+async function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("supabase_timeout")), ms)
+  );
+  return Promise.race([promise, timeout]);
 }
 
 /** Fetches the full truck fleet from the database. */
@@ -326,20 +336,22 @@ export const getFleetTrucks = createServerFn({ method: "GET" }).handler(async ()
   try {
     const { admin } = await import("./tracking.server");
     const db = await admin();
-    const { data: rows, error } = await db
-      .from("trucks")
-      .select("id, truck_code, registration_no, status, capacity_kg, ward, photo_url")
-      .order("truck_code", { ascending: true });
+    const { data: rows, error } = await withTimeout(
+      db
+        .from("trucks")
+        .select("id, truck_code, registration_no, status, capacity_kg, ward, photo_url")
+        .order("truck_code", { ascending: true })
+    );
 
-    if (error || !rows?.length) {
+    if (error) {
       if (!isAbortOrCancelError(error)) {
-        console.error("[fleet] trucks query failed", error?.message ?? "no rows");
+        console.error("[fleet] trucks query failed", error?.message ?? "unknown error");
       }
-      return { trucks: null, error: error?.message ?? "empty" };
+      return { trucks: null, error: error?.message ?? "unavailable" };
     }
 
     return {
-      trucks: rows.map((r) => ({
+      trucks: (rows ?? []).map((r) => ({
         dbId: r.id,
         truckCode: r.truck_code,
         registrationNo: r.registration_no,
@@ -363,29 +375,36 @@ export const getFleetDrivers = createServerFn({ method: "GET" }).handler(async (
   try {
     const { admin } = await import("./tracking.server");
     const db = await admin();
-    const { data: rows, error } = await db
-      .from("drivers")
-      .select(
-        `
+    const { data: rows, error } = await withTimeout(
+      db
+        .from("drivers")
+        .select(
+          `
         id, user_id, license_no, on_duty, duty_state,
         assigned_truck_id, duty_started_at, last_heartbeat, trip_distance_m,
         assigned_truck:trucks!drivers_assigned_truck_id_fkey ( truck_code, ward )
       `,
-      )
-      .order("created_at", { ascending: true });
+        )
+        .order("created_at", { ascending: true })
+    );
 
-    if (error || !rows?.length) {
+    if (error) {
       if (!isAbortOrCancelError(error)) {
-        console.error("[fleet] drivers query failed", error?.message ?? "no rows");
+        console.error("[fleet] drivers query failed", error?.message ?? "unknown error");
       }
-      return { drivers: null, error: error?.message ?? "empty" };
+      return { drivers: null, error: error?.message ?? "unavailable" };
     }
 
+    // No drivers yet — return empty list (not an error)
+    if (!rows?.length) return { drivers: [], error: null };
+
     const userIds = rows.map((r) => r.user_id);
-    const { data: profiles } = await db
-      .from("profiles")
-      .select("user_id, full_name, phone")
-      .in("user_id", userIds);
+    const { data: profiles } = await withTimeout(
+      db
+        .from("profiles")
+        .select("user_id, full_name, phone")
+        .in("user_id", userIds)
+    );
 
     const profileMap = new Map(
       (profiles ?? []).map((p) => [p.user_id, { name: p.full_name, phone: p.phone }]),
@@ -429,26 +448,33 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
 
     const today = new Date().toISOString().slice(0, 10);
 
-    const { count: notifCount } = await db
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .gte("sent_at", `${today}T00:00:00Z`);
-
-    const { count: stopsCount } = await db
-      .from("collection_history")
-      .select("*", { count: "exact", head: true })
-      .gte("completed_at", `${today}T00:00:00Z`)
-      .eq("status", "completed");
-
-    const { count: activeDrivers } = await db
-      .from("drivers")
-      .select("*", { count: "exact", head: true })
-      .eq("on_duty", true);
-
-    const { count: complaintsToday } = await db
-      .from("complaints")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", `${today}T00:00:00Z`);
+    // Run all 4 count queries in parallel with a shared 8s timeout
+    const [
+      { count: notifCount },
+      { count: stopsCount },
+      { count: activeDrivers },
+      { count: complaintsToday },
+    ] = await withTimeout(
+      Promise.all([
+        db
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .gte("sent_at", `${today}T00:00:00Z`),
+        db
+          .from("collection_history")
+          .select("*", { count: "exact", head: true })
+          .gte("completed_at", `${today}T00:00:00Z`)
+          .eq("status", "completed"),
+        db
+          .from("drivers")
+          .select("*", { count: "exact", head: true })
+          .eq("on_duty", true),
+        db
+          .from("complaints")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", `${today}T00:00:00Z`),
+      ])
+    );
 
     return {
       residentsAlerted: notifCount ?? 0,
