@@ -45,6 +45,25 @@ async function db() {
   return supabaseAdmin;
 }
 
+const KNOWN_TRUCK_IDS: Record<string, string> = {
+  "GBR-01": "a12a7089-f41f-4c08-bce8-0b65a69a460a",
+  "GBR-02": "48744cf0-9938-4f3a-a947-98a51c6f6905",
+  "GBR-03": "a8e603a5-187f-42d1-aa5e-30cfc6236ef7",
+  "GBR-04": "1edb9d6a-32ff-4d88-8280-3f88adab92f5",
+  "GBR-05": "31cfd891-f344-43ef-a163-4a9edebb2656",
+  "GBR-06": "aea06034-1113-4363-a59b-2e65f4fe3495",
+  "GBR-07": "5ad6aab3-6e40-47a4-ba2c-e60d248a6029",
+  "GBR-08": "10f5cfeb-13da-4161-924d-e84daa5dcec0",
+  "GBR-09": "99e862b1-07ae-4d10-8df6-bb20286ad667",
+  "GBR-10": "c7eb378b-45ad-46fc-8f12-fec8e119349a",
+  "GBR-11": "1aba2dc2-fd71-48cd-aeff-d46732ba7830",
+  "GBR-12": "e7056d3a-52b0-4b79-badf-6cc9698940aa",
+  "GBR-13": "bfb3777f-3be0-4909-9760-e00efe9a86b4",
+  "GBR-14": "2708ec0c-1a8a-414d-8421-77a53961b79e",
+  "GBR-15": "577d73be-af9c-4fba-93d2-a71067102e1c",
+  "GBR-16": "8a7789b4-59fa-4112-9b0c-a750f8bc91fd",
+};
+
 /**
  * Add a new driver to the fleet.
  * Resolves or auto-creates the truck, creates the profile, and links the driver record.
@@ -60,38 +79,34 @@ export const addFleetDriver = createServerFn({ method: "POST" })
 
     try {
       const sb = await db();
-      const cleanPhone = data.phone;
+      const cleanPhone = data.phone.trim().replace(/\D/g, "").slice(-10);
 
-      // 1. Resolve truck UUID from truck_code (or auto-create truck if missing)
-      let truckId: string;
-      const { data: truck } = await sb
-        .from("trucks")
-        .select("id")
-        .eq("truck_code", data.truckCode)
-        .maybeSingle();
-
-      if (!truck) {
-        // Auto-create truck so driver creation never fails because truck is unseeded
-        const { data: newTruck, error: truckErr } = await sb
+      // 1. Resolve truck UUID from static known map or query DB
+      let truckId: string = KNOWN_TRUCK_IDS[data.truckCode] || "";
+      if (!truckId) {
+        const { data: truck } = await sb
           .from("trucks")
-          .insert({
-            truck_code: data.truckCode,
-            registration_no: `MH18-${data.truckCode}`,
-            capacity_kg: 5000,
-            status: "offline",
-          })
           .select("id")
-          .single();
+          .eq("truck_code", data.truckCode)
+          .maybeSingle();
 
-        if (truckErr || !newTruck) {
-          return {
-            ok: false as const,
-            error: `Could not register truck ${data.truckCode}: ${truckErr?.message ?? "unknown error"}`,
-          };
+        if (truck?.id) {
+          truckId = truck.id;
+        } else {
+          // Auto-create truck so driver creation never fails because truck is unseeded
+          const { data: newTruck } = await sb
+            .from("trucks")
+            .insert({
+              truck_code: data.truckCode,
+              registration_no: `MH18-${data.truckCode}`,
+              capacity_kg: 5000,
+              status: "offline",
+            })
+            .select("id")
+            .maybeSingle();
+
+          truckId = newTruck?.id || "";
         }
-        truckId = newTruck.id;
-      } else {
-        truckId = truck.id;
       }
 
       // 2. Check if a profile with this phone already exists

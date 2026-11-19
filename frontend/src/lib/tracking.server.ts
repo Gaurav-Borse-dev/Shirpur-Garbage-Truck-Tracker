@@ -9,6 +9,11 @@
  * A local fallback from DRIVER_NAMES / FALLBACK_TRUCKS is used when the
  * database is unreachable so the app never hard-fails on cold start.
  */
+import dns from "node:dns";
+if (typeof dns?.setDefaultResultOrder === "function") {
+  dns.setDefaultResultOrder("ipv4first");
+}
+
 export type TruckFixRow = {
   truckId: string;
   truckCode: string;
