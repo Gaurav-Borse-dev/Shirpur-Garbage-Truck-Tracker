@@ -50,12 +50,18 @@ function safeLookup(
 
 /**
  * Guarantees a fully-qualified Supabase URL with project ID.
- * Prevents "Project not specified" errors when Render environment has bare "https://supabase.co".
+ * Auto-corrects typo bqmqnzkh -> bqmqnzkm and bare https://supabase.co.
  */
 export function resolveSupabaseUrl(rawUrl?: string): string {
-  const input = (rawUrl || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "")
+  let input = (rawUrl || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "")
     .trim()
     .replace(/\/+$/, "");
+
+  // Auto-correct common typo (bqmqnzkh -> bqmqnzkm)
+  if (input.includes("bqmqnzkh")) {
+    input = input.replace(/bqmqnzkh/g, "bqmqnzkm");
+  }
+
   const defaultProject = "bqmqnzkmhmuuszwsonds";
 
   if (
@@ -64,11 +70,16 @@ export function resolveSupabaseUrl(rawUrl?: string): string {
     input === "http://supabase.co" ||
     !input.includes(".supabase.co")
   ) {
-    const proj = (
+    let proj = (
       process.env.VITE_SUPABASE_PROJECT_ID ||
       process.env.SUPABASE_PROJECT_ID ||
       defaultProject
     ).trim();
+
+    if (proj.includes("bqmqnzkh")) {
+      proj = proj.replace(/bqmqnzkh/g, "bqmqnzkm");
+    }
+
     return `https://${proj}.supabase.co`;
   }
   return input;
@@ -82,6 +93,9 @@ export function nodeHttpsFetch(urlStr: string, options: RequestInit = {}): Promi
   return new Promise((resolve, reject) => {
     try {
       let finalUrlStr = urlStr;
+      if (finalUrlStr.includes("bqmqnzkh")) {
+        finalUrlStr = finalUrlStr.replace(/bqmqnzkh/g, "bqmqnzkm");
+      }
       if (finalUrlStr.includes("://supabase.co")) {
         finalUrlStr = finalUrlStr.replace("://supabase.co", "://bqmqnzkmhmuuszwsonds.supabase.co");
       }
