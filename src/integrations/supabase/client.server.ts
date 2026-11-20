@@ -49,14 +49,48 @@ function safeLookup(
 }
 
 /**
+ * Guarantees a fully-qualified Supabase URL with project ID.
+ * Prevents "Project not specified" errors when Render environment has bare "https://supabase.co".
+ */
+export function resolveSupabaseUrl(rawUrl?: string): string {
+  const input = (rawUrl || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  const defaultProject = "bqmqnzkmhmuuszwsonds";
+
+  if (
+    !input ||
+    input === "https://supabase.co" ||
+    input === "http://supabase.co" ||
+    !input.includes(".supabase.co")
+  ) {
+    const proj = (
+      process.env.VITE_SUPABASE_PROJECT_ID ||
+      process.env.SUPABASE_PROJECT_ID ||
+      defaultProject
+    ).trim();
+    return `https://${proj}.supabase.co`;
+  }
+  return input;
+}
+
+/**
  * Bulletproof Node.js HTTPS fetch adapter that forces IPv4 (family: 4) with DNS fallback.
  * Completely bypasses Node Undici dual-stack IPv6 drop and DNS ENOTFOUND issues on Render containers.
  */
 export function nodeHttpsFetch(urlStr: string, options: RequestInit = {}): Promise<Response> {
   return new Promise((resolve, reject) => {
     try {
-      const url = new URL(urlStr);
-      const headers: Record<string, string> = {};
+      let finalUrlStr = urlStr;
+      if (finalUrlStr.includes("://supabase.co")) {
+        finalUrlStr = finalUrlStr.replace("://supabase.co", "://bqmqnzkmhmuuszwsonds.supabase.co");
+      }
+
+      const url = new URL(finalUrlStr);
+      const headers: Record<string, string> = {
+        Host: url.hostname,
+      };
+
       if (options.headers) {
         new Headers(options.headers).forEach((v, k) => {
           headers[k] = v;
@@ -198,11 +232,7 @@ const realtimeFallback = {
 
 // Function to create regular Supabase client with publishable key
 function createSupabaseClient() {
-  // Use environment variables from .env file
-  const SUPABASE_URL =
-    process.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    "https://bqmqnzkmhmuuszwsonds.supabase.co";
+  const SUPABASE_URL = resolveSupabaseUrl();
   const SUPABASE_ANON_KEY =
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
@@ -234,10 +264,7 @@ function createSupabaseClient() {
 
 // Function to create admin Supabase client with service role key
 function createSupabaseAdminClient() {
-  const SUPABASE_URL =
-    process.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    "https://bqmqnzkmhmuuszwsonds.supabase.co";
+  const SUPABASE_URL = resolveSupabaseUrl();
 
   const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const SUPABASE_SERVICE_ROLE_KEY =

@@ -110,10 +110,8 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       }
 
       // 2. Direct REST API execution (reliable fallback)
-      const SUPABASE_URL =
-        process.env.VITE_SUPABASE_URL ||
-        process.env.SUPABASE_URL ||
-        "https://bqmqnzkmhmuuszwsonds.supabase.co";
+      const { nodeHttpsFetch, resolveSupabaseUrl } = await import("@/integrations/supabase/client.server");
+      const SUPABASE_URL = resolveSupabaseUrl();
 
       const SERVICE_KEY =
         (process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("eyJ")
@@ -126,8 +124,6 @@ export const addFleetDriver = createServerFn({ method: "POST" })
         apikey: SERVICE_KEY,
         Authorization: `Bearer ${SERVICE_KEY}`,
       };
-
-      const { nodeHttpsFetch } = await import("@/integrations/supabase/client.server");
 
       // 2a. Query profile
       let userId: string | null = null;
