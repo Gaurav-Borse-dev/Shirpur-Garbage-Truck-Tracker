@@ -30,12 +30,12 @@ function DriversPage() {
   const [confirmRemove, setConfirmRemove] = useState<ApprovedDriver | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
-  // Load drivers from database with 3-second live polling
+  // Load drivers from database with 3-second live polling (client-only to prevent SSR stream timeouts)
   const { data: dbDrivers } = useQuery({
     queryKey: ["fleet-drivers"],
     queryFn: () => getFleetDrivers(),
     staleTime: 2_000,
-    refetchInterval: 3_000,
+    refetchInterval: typeof window !== "undefined" ? 3_000 : false,
   });
 
   // Map DB drivers to the ApprovedDriver shape the UI expects

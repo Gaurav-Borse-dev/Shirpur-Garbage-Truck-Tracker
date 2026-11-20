@@ -34,7 +34,7 @@ function AdminBookings() {
     queryKey: ["all-bookings", filter],
     queryFn: () => getAllBookings({ data: { status: filter } }),
     staleTime: 10_000,
-    refetchInterval: 30_000,
+    refetchInterval: typeof window !== "undefined" ? 30_000 : false,
   });
 
   const bookings: BookingRow[] = useMemo(() => {

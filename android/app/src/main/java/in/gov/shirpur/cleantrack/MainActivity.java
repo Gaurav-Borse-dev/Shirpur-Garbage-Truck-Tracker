@@ -16,6 +16,20 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Prevent native NullPointerExceptions from killing the app process
+        final Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            android.util.Log.e("CleanTrack", "Suppressed unhandled exception on " + thread.getName(), throwable);
+            if (throwable instanceof NullPointerException) {
+                android.util.Log.w("CleanTrack", "Ignored NullPointerException from native plugin/coroutine");
+                return;
+            }
+            if (defaultHandler != null) {
+                defaultHandler.uncaughtException(thread, throwable);
+            }
+        });
+
         createNotificationChannel();
     }
 

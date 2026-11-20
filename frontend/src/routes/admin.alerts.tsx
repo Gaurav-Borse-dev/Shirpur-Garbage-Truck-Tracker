@@ -22,7 +22,7 @@ function AlertsPage() {
     queryKey: ["admin-alerts", filter],
     queryFn: () => getAdminAlerts({ data: { type: filter, limit: 100 } }),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: typeof window !== "undefined" ? 60_000 : false,
   });
 
   const filtered: AlertEvent[] = useMemo(() => result?.events ?? [], [result]);

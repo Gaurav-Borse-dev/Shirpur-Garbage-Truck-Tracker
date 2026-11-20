@@ -215,7 +215,7 @@ function ReportsPage() {
     queryKey: ["daily-driver-report"],
     queryFn: () => getDailyDriverReport(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: typeof window !== "undefined" ? 60_000 : false,
   });
 
   const drivers: DriverRow[] = useMemo(() => report?.drivers ?? [], [report]);

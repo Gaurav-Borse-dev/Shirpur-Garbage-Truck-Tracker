@@ -22,7 +22,7 @@ function AlertsPage() {
     queryKey: ["admin-alerts", filter],
     queryFn: () => getAdminAlerts({ data: { type: filter, limit: 100 } }),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: typeof window !== "undefined" ? 60_000 : false,
   });
 
   const filtered: AlertEvent[] = useMemo(() => result?.events ?? [], [result]);
@@ -31,14 +31,25 @@ function AlertsPage() {
     <div className="p-8">
       <div>
         <h1 className="text-2xl font-bold text-ink">{tr("Alerts & Logs")}</h1>
-        <p className="text-sm text-neutral-500 mt-1">{tr("System events across the last 7 days")}</p>
+        <p className="text-sm text-neutral-500 mt-1">
+          {tr("System events across the last 7 days")}
+        </p>
       </div>
 
       <div className="mt-5 inline-flex p-0.5 rounded-lg bg-neutral-100 text-xs">
         {(["all", "geofence", "stop", "login"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-md font-semibold capitalize ${filter === f ? "bg-white shadow-sm text-ink" : "text-neutral-500"}`}>
-            {f === "all" ? tr("All") : f === "geofence" ? tr("Geofence") : f === "stop" ? tr("Stops") : tr("Logins")}
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-md font-semibold capitalize ${filter === f ? "bg-white shadow-sm text-ink" : "text-neutral-500"}`}
+          >
+            {f === "all"
+              ? tr("All")
+              : f === "geofence"
+                ? tr("Geofence")
+                : f === "stop"
+                  ? tr("Stops")
+                  : tr("Logins")}
           </button>
         ))}
       </div>
@@ -48,23 +59,41 @@ function AlertsPage() {
       <div className="mt-5 rounded-2xl border border-neutral-200 overflow-hidden">
         {filtered.map((e, i) => {
           const Icon = e.type === "geofence" ? BellIcon : e.type === "stop" ? CheckIcon : UserIcon;
-          const tone = e.type === "geofence" ? "bg-amber-50 text-amber-700" : e.type === "stop" ? "bg-brand-soft text-brand" : "bg-neutral-100 text-neutral-600";
+          const tone =
+            e.type === "geofence"
+              ? "bg-amber-50 text-amber-700"
+              : e.type === "stop"
+                ? "bg-brand-soft text-brand"
+                : "bg-neutral-100 text-neutral-600";
           return (
-            <div key={e.id} className={`flex items-center gap-4 px-5 py-3 ${i ? "border-t border-neutral-100" : ""}`}>
-              <div className={`w-9 h-9 rounded-lg grid place-items-center ${tone}`}><Icon className="w-4 h-4" /></div>
+            <div
+              key={e.id}
+              className={`flex items-center gap-4 px-5 py-3 ${i ? "border-t border-neutral-100" : ""}`}
+            >
+              <div className={`w-9 h-9 rounded-lg grid place-items-center ${tone}`}>
+                <Icon className="w-4 h-4" />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-ink truncate">
                   {e.type === "geofence" ? (
-                    <>{e.truckLabel} {tr("entered")} {e.wardLabel} {tr("geofence")}</>
+                    <>
+                      {e.truckLabel} {tr("entered")} {e.wardLabel} {tr("geofence")}
+                    </>
                   ) : e.type === "stop" ? (
-                    <>{e.truckLabel} {tr("completed stop")} {e.stopNum} {tr("of")} {e.totalStops}</>
+                    <>
+                      {e.truckLabel} {tr("completed stop")} {e.stopNum} {tr("of")} {e.totalStops}
+                    </>
                   ) : (
-                    <>{e.driverName} {tr("signed in on")} {e.truckLabel}</>
+                    <>
+                      {e.driverName} {tr("signed in on")} {e.truckLabel}
+                    </>
                   )}
                 </div>
                 <div className="text-xs text-neutral-500">{e.ts}</div>
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-neutral-100 text-neutral-600">{e.truckId}</span>
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-neutral-100 text-neutral-600">
+                {e.truckId}
+              </span>
             </div>
           );
         })}
@@ -95,11 +124,15 @@ function TestPushPanel() {
       }),
     onSuccess: (res) => {
       if (!res.ok) {
-        setStatus(res.reason === "unauthorized" ? tr("Not authorised to send.") : tr("Unknown truck."));
+        setStatus(
+          res.reason === "unauthorized" ? tr("Not authorised to send.") : tr("Unknown truck."),
+        );
         return;
       }
-      if (res.skipped === "not_configured") setStatus(tr("Push credentials are not configured yet."));
-      else if (res.skipped === "no_devices") setStatus(tr("No registered devices for this target."));
+      if (res.skipped === "not_configured")
+        setStatus(tr("Push credentials are not configured yet."));
+      else if (res.skipped === "no_devices")
+        setStatus(tr("No registered devices for this target."));
       else
         setStatus(
           `${tr("Sent to")} ${res.sent} ${tr("device(s)")}${res.failed ? `, ${res.failed} ${tr("failed")}` : ""}.`,
@@ -118,7 +151,9 @@ function TestPushPanel() {
         </div>
         <div>
           <div className="text-sm font-bold text-ink">{tr("Send test notification")}</div>
-          <div className="text-xs text-neutral-500">{tr("Delivers a real push to registered devices")}</div>
+          <div className="text-xs text-neutral-500">
+            {tr("Delivers a real push to registered devices")}
+          </div>
         </div>
       </div>
 
@@ -126,7 +161,10 @@ function TestPushPanel() {
         {(["resident", "truck"] as const).map((m) => (
           <button
             key={m}
-            onClick={() => { setMode(m); setStatus(null); }}
+            onClick={() => {
+              setMode(m);
+              setStatus(null);
+            }}
             className={`px-3 py-1.5 rounded-md font-semibold ${mode === m ? "bg-white shadow-sm text-ink" : "text-neutral-500"}`}
           >
             {m === "resident" ? tr("Resident") : tr("Truck route")}
@@ -182,7 +220,10 @@ function TestPushPanel() {
       <div className="mt-4 flex items-center gap-3">
         <button
           disabled={invalid || !title || send.isPending}
-          onClick={() => { setStatus(null); send.mutate(); }}
+          onClick={() => {
+            setStatus(null);
+            send.mutate();
+          }}
           className="h-10 px-4 rounded-lg bg-ink text-white text-sm font-semibold disabled:bg-neutral-200 disabled:text-neutral-400 inline-flex items-center gap-2"
         >
           <TruckIcon className="w-4 h-4" />

@@ -16,7 +16,7 @@ function ResidentAlerts() {
     queryKey: ["resident-alerts"],
     queryFn: () => getResidentAlerts(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: typeof window !== "undefined" ? 60_000 : false,
   });
 
   const items = result?.alerts ?? [];

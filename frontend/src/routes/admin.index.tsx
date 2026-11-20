@@ -38,7 +38,7 @@ function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: () => getDashboardStats(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: typeof window !== "undefined" ? 60_000 : false,
   });
   const residentsAlerted = stats?.residentsAlerted ?? 0;
   const [highlight, setHighlight] = useState<string | undefined>();

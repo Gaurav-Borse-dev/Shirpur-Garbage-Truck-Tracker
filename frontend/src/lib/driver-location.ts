@@ -230,146 +230,176 @@ export async function startDriverLocation(
   if (typeof window === "undefined") return { ok: false, error: "unavailable" };
   if (watchId !== null) return { ok: true };
 
+  // 1. Prefer standard web navigator.geolocation first.
+  // Both mobile browsers and Capacitor Android WebViews natively implement HTML5 Geolocation.
+  // This bypasses the native Capacitor plugin R8/reflection bugs that cause NullPointerException on Android.
+  if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+    try {
+      const res = startWebGeolocation(truckId);
+      if (res.ok) return res;
+    } catch (err) {
+      console.warn("[gps] Web geolocation initialization error:", err);
+    }
+  }
+
+  // 2. Safe fallback to Capacitor native plugin only if web API is unavailable
   const isNative = await isCapacitorNative();
 
   if (isNative) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const perm = await Geolocation.requestPermissions();
-      if (perm.location !== "granted") {
-        return { ok: false, error: "Location permission denied. Please enable GPS in settings." };
+
+      // Check permissions first safely without throwing
+      let perm = await Geolocation.checkPermissions().catch(() => null);
+      if (!perm || (perm.location !== "granted" && (perm as any).coarseLocation !== "granted")) {
+        perm = await Geolocation.requestPermissions().catch(() => null);
       }
 
-      const id = await Geolocation.watchPosition(
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 500 },
-        (position, err) => {
-          if (err || !position?.coords) return;
-          handlePosition(
-            truckId,
-            position.coords.latitude,
-            position.coords.longitude,
-            position.coords.heading,
-            position.coords.speed,
-            position.timestamp,
-            position.coords.accuracy,
-          );
-        },
-      );
+      if (perm && (perm.location === "granted" || (perm as any).coarseLocation === "granted")) {
+        const id = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 500 },
+          (position, err) => {
+            if (err || !position?.coords) return;
+            handlePosition(
+              truckId,
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.heading,
+              position.coords.speed,
+              position.timestamp,
+              position.coords.accuracy,
+            );
+          },
+        ).catch((watchErr) => {
+          console.warn("[gps] watchPosition threw:", watchErr);
+          return null;
+        });
 
-      watchId = id;
-      usingCapacitor = true;
-      console.info("[gps] Started Capacitor native geolocation with high accuracy");
+        if (id) {
+          watchId = id;
+          usingCapacitor = true;
+          console.info("[gps] Started Capacitor native geolocation with high accuracy");
+
+          keepalive = window.setInterval(() => {
+            if (latest && Date.now() - lastSentAt >= MAX_INTERVAL_MS) {
+              send({ ...latest, ts: Date.now() });
+            }
+          }, 1000);
+
+          return { ok: true };
+        }
+      }
     } catch (e) {
       console.warn("[gps] Capacitor geolocation failed, falling back to web API", e);
-      return startWebGeolocation(truckId);
     }
-  } else {
-    return startWebGeolocation(truckId);
   }
 
-  // Periodic heartbeat guarantees an update at least every MAX_INTERVAL_MS even when stopped
-  keepalive = window.setInterval(() => {
-    if (latest && Date.now() - lastSentAt >= MAX_INTERVAL_MS) {
-      send({ ...latest, ts: Date.now() });
-    }
-  }, 1000);
-
-  return { ok: true };
+  return startWebGeolocation(truckId);
 }
 
 /** Web fallback using navigator.geolocation with high accuracy. */
 function startWebGeolocation(truckId: string): { ok: boolean; error?: string } {
-  if (!("geolocation" in navigator)) {
+  if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
     return { ok: false, error: "Geolocation is not available on this device" };
   }
 
-  // 1. Immediately request current position without waiting for watchPosition interval
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      handlePosition(
-        truckId,
-        pos.coords.latitude,
-        pos.coords.longitude,
-        pos.coords.heading,
-        pos.coords.speed,
-        pos.timestamp,
-        pos.coords.accuracy,
-      );
-    },
-    (err) => {
-      console.warn("[gps] Immediate geolocation error, trying low accuracy:", err.message);
-      // Fallback with low accuracy
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          handlePosition(
-            truckId,
-            pos.coords.latitude,
-            pos.coords.longitude,
-            pos.coords.heading,
-            pos.coords.speed,
-            pos.timestamp,
-            pos.coords.accuracy,
-          );
-        },
-        () => {},
-        { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 },
-      );
-    },
-    { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 },
-  );
+  try {
+    // 1. Immediately request current position without waiting for watchPosition interval
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handlePosition(
+          truckId,
+          pos.coords.latitude,
+          pos.coords.longitude,
+          pos.coords.heading,
+          pos.coords.speed,
+          pos.timestamp,
+          pos.coords.accuracy,
+        );
+      },
+      (err) => {
+        console.warn("[gps] Immediate geolocation error, trying low accuracy:", err.message);
+        // Fallback with low accuracy
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            handlePosition(
+              truckId,
+              pos.coords.latitude,
+              pos.coords.longitude,
+              pos.coords.heading,
+              pos.coords.speed,
+              pos.timestamp,
+              pos.coords.accuracy,
+            );
+          },
+          () => {},
+          { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 },
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 },
+    );
 
-  // 2. Continuous watch with high accuracy
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      handlePosition(
-        truckId,
-        pos.coords.latitude,
-        pos.coords.longitude,
-        pos.coords.heading,
-        pos.coords.speed,
-        pos.timestamp,
-        pos.coords.accuracy,
-      );
-    },
-    (err) => {
-      console.warn("[gps] Web geolocation position error:", err.message);
-    },
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
-  );
+    // 2. Continuous watch with high accuracy
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        handlePosition(
+          truckId,
+          pos.coords.latitude,
+          pos.coords.longitude,
+          pos.coords.heading,
+          pos.coords.speed,
+          pos.timestamp,
+          pos.coords.accuracy,
+        );
+      },
+      (err) => {
+        console.warn("[gps] Web geolocation position error:", err.message);
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
+    );
 
-  keepalive = window.setInterval(() => {
-    if (latest && Date.now() - lastSentAt >= MAX_INTERVAL_MS) {
-      send({ ...latest, ts: Date.now() });
-    }
-  }, 1000);
+    keepalive = window.setInterval(() => {
+      if (latest && Date.now() - lastSentAt >= MAX_INTERVAL_MS) {
+        send({ ...latest, ts: Date.now() });
+      }
+    }, 1000);
 
-  usingCapacitor = false;
-  console.info("[gps] Started web geolocation with high accuracy");
-  return { ok: true };
+    usingCapacitor = false;
+    console.info("[gps] Started web geolocation with high accuracy");
+    return { ok: true };
+  } catch (err: any) {
+    console.error("[gps] startWebGeolocation failed:", err);
+    return { ok: false, error: err?.message || "Failed to start geolocation" };
+  }
 }
 
 export async function stopDriverLocation() {
-  if (watchId !== null) {
-    if (usingCapacitor) {
-      try {
-        const { Geolocation } = await import("@capacitor/geolocation");
-        await Geolocation.clearWatch({ id: watchId as string });
-      } catch {
-        // ignore
+  try {
+    if (watchId !== null) {
+      if (usingCapacitor) {
+        try {
+          const { Geolocation } = await import("@capacitor/geolocation");
+          await Geolocation.clearWatch({ id: watchId as string }).catch(() => {});
+        } catch {
+          // ignore
+        }
+      } else if (typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId as number);
       }
-    } else if (typeof navigator !== "undefined") {
-      navigator.geolocation.clearWatch(watchId as number);
     }
+  } catch (err) {
+    console.warn("[gps] stopDriverLocation error:", err);
+  } finally {
+    if (keepalive) window.clearInterval(keepalive);
+    watchId = null;
+    keepalive = null;
+    latest = null;
+    prevPos = null;
+    prevTimestamp = 0;
+    prevBearing = 180;
+    kalmanStates.clear();
+    usingCapacitor = false;
   }
-  if (keepalive) window.clearInterval(keepalive);
-  watchId = null;
-  keepalive = null;
-  latest = null;
-  prevPos = null;
-  prevTimestamp = 0;
-  prevBearing = 180;
-  kalmanStates.clear();
-  usingCapacitor = false;
 }
 
 /** Replay queued writes once the socket or connection is back. */
