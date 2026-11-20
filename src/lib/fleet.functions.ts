@@ -6,6 +6,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import "./network.server";
 
 const addDriverInput = z.object({
   name: z.string().min(1).max(100),

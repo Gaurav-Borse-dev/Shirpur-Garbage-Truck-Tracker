@@ -13,6 +13,7 @@ import dns from "node:dns";
 if (typeof dns?.setDefaultResultOrder === "function") {
   dns.setDefaultResultOrder("ipv4first");
 }
+import "./network.server";
 
 export type TruckFixRow = {
   truckId: string;

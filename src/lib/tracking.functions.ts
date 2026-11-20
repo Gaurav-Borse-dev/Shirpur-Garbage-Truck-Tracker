@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { etaInput, gpsInput, nearbyInput } from "./tracking-schemas";
+import "./network.server";
 
 const completeStopInput = z.object({
   stopId: z.string().uuid(),

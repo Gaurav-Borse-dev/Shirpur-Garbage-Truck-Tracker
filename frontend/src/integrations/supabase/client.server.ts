@@ -6,6 +6,7 @@ import dns from "node:dns";
 if (typeof dns?.setDefaultResultOrder === "function") {
   dns.setDefaultResultOrder("ipv4first");
 }
+import "@/lib/network.server";
 
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
