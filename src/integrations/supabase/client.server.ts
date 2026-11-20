@@ -14,8 +14,11 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return (input, init) => {
+function createSupabaseFetch(
+  supabaseKey: string,
+  { maxRetries = 3, timeoutMs = 15_000 } = {},
+): typeof fetch {
+  return async (input, init) => {
     const headers = new Headers(
       typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
@@ -33,7 +36,36 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(input, {
+            ...init,
+            headers,
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          return response;
+        } catch (err) {
+          clearTimeout(timer);
+          throw err;
+        }
+      } catch (err: unknown) {
+        lastError = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[Supabase] fetch attempt ${attempt}/${maxRetries} failed: ${msg}`,
+        );
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 500 * attempt));
+        }
+      }
+    }
+    throw lastError;
   };
 }
 
@@ -111,6 +143,9 @@ function createSupabaseAdminClient() {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    global: {
+      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+    },
     auth: {
       storage: undefined,
       persistSession: false,

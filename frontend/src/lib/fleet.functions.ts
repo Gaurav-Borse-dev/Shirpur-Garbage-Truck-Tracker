@@ -119,37 +119,85 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       let userId = existingProfile?.user_id;
 
       if (!userId) {
-        // Generate a clean UUID for this user
+        // Generate a clean UUID for this driver (no Supabase Auth user needed)
         userId = crypto.randomUUID();
+        console.log(`[fleet] Creating new driver profile: userId=${userId}, phone=${cleanPhone}`);
 
-        // Optionally attempt Supabase Auth creation (non-fatal if SMS provider not configured)
+        // Create profile via direct REST call as a fallback if SDK fails
+        let profileCreated = false;
+
+        // Attempt 1: Use Supabase SDK
         try {
-          const { data: authUser } = await sb.auth.admin.createUser({
-            phone: `+91${cleanPhone}`,
-            phone_confirm: true,
-            user_metadata: { full_name: data.name },
-          });
-          if (authUser?.user?.id) {
-            userId = authUser.user.id;
+          const { error: profileErr } = await sb.from("profiles").upsert(
+            {
+              user_id: userId,
+              full_name: data.name.trim(),
+              phone: cleanPhone,
+            },
+            { onConflict: "user_id" },
+          );
+
+          if (profileErr) {
+            console.error("[fleet] SDK profile upsert error:", profileErr.message);
+          } else {
+            profileCreated = true;
           }
-        } catch {
-          // Supabase SMS provider not enabled; continuing with generated UUID
+        } catch (sdkErr: any) {
+          console.error("[fleet] SDK profile upsert threw:", sdkErr?.message);
         }
 
-        // Create profile
-        const { error: profileErr } = await sb.from("profiles").upsert(
-          {
-            user_id: userId,
-            full_name: data.name,
-            phone: cleanPhone,
-          },
-          { onConflict: "user_id" },
-        );
+        // Attempt 2: Direct REST API fallback if SDK failed
+        if (!profileCreated) {
+          console.log("[fleet] Trying direct REST API for profile creation...");
+          try {
+            const SUPABASE_URL =
+              process.env.VITE_SUPABASE_URL ||
+              process.env.SUPABASE_URL ||
+              "https://bqmqnzkmhmuuszwsonds.supabase.co";
+            const SERVICE_KEY =
+              (process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("eyJ")
+                ? process.env.SUPABASE_SERVICE_ROLE_KEY
+                : "") ||
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
 
-        if (profileErr) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 12_000);
+            const res = await fetch(
+              `${SUPABASE_URL}/rest/v1/profiles`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  apikey: SERVICE_KEY,
+                  Authorization: `Bearer ${SERVICE_KEY}`,
+                  Prefer: "resolution=merge-duplicates",
+                },
+                body: JSON.stringify({
+                  user_id: userId,
+                  full_name: data.name.trim(),
+                  phone: cleanPhone,
+                }),
+                signal: controller.signal,
+              },
+            );
+            clearTimeout(timer);
+
+            if (res.ok || res.status === 201 || res.status === 200) {
+              profileCreated = true;
+              console.log("[fleet] Direct REST profile creation succeeded");
+            } else {
+              const body = await res.text();
+              console.error("[fleet] Direct REST profile creation failed:", res.status, body);
+            }
+          } catch (restErr: any) {
+            console.error("[fleet] Direct REST profile creation threw:", restErr?.message);
+          }
+        }
+
+        if (!profileCreated) {
           return {
             ok: false as const,
-            error: `Failed to create driver profile: ${profileErr.message}`,
+            error: "Failed to create driver profile after multiple attempts. Please try again.",
           };
         }
       } else {
