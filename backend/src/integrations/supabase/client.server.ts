@@ -2,12 +2,7 @@
 // Server-side Supabase client with service role key - bypasses RLS.
 // Use this for admin operations in server functions and server routes only.
 // For user-authenticated queries (with RLS), use the auth middleware instead.
-import dns from "node:dns";
-if (typeof dns?.setDefaultResultOrder === "function") {
-  dns.setDefaultResultOrder("ipv4first");
-}
-import "@/lib/network.server";
-
+import https from "node:https";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
@@ -15,11 +10,92 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
+/**
+ * Bulletproof Node.js HTTPS fetch adapter that forces IPv4 (family: 4).
+ * Completely bypasses Node Undici dual-stack IPv6 drop/timeout issues on Render containers.
+ */
+export function nodeHttpsFetch(urlStr: string, options: RequestInit = {}): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const headers: Record<string, string> = {};
+      if (options.headers) {
+        new Headers(options.headers).forEach((v, k) => {
+          headers[k] = v;
+        });
+      }
+
+      const req = https.request(
+        {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port ? Number(url.port) : 443,
+          path: url.pathname + url.search,
+          method: options.method || "GET",
+          headers,
+          family: 4, // Strict IPv4 socket
+          timeout: 15_000,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+          res.on("end", () => {
+            const buffer = Buffer.concat(chunks);
+            const responseHeaders = new Headers();
+            for (const [key, value] of Object.entries(res.headers)) {
+              if (Array.isArray(value)) {
+                value.forEach((v) => responseHeaders.append(key, v));
+              } else if (value !== undefined) {
+                responseHeaders.set(key, value);
+              }
+            }
+
+            const hasNoBody =
+              res.statusCode === 204 || res.statusCode === 205 || res.statusCode === 304;
+
+            const response = new Response(hasNoBody ? null : buffer, {
+              status: res.statusCode || 200,
+              statusText: res.statusMessage || "OK",
+              headers: responseHeaders,
+            });
+            resolve(response);
+          });
+        },
+      );
+
+      req.on("timeout", () => {
+        req.destroy(new Error("Supabase HTTPS connection timed out"));
+      });
+
+      req.on("error", (err) => {
+        reject(err);
+      });
+
+      if (options.body) {
+        req.write(
+          typeof options.body === "string" ? options.body : JSON.stringify(options.body),
+        );
+      }
+
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 function createSupabaseFetch(
   supabaseKey: string,
-  { maxRetries = 3, timeoutMs = 15_000 } = {},
+  { maxRetries = 3 } = {},
 ): typeof fetch {
-  return async (input, init) => {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
     const headers = new Headers(
       typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
@@ -41,33 +117,18 @@ function createSupabaseFetch(
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-          const response = await fetch(input, {
-            ...init,
-            headers,
-            signal: controller.signal,
-          });
-          clearTimeout(timer);
-          return response;
-        } catch (err) {
-          clearTimeout(timer);
-          throw err;
-        }
+        return await nodeHttpsFetch(urlStr, { ...init, headers });
       } catch (err: unknown) {
         lastError = err;
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[Supabase] fetch attempt ${attempt}/${maxRetries} failed: ${msg}`,
-        );
+        console.warn(`[Supabase HTTPS] Attempt ${attempt}/${maxRetries} failed: ${msg}`);
         if (attempt < maxRetries) {
-          await new Promise((r) => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, 400 * attempt));
         }
       }
     }
     throw lastError;
-  };
+  }) as typeof fetch;
 }
 
 if (typeof globalThis.WebSocket === "undefined") {

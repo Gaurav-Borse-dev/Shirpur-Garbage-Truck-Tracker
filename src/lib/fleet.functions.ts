@@ -127,10 +127,12 @@ export const addFleetDriver = createServerFn({ method: "POST" })
         Authorization: `Bearer ${SERVICE_KEY}`,
       };
 
+      const { nodeHttpsFetch } = await import("@/integrations/supabase/client.server");
+
       // 2a. Query profile
       let userId: string | null = null;
       try {
-        const profRes = await fetch(
+        const profRes = await nodeHttpsFetch(
           `${SUPABASE_URL}/rest/v1/profiles?or=(phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.%2B91${cleanPhone})&select=user_id`,
           { headers },
         );
@@ -145,7 +147,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       // 2b. Create or update profile
       if (!userId) {
         userId = crypto.randomUUID();
-        const createProfRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=user_id`, {
+        const createProfRes = await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=user_id`, {
           method: "POST",
           headers: { ...headers, Prefer: "resolution=merge-duplicates,return=representation" },
           body: JSON.stringify({
@@ -160,7 +162,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
           return { ok: false as const, error: `Failed to create profile: ${body || createProfRes.statusText}` };
         }
       } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}`, {
+        await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}`, {
           method: "PATCH",
           headers,
           body: JSON.stringify({ full_name: data.name.trim(), phone: cleanPhone }),
@@ -171,7 +173,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       let driverId: string | null = null;
       let action = "created";
       try {
-        const dRes = await fetch(`${SUPABASE_URL}/rest/v1/drivers?user_id=eq.${userId}&select=id`, {
+        const dRes = await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/drivers?user_id=eq.${userId}&select=id`, {
           headers,
         });
         if (dRes.ok) {
@@ -184,7 +186,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
 
       if (driverId) {
         action = "updated";
-        await fetch(`${SUPABASE_URL}/rest/v1/drivers?id=eq.${driverId}`, {
+        await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/drivers?id=eq.${driverId}`, {
           method: "PATCH",
           headers,
           body: JSON.stringify({
@@ -193,7 +195,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
           }),
         });
       } else {
-        const insDRes = await fetch(`${SUPABASE_URL}/rest/v1/drivers`, {
+        const insDRes = await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/drivers`, {
           method: "POST",
           headers: { ...headers, Prefer: "return=representation" },
           body: JSON.stringify({
@@ -213,7 +215,7 @@ export const addFleetDriver = createServerFn({ method: "POST" })
       }
 
       // 2d. Assign role
-      await fetch(`${SUPABASE_URL}/rest/v1/user_roles?on_conflict=user_id,role`, {
+      await nodeHttpsFetch(`${SUPABASE_URL}/rest/v1/user_roles?on_conflict=user_id,role`, {
         method: "POST",
         headers: { ...headers, Prefer: "resolution=ignore-duplicates" },
         body: JSON.stringify({ user_id: userId, role: "driver" }),
