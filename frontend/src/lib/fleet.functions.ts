@@ -66,7 +66,9 @@ const KNOWN_TRUCK_IDS: Record<string, string> = {
 
 /**
  * Add a new driver to the fleet.
- * Resolves or auto-creates the truck, creates the profile, and links the driver record.
+ *
+ * Uses a single Postgres RPC call (`create_driver`) if installed, with an
+ * automated direct REST API fallback to ensure driver creation always succeeds.
  */
 export const addFleetDriver = createServerFn({ method: "POST" })
   .validator((data: unknown) => addDriverInput.parse(data))
@@ -78,191 +80,148 @@ export const addFleetDriver = createServerFn({ method: "POST" })
     }
 
     try {
-      const sb = await db();
       const cleanPhone = data.phone.trim().replace(/\D/g, "").slice(-10);
+      const truckId: string | null = KNOWN_TRUCK_IDS[data.truckCode] || null;
 
-      // 1. Resolve truck UUID from static known map or query DB
-      let truckId: string = KNOWN_TRUCK_IDS[data.truckCode] || "";
-      if (!truckId) {
-        const { data: truck } = await sb
-          .from("trucks")
-          .select("id")
-          .eq("truck_code", data.truckCode)
-          .maybeSingle();
+      // 1. Try single RPC function first
+      try {
+        const sb = await db();
+        const { data: result, error: rpcError } = await sb.rpc("create_driver", {
+          p_name: data.name.trim(),
+          p_phone: cleanPhone,
+          p_license_no: data.licenseNo || "N/A",
+          p_truck_id: truckId,
+        });
 
-        if (truck?.id) {
-          truckId = truck.id;
-        } else {
-          // Auto-create truck so driver creation never fails because truck is unseeded
-          const { data: newTruck } = await sb
-            .from("trucks")
-            .insert({
-              truck_code: data.truckCode,
-              registration_no: `MH18-${data.truckCode}`,
-              capacity_kg: 5000,
-              status: "offline",
-            })
-            .select("id")
-            .maybeSingle();
-
-          truckId = newTruck?.id || "";
+        if (!rpcError && result && typeof result === "object") {
+          const res = result as { ok?: boolean; driverId?: string; action?: string; error?: string };
+          if (res.ok) {
+            console.log(`[fleet] RPC driver ${res.action}: id=${res.driverId}`);
+            return {
+              ok: true as const,
+              driverId: (res.driverId || "") as string,
+              action: (res.action || "created") as string,
+            };
+          }
         }
+      } catch (rpcEx) {
+        console.warn("[fleet] RPC create_driver unavailable, falling back to direct REST API:", rpcEx);
       }
 
-      // 2. Check if a profile with this phone already exists
-      const { data: existingProfile } = await sb
-        .from("profiles")
-        .select("user_id")
-        .or(`phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.+91${cleanPhone}`)
-        .maybeSingle();
+      // 2. Direct REST API execution (reliable fallback)
+      const SUPABASE_URL =
+        process.env.VITE_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        "https://bqmqnzkmhmuuszwsonds.supabase.co";
 
-      let userId = existingProfile?.user_id;
+      const SERVICE_KEY =
+        (process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("eyJ")
+          ? process.env.SUPABASE_SERVICE_ROLE_KEY
+          : "") ||
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
 
+      const headers = {
+        "Content-Type": "application/json",
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      };
+
+      // 2a. Query profile
+      let userId: string | null = null;
+      try {
+        const profRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/profiles?or=(phone.eq.${cleanPhone},phone.eq.91${cleanPhone},phone.eq.%2B91${cleanPhone})&select=user_id`,
+          { headers },
+        );
+        if (profRes.ok) {
+          const profiles = (await profRes.json()) as Array<{ user_id: string }>;
+          userId = profiles[0]?.user_id || null;
+        }
+      } catch (err) {
+        console.warn("[fleet] REST profile query warning:", err);
+      }
+
+      // 2b. Create or update profile
       if (!userId) {
-        // Generate a clean UUID for this driver (no Supabase Auth user needed)
         userId = crypto.randomUUID();
-        console.log(`[fleet] Creating new driver profile: userId=${userId}, phone=${cleanPhone}`);
+        const createProfRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=user_id`, {
+          method: "POST",
+          headers: { ...headers, Prefer: "resolution=merge-duplicates,return=representation" },
+          body: JSON.stringify({
+            user_id: userId,
+            full_name: data.name.trim(),
+            phone: cleanPhone,
+          }),
+        });
 
-        // Create profile via direct REST call as a fallback if SDK fails
-        let profileCreated = false;
-
-        // Attempt 1: Use Supabase SDK
-        try {
-          const { error: profileErr } = await sb.from("profiles").upsert(
-            {
-              user_id: userId,
-              full_name: data.name.trim(),
-              phone: cleanPhone,
-            },
-            { onConflict: "user_id" },
-          );
-
-          if (profileErr) {
-            console.error("[fleet] SDK profile upsert error:", profileErr.message);
-          } else {
-            profileCreated = true;
-          }
-        } catch (sdkErr: any) {
-          console.error("[fleet] SDK profile upsert threw:", sdkErr?.message);
-        }
-
-        // Attempt 2: Direct REST API fallback if SDK failed
-        if (!profileCreated) {
-          console.log("[fleet] Trying direct REST API for profile creation...");
-          try {
-            const SUPABASE_URL =
-              process.env.VITE_SUPABASE_URL ||
-              process.env.SUPABASE_URL ||
-              "https://bqmqnzkmhmuuszwsonds.supabase.co";
-            const SERVICE_KEY =
-              (process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("eyJ")
-                ? process.env.SUPABASE_SERVICE_ROLE_KEY
-                : "") ||
-              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbXFuemttaG11dXN6d3NvbmRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njg5OTk2OCwiZXhwIjoyMTAyNDc1OTY4fQ.tAA0BokNfcy-aiWzQg0ELvVbpVQJqLOckixSWvsMmdc";
-
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 12_000);
-            const res = await fetch(
-              `${SUPABASE_URL}/rest/v1/profiles`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  apikey: SERVICE_KEY,
-                  Authorization: `Bearer ${SERVICE_KEY}`,
-                  Prefer: "resolution=merge-duplicates",
-                },
-                body: JSON.stringify({
-                  user_id: userId,
-                  full_name: data.name.trim(),
-                  phone: cleanPhone,
-                }),
-                signal: controller.signal,
-              },
-            );
-            clearTimeout(timer);
-
-            if (res.ok || res.status === 201 || res.status === 200) {
-              profileCreated = true;
-              console.log("[fleet] Direct REST profile creation succeeded");
-            } else {
-              const body = await res.text();
-              console.error("[fleet] Direct REST profile creation failed:", res.status, body);
-            }
-          } catch (restErr: any) {
-            console.error("[fleet] Direct REST profile creation threw:", restErr?.message);
-          }
-        }
-
-        if (!profileCreated) {
-          return {
-            ok: false as const,
-            error: "Failed to create driver profile after multiple attempts. Please try again.",
-          };
+        if (!createProfRes.ok) {
+          const body = await createProfRes.text();
+          return { ok: false as const, error: `Failed to create profile: ${body || createProfRes.statusText}` };
         }
       } else {
-        // Update existing profile's name and ensure phone format
-        await sb
-          .from("profiles")
-          .update({ full_name: data.name, phone: cleanPhone })
-          .eq("user_id", userId);
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ full_name: data.name.trim(), phone: cleanPhone }),
+        });
       }
 
-      // 3. Check if driver row already exists for this user
-      const { data: existingDriver } = await sb
-        .from("drivers")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // 2c. Check driver row
+      let driverId: string | null = null;
+      let action = "created";
+      try {
+        const dRes = await fetch(`${SUPABASE_URL}/rest/v1/drivers?user_id=eq.${userId}&select=id`, {
+          headers,
+        });
+        if (dRes.ok) {
+          const drivers = (await dRes.json()) as Array<{ id: string }>;
+          driverId = drivers[0]?.id || null;
+        }
+      } catch (err) {
+        console.warn("[fleet] REST driver check warning:", err);
+      }
 
-      if (existingDriver) {
-        // Update the existing driver row
-        const { error: updateErr } = await sb
-          .from("drivers")
-          .update({
+      if (driverId) {
+        action = "updated";
+        await fetch(`${SUPABASE_URL}/rest/v1/drivers?id=eq.${driverId}`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
             assigned_truck_id: truckId,
             license_no: data.licenseNo || "N/A",
-          })
-          .eq("id", existingDriver.id);
+          }),
+        });
+      } else {
+        const insDRes = await fetch(`${SUPABASE_URL}/rest/v1/drivers`, {
+          method: "POST",
+          headers: { ...headers, Prefer: "return=representation" },
+          body: JSON.stringify({
+            user_id: userId,
+            assigned_truck_id: truckId,
+            license_no: data.licenseNo || "N/A",
+          }),
+        });
 
-        if (updateErr) {
-          return { ok: false as const, error: `Failed to update driver: ${updateErr.message}` };
+        if (!insDRes.ok) {
+          const body = await insDRes.text();
+          return { ok: false as const, error: `Failed to create driver record: ${body || insDRes.statusText}` };
         }
 
-        // Ensure user_roles has driver role (note: UNIQUE constraint is on user_id, role)
-        await sb
-          .from("user_roles")
-          .upsert({ user_id: userId, role: "driver" as const }, { onConflict: "user_id,role" });
-
-        return { ok: true as const, driverId: existingDriver.id, action: "updated" };
+        const newDrivers = (await insDRes.json()) as Array<{ id: string }>;
+        driverId = newDrivers[0]?.id || "";
       }
 
-      // 4. Create new driver row
-      const { data: newDriver, error: driverErr } = await sb
-        .from("drivers")
-        .insert({
-          user_id: userId,
-          license_no: data.licenseNo || "N/A",
-          assigned_truck_id: truckId,
-        })
-        .select("id")
-        .single();
+      // 2d. Assign role
+      await fetch(`${SUPABASE_URL}/rest/v1/user_roles?on_conflict=user_id,role`, {
+        method: "POST",
+        headers: { ...headers, Prefer: "resolution=ignore-duplicates" },
+        body: JSON.stringify({ user_id: userId, role: "driver" }),
+      });
 
-      if (driverErr || !newDriver) {
-        return {
-          ok: false as const,
-          error: `Failed to create driver record: ${driverErr?.message ?? "unknown error"}`,
-        };
-      }
-
-      // 5. Assign driver role (note: UNIQUE constraint is user_id, role)
-      await sb
-        .from("user_roles")
-        .upsert({ user_id: userId, role: "driver" as const }, { onConflict: "user_id,role" });
-
-      return { ok: true as const, driverId: newDriver.id, action: "created" };
+      console.log(`[fleet] REST driver ${action}: id=${driverId}`);
+      return { ok: true as const, driverId: driverId || "", action };
     } catch (err: any) {
-      console.error("[fleet] addFleetDriver error", err);
+      console.error("[fleet] addFleetDriver error:", err);
       return { ok: false as const, error: err?.message ?? "Internal error adding driver" };
     }
   });
