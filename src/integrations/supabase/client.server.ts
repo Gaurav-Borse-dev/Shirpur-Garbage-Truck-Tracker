@@ -2,6 +2,7 @@
 // Server-side Supabase client with service role key - bypasses RLS.
 // Use this for admin operations in server functions and server routes only.
 // For user-authenticated queries (with RLS), use the auth middleware instead.
+import dns from "node:dns";
 import https from "node:https";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
@@ -10,9 +11,46 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
+const KNOWN_SUPABASE_IPS: Record<string, string> = {
+  "bqmqnzkmhmuuszwsonds.supabase.co": "104.18.38.10",
+};
+
 /**
- * Bulletproof Node.js HTTPS fetch adapter that forces IPv4 (family: 4).
- * Completely bypasses Node Undici dual-stack IPv6 drop/timeout issues on Render containers.
+ * Resilient DNS lookup for Node HTTPS client.
+ * If system DNS fails (ENOTFOUND on Render), automatically falls back to known Cloudflare Anycast IPs.
+ */
+function safeLookup(
+  hostname: string,
+  options: any,
+  callback: (err: Error | null, address?: any, family?: number) => void,
+) {
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
+  const isAll = options && options.all;
+
+  dns.lookup(hostname, { ...options, family: 4 }, (err, address, family) => {
+    if (!err && address) {
+      return callback(null, address, family || 4);
+    }
+    const fallbackIp =
+      KNOWN_SUPABASE_IPS[hostname] ||
+      (hostname.endsWith(".supabase.co") ? "104.18.38.10" : null);
+
+    if (fallbackIp) {
+      if (isAll) {
+        return callback(null, [{ address: fallbackIp, family: 4 }]);
+      }
+      return callback(null, fallbackIp, 4);
+    }
+    return callback(err);
+  });
+}
+
+/**
+ * Bulletproof Node.js HTTPS fetch adapter that forces IPv4 (family: 4) with DNS fallback.
+ * Completely bypasses Node Undici dual-stack IPv6 drop and DNS ENOTFOUND issues on Render containers.
  */
 export function nodeHttpsFetch(urlStr: string, options: RequestInit = {}): Promise<Response> {
   return new Promise((resolve, reject) => {
@@ -33,6 +71,8 @@ export function nodeHttpsFetch(urlStr: string, options: RequestInit = {}): Promi
           path: url.pathname + url.search,
           method: options.method || "GET",
           headers,
+          lookup: safeLookup,
+          servername: url.hostname,
           family: 4, // Strict IPv4 socket
           timeout: 15_000,
         },
